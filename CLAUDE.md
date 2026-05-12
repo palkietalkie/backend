@@ -5,8 +5,8 @@ Server-side. Shared product, features, and backend-stack decisions (Clerk, Neon,
 ## Stack
 
 - Language: Python.
-- Inference: PersonaPlex on Lambda Labs A100 (~$1.10/hr). WebSocket protocol to the iOS app. Single US-region instance for MVP. Multi-region (e.g., a Japan-region A100) is a post-launch task once the user base spreads outside the US.
-- API + workers: FastAPI on Fly.io. Always-on small instance ($5/mo entry tier) handles Stripe / ASN webhooks, entitlement endpoint, conversation-start endpoint, and FastAPI BackgroundTasks for NLP pipelines. Move heavy batch jobs to Modal later if load grows.
+- Inference: PersonaPlex on Lambda Labs A100 (~$1.10/hr), region `us-west-1` (San Francisco — closest to Bay Area ICP). WebSocket protocol to the iOS app. Single US-region instance for MVP. Multi-region (e.g., a Japan-region A100) is a post-launch task once the user base spreads outside the US.
+- API + workers: FastAPI on Fly.io, region `sjc` (San Jose — co-located with Lambda Labs us-west-1 to minimize backend → inference RTT). Always-on small instance ($5/mo entry tier) handles Stripe / ASN webhooks, entitlement endpoint, conversation-start endpoint, and FastAPI BackgroundTasks for NLP pipelines. Move heavy batch jobs to Modal later if load grows.
 - NLP: spaCy for tokenization + lemmatization. LLM (Claude / GPT) for mistake detection, native-phrase extraction, phrase alternatives, KG entity extraction.
 - Transcripts: PersonaPlex exposes Inner Monologue text tokens (decoded with SentencePiece) as a "Model response" transcript alongside the audio stream. No separate Whisper pass needed. Reassembly logic required: text tokens occasionally split across frames (e.g., "fl uff" → "fluff").
 - Mistake detection scope: article errors, preposition errors, verb tense, word choice, naturalness. Pronunciation deferred (PersonaPlex doesn't grade pronunciation directly; needs separate pipeline).
