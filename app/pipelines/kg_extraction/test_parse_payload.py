@@ -17,9 +17,7 @@ def test_parse_payload_clean_input() -> None:
         KGEntity(type="person", name="Alice", props={"city": "Paris"}),
         KGEntity(type="place", name="Paris", props={}),
     ]
-    assert relations == [
-        KGRelation(src_name="Alice", relation="LIVES_IN", dst_name="Paris")
-    ]
+    assert relations == [KGRelation(src_name="Alice", relation="LIVES_IN", dst_name="Paris")]
 
 
 def test_parse_payload_drops_malformed_entities() -> None:

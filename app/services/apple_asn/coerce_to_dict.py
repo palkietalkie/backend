@@ -11,10 +11,6 @@ def coerce_to_dict(obj: Any) -> dict[str, Any]:
         import cattrs
 
         result = cattrs.unstructure(obj)
-        return (
-            result
-            if isinstance(result, dict)
-            else dict(getattr(obj, "__dict__", {}) or {})
-        )
+        return result if isinstance(result, dict) else dict(getattr(obj, "__dict__", {}) or {})
     except ImportError:
         return dict(getattr(obj, "__dict__", {}) or {})

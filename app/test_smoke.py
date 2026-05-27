@@ -49,7 +49,7 @@ def test_settings_defaults(monkeypatch) -> None:
     ):
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
-    s = Settings(_env_file=None)
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
     assert s.app_env == "development"
     assert "127.0.0.1" in s.personaplex_ws_url
     get_settings.cache_clear()

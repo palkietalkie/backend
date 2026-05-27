@@ -29,7 +29,5 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
             uid=str(user_id),
         )
         async for record in result:
-            edges.append(
-                {"src": record["src"], "rel": record["rel"], "dst": record["dst"]}
-            )
+            edges.append({"src": record["src"], "rel": record["rel"], "dst": record["dst"]})
     return {"nodes": nodes, "edges": edges}

@@ -30,11 +30,11 @@ Provides a simple activation checkpointing that is compatible with FSDP and torc
 Finally, provides some utilities for CUDA graphing functions.
 """
 
-from contextlib import contextmanager
-from functools import wraps
 import inspect
 import os
 import typing as tp
+from contextlib import contextmanager
+from functools import wraps
 
 import torch
 from torch import cuda
@@ -97,11 +97,10 @@ class Checkpoint(torch.autograd.Function):
         ctx.save_for_backward(*to_save)
         # During the forward, we just make a pass with no gradient computed.
         with torch.no_grad():
-            res = function(*new_args)
-        return res
+            return function(*new_args)
 
     @staticmethod
-    def backward(ctx, *grads) -> tp.Tuple[tp.Optional[torch.Tensor], ...]:
+    def backward(ctx, *grads) -> tuple[torch.Tensor | None, ...]:
         pseudo_tensors = []
         with torch.set_grad_enabled(True):
             # We create leaf tensors to collect the output gradients.
@@ -127,7 +126,7 @@ class Checkpoint(torch.autograd.Function):
         # Now we just ask Torch to compute the derivative of `res` given the gradient coming from above
         # `grads`. The computed gradient will end up into the `pseudo_tensors` grad attributes.
         torch.autograd.backward(res, grads)
-        out: tp.List[tp.Optional[torch.Tensor]] = [None]
+        out: list[torch.Tensor | None] = [None]
         for source in ctx.sources:
             # We still need to output `None` values for non tensor parameters.
             if source == "other":
@@ -190,9 +189,7 @@ def _is_cuda_graph_enabled() -> bool:
     if _disable_cuda_graph:
         return False
     no_cuda_graph = os.environ.get("NO_CUDA_GRAPH", "")
-    if no_cuda_graph.lower() not in {"0", "no", "n", ""}:
-        return False
-    return True
+    return no_cuda_graph.lower() in {"0", "no", "n", ""}
 
 
 @contextmanager
@@ -257,7 +254,7 @@ class CUDAGraphed:
                 raise ValueError(
                     f"Expected {len(target_args)}, but got {args} for CUDA Graphed function."
                 )
-            for idx, (source, target) in enumerate(zip(args, target_args)):
+            for idx, (source, target) in enumerate(zip(args, target_args, strict=False)):
                 if isinstance(target, torch.Tensor):
                     if not isinstance(source, torch.Tensor):
                         raise ValueError(
@@ -290,15 +287,13 @@ class CUDAGraphed:
                     # At this point nothing really happened, so we have to make it run for real.
                     self._graph.replay()
                     return self._output
-                else:
-                    self.warmup_steps -= 1
-                    return self.func(*args)
-            else:
-                assert self._args is not None
-                assert self._output is not None
-                _match_values_copy_tensors(args, self._args)
-                self._graph.replay()
-                return self._output
+                self.warmup_steps -= 1
+                return self.func(*args)
+            assert self._args is not None
+            assert self._output is not None
+            _match_values_copy_tensors(args, self._args)
+            self._graph.replay()
+            return self._output
 
 
 def cuda_graph(func: tp.Callable, warmup_steps: int = 1):

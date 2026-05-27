@@ -43,56 +43,59 @@ from app.routers.stats.list_phrases import router as stats_phrases_router
 from app.routers.webhooks.handle_apple_asn_webhook import router as apple_asn_webhook_router
 from app.routers.webhooks.handle_stripe_webhook import router as stripe_webhook_router
 
-_settings = get_settings()
 
-app = FastAPI(
-    title="Palkie Talkie API",
-    version="0.1.0",
-    lifespan=lifespan,
-)
+def create_app() -> FastAPI:
+    # Factory so tests can build a fresh FastAPI with isolated dependency_overrides per test.
+    settings = get_settings()
+    fastapi_app = FastAPI(
+        title="Palkie Talkie API",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    fastapi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    @fastapi_app.get("/health", tags=["health"])
+    async def health() -> dict[str, str]:
+        return {"status": "ok", "env": settings.app_env}
+
+    fastapi_app.include_router(conversation_start_router)
+    fastapi_app.include_router(conversation_transcript_router)
+    fastapi_app.include_router(conversation_end_router)
+    fastapi_app.include_router(conversation_sessions_router)
+    fastapi_app.include_router(stripe_webhook_router)
+    fastapi_app.include_router(apple_asn_webhook_router)
+    fastapi_app.include_router(entitlement_router)
+    fastapi_app.include_router(personas_list_router)
+    fastapi_app.include_router(personas_create_router)
+    fastapi_app.include_router(personas_update_router)
+    fastapi_app.include_router(personas_delete_router)
+    fastapi_app.include_router(personas_like_router)
+    fastapi_app.include_router(personas_unlike_router)
+    fastapi_app.include_router(stats_overview_router)
+    fastapi_app.include_router(stats_mistakes_router)
+    fastapi_app.include_router(stats_phrases_router)
+    fastapi_app.include_router(stats_cefr_router)
+    fastapi_app.include_router(integrations_connect_google_router)
+    fastapi_app.include_router(integrations_google_callback_router)
+    fastapi_app.include_router(integrations_list_router)
+    fastapi_app.include_router(integrations_apple_events_router)
+    fastapi_app.include_router(integrations_outlook_router)
+    fastapi_app.include_router(profile_fetch_router)
+    fastapi_app.include_router(profile_update_router)
+    fastapi_app.include_router(kg_router)
+    fastapi_app.include_router(content_router)
+    fastapi_app.include_router(devices_router)
+    fastapi_app.include_router(events_router)
+    fastapi_app.include_router(voices_router)
+    fastapi_app.include_router(consent_fetch_router)
+    fastapi_app.include_router(consent_update_router)
+    return fastapi_app
 
 
-@app.get("/health", tags=["health"])
-async def health() -> dict[str, str]:
-    return {"status": "ok", "env": _settings.app_env}
-
-
-app.include_router(conversation_start_router)
-app.include_router(conversation_transcript_router)
-app.include_router(conversation_end_router)
-app.include_router(conversation_sessions_router)
-app.include_router(stripe_webhook_router)
-app.include_router(apple_asn_webhook_router)
-app.include_router(entitlement_router)
-app.include_router(personas_list_router)
-app.include_router(personas_create_router)
-app.include_router(personas_update_router)
-app.include_router(personas_delete_router)
-app.include_router(personas_like_router)
-app.include_router(personas_unlike_router)
-app.include_router(stats_overview_router)
-app.include_router(stats_mistakes_router)
-app.include_router(stats_phrases_router)
-app.include_router(stats_cefr_router)
-app.include_router(integrations_connect_google_router)
-app.include_router(integrations_google_callback_router)
-app.include_router(integrations_list_router)
-app.include_router(integrations_apple_events_router)
-app.include_router(integrations_outlook_router)
-app.include_router(profile_fetch_router)
-app.include_router(profile_update_router)
-app.include_router(kg_router)
-app.include_router(content_router)
-app.include_router(devices_router)
-app.include_router(events_router)
-app.include_router(voices_router)
-app.include_router(consent_fetch_router)
-app.include_router(consent_update_router)
+app = create_app()

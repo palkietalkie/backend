@@ -40,23 +40,22 @@ keep parity with voice-prompt feeding logic in the server.
 """
 
 import argparse
+import json
 import os
 import tarfile
 from pathlib import Path
-import json
-from typing import Optional, List
 
 import numpy as np
-import torch
 import sentencepiece
 import sphn
+import torch
 from huggingface_hub import hf_hub_download
 
 from .client_utils import make_log
-from .models import loaders, LMGen, MimiModel
-from .models.lm import load_audio as lm_load_audio
+from .models import LMGen, MimiModel, loaders
 from .models.lm import _iterate_audio as lm_iterate_audio
 from .models.lm import encode_from_sphn as lm_encode_from_sphn
+from .models.lm import load_audio as lm_load_audio
 
 
 def log(level: str, msg: str):
@@ -73,6 +72,7 @@ def seed_all(seed: int):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
     import random
+
     import numpy as _np
 
     random.seed(seed)
@@ -91,9 +91,7 @@ def wrap_with_system_tags(text: str) -> str:
     return f"<system> {cleaned} <system>"
 
 
-def warmup(
-    mimi: MimiModel, other_mimi: MimiModel, lm_gen: LMGen, device: str, frame_size: int
-):
+def warmup(mimi: MimiModel, other_mimi: MimiModel, lm_gen: LMGen, device: str, frame_size: int):
     """Run a short warmup loop to initialize CUDA graphs and streaming state.
 
     Replicates the same warmup behavior as server.py: zeros → encode → LMGen.step → decode.
@@ -123,13 +121,10 @@ def decode_tokens_to_pcm(
     """
     pcm = mimi.decode(tokens[:, 1:9])
     _ = other_mimi.decode(tokens[:, 1:9])
-    pcm = pcm.detach().cpu().numpy()[0, 0]
-    return pcm
+    return pcm.detach().cpu().numpy()[0, 0]
 
 
-def _get_voice_prompt_dir(
-    voice_prompt_dir: Optional[str], hf_repo: str
-) -> Optional[str]:
+def _get_voice_prompt_dir(voice_prompt_dir: str | None, hf_repo: str) -> str | None:
     """
     If voice_prompt_dir is None:
       - download voices.tgz from HF
@@ -163,12 +158,12 @@ def run_inference(
     output_text: str,
     text_prompt: str,
     voice_prompt_path: str,
-    tokenizer_path: Optional[str],
-    moshi_weight: Optional[str],
-    mimi_weight: Optional[str],
+    tokenizer_path: str | None,
+    moshi_weight: str | None,
+    mimi_weight: str | None,
     hf_repo: str,
     device: str,
-    seed: Optional[int],
+    seed: int | None,
     temp_audio: float,
     temp_text: float,
     topk_audio: int,
@@ -246,9 +241,7 @@ def run_inference(
     else:
         lm_gen.load_voice_prompt(voice_prompt_path)
     lm_gen.text_prompt_tokens = (
-        text_tokenizer.encode(wrap_with_system_tags(text_prompt))
-        if len(text_prompt) > 0
-        else None
+        text_tokenizer.encode(wrap_with_system_tags(text_prompt)) if len(text_prompt) > 0 else None
     )
 
     # 7) Reset streaming and run initial prompt phases
@@ -269,8 +262,8 @@ def run_inference(
 
     # 9) Encode user audio with Mimi (same iterator logic used for voice prompts),
     #    and step the model one frame at a time, collecting decoded PCM frames
-    generated_frames: List[np.ndarray] = []
-    generated_text_tokens: List[str] = []
+    generated_frames: list[np.ndarray] = []
+    generated_text_tokens: list[str] = []
     total_target_samples = user_audio.shape[-1]
 
     for user_encoded in lm_encode_from_sphn(
@@ -379,9 +372,7 @@ def main():
     parser.add_argument(
         "--moshi-weight", type=str, help="Path to a local checkpoint file for Moshi."
     )
-    parser.add_argument(
-        "--mimi-weight", type=str, help="Path to a local checkpoint file for Mimi."
-    )
+    parser.add_argument("--mimi-weight", type=str, help="Path to a local checkpoint file for Mimi.")
     parser.add_argument(
         "--hf-repo",
         type=str,
@@ -411,9 +402,7 @@ def main():
     parser.add_argument(
         "--topk-text", type=int, default=25, help="Text top-k sampling (default: 25)"
     )
-    parser.add_argument(
-        "--greedy", action="store_true", help="Disable sampling (greedy decoding)"
-    )
+    parser.add_argument("--greedy", action="store_true", help="Disable sampling (greedy decoding)")
     parser.add_argument(
         "--device",
         type=str,

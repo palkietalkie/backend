@@ -33,9 +33,7 @@
 import torch
 
 
-def multinomial(
-    input: torch.Tensor, num_samples: int, replacement=False, *, generator=None
-):
+def multinomial(input: torch.Tensor, num_samples: int, replacement=False, *, generator=None):
     """torch.multinomial with arbitrary number of dimensions, and number of candidates on the last dimension.
 
     Args:
@@ -65,8 +63,7 @@ def multinomial(
         q = torch.empty_like(input_).exponential_(1, generator=generator)
         q = input_ / q
         output_ = q.argmax(dim=-1, keepdim=True)
-    output = output_.reshape(*list(input.shape[:-1]), -1)
-    return output
+    return output_.reshape(*list(input.shape[:-1]), -1)
 
 
 def sample_top_k(probs: torch.Tensor, k: int) -> torch.Tensor:
@@ -80,8 +77,7 @@ def sample_top_k(probs: torch.Tensor, k: int) -> torch.Tensor:
     """
     probs, indices = torch.topk(probs, k, dim=-1)
     next_token = multinomial(probs, num_samples=1)
-    next_token = indices.gather(-1, next_token)
-    return next_token
+    return indices.gather(-1, next_token)
 
 
 def sample_top_p(probs: torch.Tensor, p: float) -> torch.Tensor:
@@ -99,8 +95,7 @@ def sample_top_p(probs: torch.Tensor, p: float) -> torch.Tensor:
     probs_sort *= (~mask).float()
     probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
     next_token = multinomial(probs_sort, num_samples=1)
-    next_token = torch.gather(probs_idx, -1, next_token)
-    return next_token
+    return torch.gather(probs_idx, -1, next_token)
 
 
 def sample_token(

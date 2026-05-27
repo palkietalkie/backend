@@ -1,9 +1,7 @@
 from enum import StrEnum
 
 OPENAI_REALTIME_MODEL = "gpt-realtime-mini"
-OPENAI_REALTIME_WS_URL = (
-    f"wss://api.openai.com/v1/realtime?model={OPENAI_REALTIME_MODEL}"
-)
+OPENAI_REALTIME_WS_URL = f"wss://api.openai.com/v1/realtime?model={OPENAI_REALTIME_MODEL}"
 OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 
 

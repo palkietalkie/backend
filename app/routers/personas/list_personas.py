@@ -78,7 +78,5 @@ async def list_personas(
     elif sort == "recent":
         items.sort(key=lambda i: (i.is_preset, i.name.lower()))
     else:
-        items.sort(
-            key=lambda i: (not i.is_owner, not i.is_preset, -i.like_count, i.name.lower())
-        )
+        items.sort(key=lambda i: (not i.is_owner, not i.is_preset, -i.like_count, i.name.lower()))
     return items

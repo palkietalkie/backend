@@ -30,19 +30,20 @@ Optimized for inference.
 See `StreamingTransformer` for more information.
 """
 
+import typing as tp
 from contextlib import ExitStack
 from dataclasses import dataclass
-import typing as tp
 
-from einops import rearrange
 import torch
 import torch.nn as nn
+from einops import rearrange
 from torch.nn import functional as F
 
-from ..utils.compile import no_compile
+from moshi.utils.compile import no_compile
+
 from .gating import make_gating
 from .rope import RotaryEmbedding
-from .streaming import StreamingModule, StreamingContainer
+from .streaming import StreamingContainer, StreamingModule
 
 
 class LayerNormF32(nn.LayerNorm):
@@ -55,7 +56,7 @@ class LayerNormF32(nn.LayerNorm):
 def _rms_norm(
     x: torch.Tensor,
     alpha: torch.Tensor,
-    dtype: tp.Optional[torch.dtype],
+    dtype: torch.dtype | None,
     eps: float,
 ):
     assert x.dim() == 3, f"RMSNorm expects 3D inputs but got {x.shape}"
@@ -63,8 +64,7 @@ def _rms_norm(
     if dtype is not None:
         x = x.to(dtype)
     var = eps + torch.mean(x**2, dim=2, keepdim=True)
-    y = (x * (alpha.to(var) * torch.rsqrt(var))).to(x_dtype)
-    return y
+    return (x * (alpha.to(var) * torch.rsqrt(var))).to(x_dtype)
 
 
 class RMSNorm(nn.Module):
@@ -72,7 +72,7 @@ class RMSNorm(nn.Module):
         self,
         dim: int,
         eps: float = 1e-5,
-        dtype: tp.Optional[torch.dtype] = None,
+        dtype: torch.dtype | None = None,
         device=None,
     ):
         super().__init__()
@@ -109,16 +109,13 @@ class LayerScale(nn.Module):
         super().__init__()
         self.channel_last = channel_last
         self.scale = nn.Parameter(
-            torch.full(
-                (channels,), init, requires_grad=True, device=device, dtype=dtype
-            )
+            torch.full((channels,), init, requires_grad=True, device=device, dtype=dtype)
         )
 
     def forward(self, x: torch.Tensor):
         if self.channel_last:
             return self.scale * x
-        else:
-            return self.scale[:, None] * x
+        return self.scale[:, None] * x
 
 
 def create_norm_fn(norm_type: str, dim: int, **kwargs) -> nn.Module:
@@ -133,16 +130,15 @@ def create_norm_fn(norm_type: str, dim: int, **kwargs) -> nn.Module:
     """
     if norm_type == "layer_norm":
         return nn.LayerNorm(dim, eps=1e-5, **kwargs)
-    elif norm_type == "layer_norm_f32":
+    if norm_type == "layer_norm_f32":
         kwargs.pop("dtype", None)
         return LayerNormF32(dim, eps=1e-8, **kwargs)
-    elif norm_type in {"rms_norm"}:
+    if norm_type in {"rms_norm"}:
         return RMSNorm(dim, eps=1e-5, **kwargs)
-    elif norm_type in {"rms_norm_f32"}:
+    if norm_type in {"rms_norm_f32"}:
         kwargs.pop("dtype", None)
         return RMSNorm(dim, eps=1e-8, dtype=torch.float, **kwargs)
-    else:
-        raise ValueError(f"Unknown norm type: {norm_type}")
+    raise ValueError(f"Unknown norm type: {norm_type}")
 
 
 def create_sin_embedding(
@@ -196,11 +192,10 @@ def multi_linear(
     for t in range(T):
         y = F.linear(x[:, t], weight[t + offset])
         ys.append(y)
-    out = torch.stack(ys, 1)
-    return out
+    return torch.stack(ys, 1)
 
 
-def set_attention_context(model: nn.Module, context: tp.Optional[int] = None) -> None:
+def set_attention_context(model: nn.Module, context: int | None = None) -> None:
     """Deactivates or changes the context span (in time steps) in a model.
     Args:
         model (nn.Module): model over which to look for attentions.
@@ -222,7 +217,7 @@ class KVCacheResult(tp.NamedTuple):
     positions: torch.Tensor
 
     @staticmethod
-    def from_kv(keys: torch.Tensor, values: torch.Tensor) -> "KVCacheResult":
+    def from_kv(keys: torch.Tensor, values: torch.Tensor) -> KVCacheResult:
         B, H, T, D = keys.shape
         assert tuple(values.shape[:-1]) == (B, H, T)
         positions = torch.arange(T, device=keys.device, dtype=torch.long)
@@ -275,9 +270,7 @@ class RingKVCache:
         keys = self.cache[0]
         values = self.cache[1]
 
-        indexes = torch.arange(
-            self.capacity, device=self.end_offset.device, dtype=torch.long
-        )
+        indexes = torch.arange(self.capacity, device=self.end_offset.device, dtype=torch.long)
         invalid = indexes >= self.end_offset
 
         end_index = self.end_offset % self.capacity
@@ -341,8 +334,8 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
         embed_dim: int,
         num_heads: int,
         causal: bool = False,
-        context: tp.Optional[int] = None,
-        rope: tp.Optional[RotaryEmbedding] = None,
+        context: int | None = None,
+        rope: RotaryEmbedding | None = None,
         weights_per_step: int = 0,
         device=None,
         dtype=None,
@@ -366,9 +359,7 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
         # We try to follow the default PyTorch MHA convention, to easily compare results.
         self.in_proj_weight = in_proj.weight
         self.in_proj_bias = in_proj.bias
-        self.out_proj = nn.Linear(
-            embed_dim, mult * embed_dim, bias=False, **factory_kwargs
-        )
+        self.out_proj = nn.Linear(embed_dim, mult * embed_dim, bias=False, **factory_kwargs)
 
     def _init_streaming_state(self, batch_size: int) -> _MHAState:
         if self.context is None:
@@ -384,9 +375,7 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
         # TODO: the following estimation will not work great with FSDP.
         dtype = self.in_proj_weight.dtype
         dim_per_head = self.embed_dim // self.num_heads
-        kv_cache = RingKVCache(
-            batch_size, self.num_heads, dim_per_head, capacity, device, dtype
-        )
+        kv_cache = RingKVCache(batch_size, self.num_heads, dim_per_head, capacity, device, dtype)
         return _MHAState(
             kv_cache,
             offset=torch.zeros(1, device=device, dtype=torch.long),
@@ -397,8 +386,7 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
         state = self._streaming_state
         if state is None:
             return KVCacheResult.from_kv(k, v)
-        else:
-            return state.kv_cache.complete(k, v)
+        return state.kv_cache.complete(k, v)
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor):
         state = self._streaming_state
@@ -413,14 +401,10 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
             offset_cpu = state.offset_cpu
 
         if self.weights_per_step:
-            projected = multi_linear(
-                self.weights_per_step, self.in_proj_weight, query, offset_cpu
-            )
+            projected = multi_linear(self.weights_per_step, self.in_proj_weight, query, offset_cpu)
         else:
             projected = nn.functional.linear(query, self.in_proj_weight)
-        q, k, v = rearrange(
-            projected, "b t (p h d) -> p b h t d", p=3, h=self.num_heads
-        )
+        q, k, v = rearrange(projected, "b t (p h d) -> p b h t d", p=3, h=self.num_heads)
 
         if self.rope:
             q, k = self.rope(q, k, offset, time_before_heads=False)
@@ -428,9 +412,7 @@ class StreamingMultiheadAttention(StreamingModule[_MHAState]):
         k, v, pos_k = self._complete_kv(k, v)
         if self.causal:
             pos_k = pos_k.view(1, -1)
-            pos_q = offset + torch.arange(T, device=q.device, dtype=torch.long).view(
-                -1, 1
-            )
+            pos_q = offset + torch.arange(T, device=q.device, dtype=torch.long).view(-1, 1)
             delta = pos_q - pos_k
             attn_bias = (pos_k >= 0) & (delta >= 0)
             if self.context is not None:
@@ -487,10 +469,10 @@ class StreamingTransformerLayer(StreamingModule[_LayerState]):
         num_heads: int,
         dim_feedforward: int | list[int] = 2048,
         causal: bool = False,
-        context: tp.Optional[int] = None,
-        rope: tp.Optional[RotaryEmbedding] = None,
+        context: int | None = None,
+        rope: RotaryEmbedding | None = None,
         norm: str = "layer_norm",
-        layer_scale: tp.Optional[float] = None,
+        layer_scale: float | None = None,
         gating: str = "none",
         weights_per_step: int = 0,
         activation=F.gelu,
@@ -501,7 +483,7 @@ class StreamingTransformerLayer(StreamingModule[_LayerState]):
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
         # Redefine self_attn to our streaming multi-head attention
-        attn_kwargs: tp.Dict[str, tp.Any] = {
+        attn_kwargs: dict[str, tp.Any] = {
             "embed_dim": d_model,
             "num_heads": num_heads,
         }
@@ -518,9 +500,9 @@ class StreamingTransformerLayer(StreamingModule[_LayerState]):
         self.norm2 = create_norm_fn(norm, d_model, **factory_kwargs)
         # Redefine feedforward layers to expose bias parameter
         self.weights_per_step = weights_per_step
-        self.gating: tp.Optional[nn.Module] = None
-        self.linear1: tp.Optional[nn.Module] = None
-        self.linear2: tp.Optional[nn.Module] = None
+        self.gating: nn.Module | None = None
+        self.linear1: nn.Module | None = None
+        self.linear2: nn.Module | None = None
         self.activation = activation
         self.skip_self_attn = skip_self_attn
 
@@ -531,18 +513,12 @@ class StreamingTransformerLayer(StreamingModule[_LayerState]):
                 f" got {len(dim_feedforward)} != {weights_per_step}"
             )
         if gating == "none":
-            assert (
-                not weights_per_step
-            ), "weights_per_step without gating not supported for now."
-            assert not isinstance(
-                dim_feedforward, list
-            ), "List dim_feedforward without gating not supported for now."
-            self.linear1 = nn.Linear(
-                d_model, dim_feedforward, bias=False, **factory_kwargs
+            assert not weights_per_step, "weights_per_step without gating not supported for now."
+            assert not isinstance(dim_feedforward, list), (
+                "List dim_feedforward without gating not supported for now."
             )
-            self.linear2 = nn.Linear(
-                dim_feedforward, d_model, bias=False, **factory_kwargs
-            )
+            self.linear1 = nn.Linear(d_model, dim_feedforward, bias=False, **factory_kwargs)
+            self.linear2 = nn.Linear(dim_feedforward, d_model, bias=False, **factory_kwargs)
         else:
             self.linear1 = None
             self.linear2 = None
@@ -551,16 +527,11 @@ class StreamingTransformerLayer(StreamingModule[_LayerState]):
                     dim_feedforward = [dim_feedforward] * weights_per_step
                 assert isinstance(dim_feedforward, list), dim_feedforward
                 self.gating = nn.ModuleList(
-                    [
-                        make_gating(gating, d_model, dim, **factory_kwargs)
-                        for dim in dim_feedforward
-                    ]
+                    [make_gating(gating, d_model, dim, **factory_kwargs) for dim in dim_feedforward]
                 )
             else:
                 assert isinstance(dim_feedforward, int)
-                self.gating = make_gating(
-                    gating, d_model, dim_feedforward, **factory_kwargs
-                )
+                self.gating = make_gating(gating, d_model, dim_feedforward, **factory_kwargs)
 
         self.layer_scale_1: nn.Module
         self.layer_scale_2: nn.Module
@@ -655,12 +626,12 @@ class StreamingTransformer(StreamingModule[_TransformerState]):
         num_layers: int,
         dim_feedforward: int | list[int] = 2048,
         causal: bool = False,
-        context: tp.Optional[int] = None,
+        context: int | None = None,
         positional_embedding: str = "sin",
         max_period: float = 10_000,
         positional_scale: float = 1.0,
-        betas: tp.Optional[tp.Tuple[float, float]] = None,
-        layer_class: tp.Type[StreamingTransformerLayer] = StreamingTransformerLayer,
+        betas: tuple[float, float] | None = None,
+        layer_class: type[StreamingTransformerLayer] = StreamingTransformerLayer,
         device=None,
         dtype=None,
         **kwargs,
@@ -674,7 +645,7 @@ class StreamingTransformer(StreamingModule[_TransformerState]):
         self.betas = betas
 
         assert positional_embedding in {"sin", "rope", "sin_rope", "none"}
-        self.rope: tp.Optional[RotaryEmbedding] = None
+        self.rope: RotaryEmbedding | None = None
         if self.positional_embedding in {"rope", "sin_rope"}:
             self.rope = RotaryEmbedding(max_period=max_period)
 
@@ -710,9 +681,7 @@ class StreamingTransformer(StreamingModule[_TransformerState]):
         if self.positional_embedding in {"sin", "sin_rope"}:
             positions = torch.arange(T, device=x.device).view(1, -1, 1)
             positions = positions + offset.view(-1, 1, 1)
-            pos_emb = create_sin_embedding(
-                positions, C, max_period=self.max_period, dtype=x.dtype
-            )
+            pos_emb = create_sin_embedding(positions, C, max_period=self.max_period, dtype=x.dtype)
             x = x + self.positional_scale * pos_emb
 
         for layer in self.layers:
@@ -738,7 +707,7 @@ class ProjectedTransformer(StreamingContainer):
     def __init__(
         self,
         input_dimension: int,
-        output_dimensions: tp.Tuple[int, ...],
+        output_dimensions: tuple[int, ...],
         d_model: int,
         *,
         conv_layout: bool = False,
@@ -758,9 +727,7 @@ class ProjectedTransformer(StreamingContainer):
             if d_model == output_dimension:
                 self.output_projs.append(nn.Identity())
             else:
-                self.output_projs.append(
-                    nn.Linear(d_model, output_dimension, bias=False)
-                )
+                self.output_projs.append(nn.Linear(d_model, output_dimension, bias=False))
 
     def forward(self, x, *args, **kwargs):
         if self.conv_layout:

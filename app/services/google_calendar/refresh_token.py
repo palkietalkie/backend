@@ -12,9 +12,7 @@ from app.config import get_settings
 from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import CalendarTokenRow
 
-TOKEN_URL = (
-    "https://oauth2.googleapis.com/token"  # noqa: S105 — endpoint URL, not a secret
-)
+TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 — endpoint URL, not a secret
 
 
 async def refresh_token(token: CalendarTokenRow, db: DBConn) -> None:

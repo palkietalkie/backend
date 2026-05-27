@@ -3,8 +3,8 @@
 # LICENSE file in the root directory of this source tree.
 """Utilities for the command line client, in particular for handling interactions with the terminal."""
 
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
 
 
 def colorize(text, color):
@@ -56,8 +56,7 @@ class LineEntry:
     def render(self):
         if self.color is None:
             return self.msg
-        else:
-            return colorize(self.msg, self.color)
+        return colorize(self.msg, self.color)
 
     def __len__(self):
         return len(self.msg)
@@ -89,10 +88,7 @@ class Line:
         return len(entry)
 
     def erase(self, count: int = 1):
-        if count:
-            entries = list(self._line[:-count])
-        else:
-            entries = list(self._line)
+        entries = list(self._line[:-count]) if count else list(self._line)
         self._line.clear()
         self.stream.write("\r")
         for entry in entries:

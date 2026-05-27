@@ -45,14 +45,22 @@ image = (
     )
     # Bundle the SRP-split helpers and the canonical HMAC ticket package into /root so the container can import them. voice_app.py (and its decorator-importing siblings voice.py / download_weights.py / warm_voice.py) imports voice_image / ticket_auth_middleware / start_aiohttp_in_thread; without these the WS gets accepted, server sends handshake, then the container dies and iOS waits forever for audio. voice_image.py itself has to be in /root too — it defines `image` (used at build time on the local machine) AND is imported at runtime in the container. ws_ticket/ is the SAME package backend uses (`app/services/ws_ticket/`), bundled into the image so both sides sign with identical logic.
     .add_local_dir("app/services/ws_ticket", remote_path="/root/ws_ticket")
-    .add_local_file("inference/ticket_auth_middleware.py", remote_path="/root/ticket_auth_middleware.py")
-    .add_local_file("inference/start_aiohttp_in_thread.py", remote_path="/root/start_aiohttp_in_thread.py")
+    .add_local_file(
+        "inference/ticket_auth_middleware.py", remote_path="/root/ticket_auth_middleware.py"
+    )
+    .add_local_file(
+        "inference/start_aiohttp_in_thread.py", remote_path="/root/start_aiohttp_in_thread.py"
+    )
     .add_local_file("inference/voice_image.py", remote_path="/root/voice_image.py")
     .add_local_file("inference/voice_app.py", remote_path="/root/voice_app.py")
     .add_local_file("inference/voice.py", remote_path="/root/voice.py")
     .add_local_file("inference/download_weights.py", remote_path="/root/download_weights.py")
     .add_local_file("inference/warm_voice.py", remote_path="/root/warm_voice.py")
-    .add_local_file("inference/inactivity_thresholds.py", remote_path="/root/inactivity_thresholds.py")
+    .add_local_file(
+        "inference/inactivity_thresholds.py", remote_path="/root/inactivity_thresholds.py"
+    )
     .add_local_file("inference/boost_loudness.py", remote_path="/root/boost_loudness.py")
-    .add_local_file("inference/compute_scaledown_window.py", remote_path="/root/compute_scaledown_window.py")
+    .add_local_file(
+        "inference/compute_scaledown_window.py", remote_path="/root/compute_scaledown_window.py"
+    )
 )

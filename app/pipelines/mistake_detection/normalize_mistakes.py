@@ -13,16 +13,12 @@ def normalize_mistakes(raw: list[Any]) -> list[MistakeRecord]:
         corrected = m.get("corrected")
         category = m.get("category")
         if not (
-            isinstance(original, str)
-            and isinstance(corrected, str)
-            and isinstance(category, str)
+            isinstance(original, str) and isinstance(corrected, str) and isinstance(category, str)
         ):
             continue
         if category not in VALID_CATEGORIES:
             continue
         if original.strip() == corrected.strip():
             continue
-        out.append(
-            MistakeRecord(original=original, corrected=corrected, category=category)
-        )
+        out.append(MistakeRecord(original=original, corrected=corrected, category=category))
     return out

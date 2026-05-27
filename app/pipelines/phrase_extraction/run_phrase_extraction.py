@@ -11,9 +11,7 @@ from app.services.neon.fetch_session_user_turns import fetch_session_user_turns
 from app.services.neon.upsert_phrase_freq import upsert_phrase_freq
 
 
-async def run_phrase_extraction(
-    session_id: uuid.UUID, user_id: uuid.UUID, db: DBConn
-) -> int:
+async def run_phrase_extraction(session_id: uuid.UUID, user_id: uuid.UUID, db: DBConn) -> int:
     texts = await fetch_session_user_turns(session_id, db)
     if not texts:
         return 0

@@ -26,16 +26,13 @@ async def upsert_kg(
             )
         for rel in relations:
             # Relationship type is dynamic; sanitize to ASCII upper underscore.
-            rel_type = (
-                "".join(c if c.isalnum() else "_" for c in rel.relation.upper())
-                or "RELATED"
-            )
+            rel_type = "".join(c if c.isalnum() else "_" for c in rel.relation.upper()) or "RELATED"
             await session.run(
                 f"""
                 MATCH (a:Entity {{user_id: $uid, name: $src}})
                 MATCH (b:Entity {{user_id: $uid, name: $dst}})
                 MERGE (a)-[:{rel_type}]->(b)
-                """,
+                """,  # type: ignore[arg-type]
                 uid=str(user_id),
                 src=rel.src_name,
                 dst=rel.dst_name,

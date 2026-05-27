@@ -20,11 +20,11 @@
 # DEALINGS IN THE SOFTWARE.
 
 import logging
-import sys
 import random
 import string
-from typing import Optional
-from ..client_utils import make_log, colorize
+import sys
+
+from moshi.client_utils import colorize, make_log
 
 
 def random_id(n=4):
@@ -35,9 +35,7 @@ def setup_logger(name: str, log_file=None, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
@@ -51,13 +49,9 @@ def setup_logger(name: str, log_file=None, level=logging.INFO):
     return logger
 
 
-def print_log(
-    level: str, msg: str, prefix: Optional[str] = None, info_color: Optional[str] = None
-):
+def print_log(level: str, msg: str, prefix: str | None = None, info_color: str | None = None):
     colorized_msg = (
-        make_log(level, msg)
-        if info_color is None or level != "info"
-        else colorize(msg, info_color)
+        make_log(level, msg) if info_color is None or level != "info" else colorize(msg, info_color)
     )
     if prefix is None:
         print(colorized_msg)
@@ -65,7 +59,7 @@ def print_log(
         print(prefix + colorized_msg)
 
 
-class ColorizedLog(object):
+class ColorizedLog:
     def __init__(self, prefix: str, info_color: str):
         self.prefix = prefix
         self.info_color = info_color

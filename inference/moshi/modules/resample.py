@@ -23,10 +23,9 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import typing as tp
 
-from einops import rearrange
 import torch
+from einops import rearrange
 from torch import nn
 
 from .conv import StreamingConv1d, StreamingConvTranspose1d
@@ -42,7 +41,7 @@ class ConvDownsample1d(nn.Module):
     def __init__(
         self,
         stride: int,
-        dimension: tp.Optional[int] = None,
+        dimension: int | None = None,
         causal: bool = False,
         learnt: bool = False,
         channel_wise: bool = False,
@@ -94,7 +93,7 @@ class ConvTrUpsample1d(nn.Module):
     def __init__(
         self,
         stride: int,
-        dimension: tp.Optional[int] = None,
+        dimension: int | None = None,
         causal: bool = False,
         learnt: bool = False,
         channel_wise: bool = False,

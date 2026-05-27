@@ -78,9 +78,7 @@ class Settings(BaseSettings):
     # --- Google OAuth (Calendar) ---
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
-    google_oauth_redirect_uri: str = (
-        "http://localhost:8000/integrations/google-calendar/callback"
-    )
+    google_oauth_redirect_uri: str = "http://localhost:8000/integrations/google-calendar/callback"
 
     @property
     def cors_origins_list(self) -> list[str]:

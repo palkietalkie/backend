@@ -35,9 +35,7 @@ def build_ws_url(
     decoding_params: dict[str, str] | None = None,
 ) -> str:
     # NVIDIA's reference server expects voice_prompt as the actual filename inside voices.tgz (e.g. NATM1.pt). Append .pt unless the caller already provided an extension.
-    voice_prompt_filename = (
-        voice_id if voice_id.endswith((".pt", ".wav")) else f"{voice_id}.pt"
-    )
+    voice_prompt_filename = voice_id if voice_id.endswith((".pt", ".wav")) else f"{voice_id}.pt"
     params: dict[str, str] = {
         "text_prompt": text_prompt,
         "voice_prompt": voice_prompt_filename,

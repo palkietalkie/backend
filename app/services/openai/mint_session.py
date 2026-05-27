@@ -78,13 +78,9 @@ async def mint_openai_session(
 
     if http_client is None:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                OPENAI_CLIENT_SECRETS_URL, json=payload, headers=headers
-            )
+            response = await client.post(OPENAI_CLIENT_SECRETS_URL, json=payload, headers=headers)
     else:
-        response = await http_client.post(
-            OPENAI_CLIENT_SECRETS_URL, json=payload, headers=headers
-        )
+        response = await http_client.post(OPENAI_CLIENT_SECRETS_URL, json=payload, headers=headers)
 
     if response.status_code >= 400:
         logger.error(
@@ -97,9 +93,7 @@ async def mint_openai_session(
     body = response.json()
     token = body.get("value")
     if not isinstance(token, str) or not token:
-        raise RuntimeError(
-            "OpenAI client_secrets response missing top-level 'value' field"
-        )
+        raise RuntimeError("OpenAI client_secrets response missing top-level 'value' field")
 
     return OpenAISession(
         ws_url=OPENAI_REALTIME_WS_URL,

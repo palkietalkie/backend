@@ -3,9 +3,7 @@ import json
 from app.services.gemma.complete_text import complete_text
 
 
-async def complete_json(
-    prompt: str, *, system: str | None = None, max_tokens: int = 1024
-) -> dict:
+async def complete_json(prompt: str, *, system: str | None = None, max_tokens: int = 1024) -> dict:
     # On parse failure, return an empty dict instead of raising — pipelines should treat that as "no findings".
     text = await complete_text(prompt, system=system, max_tokens=max_tokens)
     if not text:

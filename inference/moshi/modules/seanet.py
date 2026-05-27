@@ -34,9 +34,10 @@ import typing as tp
 import numpy as np
 import torch.nn as nn
 
+from moshi.utils.compile import torch_compile_lazy
+
 from .conv import StreamingConv1d, StreamingConvTranspose1d
-from .streaming import StreamingContainer, StreamingAdd
-from ..utils.compile import torch_compile_lazy
+from .streaming import StreamingAdd, StreamingContainer
 
 
 class SEANetResnetBlock(StreamingContainer):
@@ -60,25 +61,33 @@ class SEANetResnetBlock(StreamingContainer):
     def __init__(
         self,
         dim: int,
-        kernel_sizes: tp.List[int] = [3, 1],
-        dilations: tp.List[int] = [1, 1],
+        kernel_sizes: list[int] = None,
+        dilations: list[int] = None,
         activation: str = "ELU",
-        activation_params: dict = {"alpha": 1.0},
+        activation_params: dict = None,
         norm: str = "none",
-        norm_params: tp.Dict[str, tp.Any] = {},
+        norm_params: dict[str, tp.Any] = None,
         causal: bool = False,
         pad_mode: str = "reflect",
         compress: int = 2,
         true_skip: bool = True,
     ):
+        if norm_params is None:
+            norm_params = {}
+        if activation_params is None:
+            activation_params = {"alpha": 1.0}
+        if dilations is None:
+            dilations = [1, 1]
+        if kernel_sizes is None:
+            kernel_sizes = [3, 1]
         super().__init__()
-        assert len(kernel_sizes) == len(
-            dilations
-        ), "Number of kernel sizes should match number of dilations"
+        assert len(kernel_sizes) == len(dilations), (
+            "Number of kernel sizes should match number of dilations"
+        )
         act = getattr(nn, activation)
         hidden = dim // compress
         block = []
-        for i, (kernel_size, dilation) in enumerate(zip(kernel_sizes, dilations)):
+        for i, (kernel_size, dilation) in enumerate(zip(kernel_sizes, dilations, strict=False)):
             in_chs = dim if i == 0 else hidden
             out_chs = dim if i == len(kernel_sizes) - 1 else hidden
             block += [
@@ -152,11 +161,11 @@ class SEANetEncoder(StreamingContainer):
         dimension: int = 128,
         n_filters: int = 32,
         n_residual_layers: int = 3,
-        ratios: tp.List[int] = [8, 5, 4, 2],
+        ratios: list[int] = None,
         activation: str = "ELU",
-        activation_params: dict = {"alpha": 1.0},
+        activation_params: dict = None,
         norm: str = "none",
-        norm_params: tp.Dict[str, tp.Any] = {},
+        norm_params: dict[str, tp.Any] = None,
         kernel_size: int = 7,
         last_kernel_size: int = 7,
         residual_kernel_size: int = 3,
@@ -166,9 +175,15 @@ class SEANetEncoder(StreamingContainer):
         true_skip: bool = True,
         compress: int = 2,
         disable_norm_outer_blocks: int = 0,
-        mask_fn: tp.Optional[nn.Module] = None,
-        mask_position: tp.Optional[int] = None,
+        mask_fn: nn.Module | None = None,
+        mask_position: int | None = None,
     ):
+        if norm_params is None:
+            norm_params = {}
+        if activation_params is None:
+            activation_params = {"alpha": 1.0}
+        if ratios is None:
+            ratios = [8, 5, 4, 2]
         super().__init__()
         self.channels = channels
         self.dimension = dimension
@@ -180,8 +195,7 @@ class SEANetEncoder(StreamingContainer):
         self.n_blocks = len(self.ratios) + 2  # first and last conv + residual blocks
         self.disable_norm_outer_blocks = disable_norm_outer_blocks
         assert (
-            self.disable_norm_outer_blocks >= 0
-            and self.disable_norm_outer_blocks <= self.n_blocks
+            self.disable_norm_outer_blocks >= 0 and self.disable_norm_outer_blocks <= self.n_blocks
         ), (
             "Number of blocks for which to disable norm is invalid."
             "It should be lower or equal to the actual number of blocks in the network and greater or equal to 0."
@@ -189,7 +203,7 @@ class SEANetEncoder(StreamingContainer):
 
         act = getattr(nn, activation)
         mult = 1
-        model: tp.List[nn.Module] = [
+        model: list[nn.Module] = [
             StreamingConv1d(
                 channels,
                 mult * n_filters,
@@ -247,9 +261,7 @@ class SEANetEncoder(StreamingContainer):
                 mult * n_filters,
                 dimension,
                 last_kernel_size,
-                norm=(
-                    "none" if self.disable_norm_outer_blocks == self.n_blocks else norm
-                ),
+                norm=("none" if self.disable_norm_outer_blocks == self.n_blocks else norm),
                 norm_kwargs=norm_params,
                 causal=causal,
                 pad_mode=pad_mode,
@@ -299,13 +311,13 @@ class SEANetDecoder(StreamingContainer):
         dimension: int = 128,
         n_filters: int = 32,
         n_residual_layers: int = 3,
-        ratios: tp.List[int] = [8, 5, 4, 2],
+        ratios: list[int] = None,
         activation: str = "ELU",
-        activation_params: dict = {"alpha": 1.0},
-        final_activation: tp.Optional[str] = None,
-        final_activation_params: tp.Optional[dict] = None,
+        activation_params: dict = None,
+        final_activation: str | None = None,
+        final_activation_params: dict | None = None,
         norm: str = "none",
-        norm_params: tp.Dict[str, tp.Any] = {},
+        norm_params: dict[str, tp.Any] = None,
         kernel_size: int = 7,
         last_kernel_size: int = 7,
         residual_kernel_size: int = 3,
@@ -317,6 +329,12 @@ class SEANetDecoder(StreamingContainer):
         disable_norm_outer_blocks: int = 0,
         trim_right_ratio: float = 1.0,
     ):
+        if norm_params is None:
+            norm_params = {}
+        if activation_params is None:
+            activation_params = {"alpha": 1.0}
+        if ratios is None:
+            ratios = [8, 5, 4, 2]
         super().__init__()
         self.dimension = dimension
         self.channels = channels
@@ -328,8 +346,7 @@ class SEANetDecoder(StreamingContainer):
         self.n_blocks = len(self.ratios) + 2  # first and last conv + residual blocks
         self.disable_norm_outer_blocks = disable_norm_outer_blocks
         assert (
-            self.disable_norm_outer_blocks >= 0
-            and self.disable_norm_outer_blocks <= self.n_blocks
+            self.disable_norm_outer_blocks >= 0 and self.disable_norm_outer_blocks <= self.n_blocks
         ), (
             "Number of blocks for which to disable norm is invalid."
             "It should be lower or equal to the actual number of blocks in the network and greater or equal to 0."
@@ -337,14 +354,12 @@ class SEANetDecoder(StreamingContainer):
 
         act = getattr(nn, activation)
         mult = int(2 ** len(self.ratios))
-        model: tp.List[nn.Module] = [
+        model: list[nn.Module] = [
             StreamingConv1d(
                 dimension,
                 mult * n_filters,
                 kernel_size,
-                norm=(
-                    "none" if self.disable_norm_outer_blocks == self.n_blocks else norm
-                ),
+                norm=("none" if self.disable_norm_outer_blocks == self.n_blocks else norm),
                 norm_kwargs=norm_params,
                 causal=causal,
                 pad_mode=pad_mode,
@@ -354,9 +369,7 @@ class SEANetDecoder(StreamingContainer):
         # Upsample to raw audio scale
         for i, ratio in enumerate(self.ratios):
             block_norm = (
-                "none"
-                if self.disable_norm_outer_blocks >= self.n_blocks - (i + 1)
-                else norm
+                "none" if self.disable_norm_outer_blocks >= self.n_blocks - (i + 1) else norm
             )
             # Add upsampling layers
             model += [
@@ -414,5 +427,4 @@ class SEANetDecoder(StreamingContainer):
 
     @torch_compile_lazy
     def forward(self, z):
-        y = self.model(z)
-        return y
+        return self.model(z)

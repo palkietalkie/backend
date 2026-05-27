@@ -7,9 +7,7 @@ from app.services.neo4j.fetch_kg import fetch_kg
 
 async def test_fetch_kg_normalizes_records(monkeypatch) -> None:
     fake = FakeDriver()
-    fake.fake_session.enqueue(
-        [{"name": "Alice", "type": "person", "props": {"age": 30}}]
-    )
+    fake.fake_session.enqueue([{"name": "Alice", "type": "person", "props": {"age": 30}}])
     fake.fake_session.enqueue([{"src": "Alice", "rel": "KNOWS", "dst": "Bob"}])
     monkeypatch.setattr(fetch_kg_mod, "get_driver", lambda: fake)
 

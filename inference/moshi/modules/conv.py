@@ -29,10 +29,10 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from dataclasses import dataclass
 import math
 import typing as tp
 import warnings
+from dataclasses import dataclass
 
 import torch
 from torch import nn
@@ -61,10 +61,9 @@ def apply_parametrization_norm(module: nn.Module, norm: str = "none"):
     assert norm in CONV_NORMALIZATIONS
     if norm == "weight_norm":
         return weight_norm(module)
-    else:
-        # We already check was in CONV_NORMALIZATION, so any other choice
-        # doesn't need reparametrization.
-        return module
+    # We already check was in CONV_NORMALIZATION, so any other choice
+    # doesn't need reparametrization.
+    return module
 
 
 def get_extra_padding_for_conv1d(
@@ -77,9 +76,7 @@ def get_extra_padding_for_conv1d(
     return ideal_length - length
 
 
-def pad_for_conv1d(
-    x: torch.Tensor, kernel_size: int, stride: int, padding_total: int = 0
-):
+def pad_for_conv1d(x: torch.Tensor, kernel_size: int, stride: int, padding_total: int = 0):
     """Pad for a convolution to make sure that the last window is full.
     Extra padding is added at the end. This is required to ensure that we can rebuild
     an output of the same length, as otherwise, even with padding, some time steps
@@ -96,7 +93,7 @@ def pad_for_conv1d(
 
 def pad1d(
     x: torch.Tensor,
-    paddings: tp.Tuple[int, int],
+    paddings: tuple[int, int],
     mode: str = "constant",
     value: float = 0.0,
 ):
@@ -115,11 +112,10 @@ def pad1d(
         padded = F.pad(x, paddings, mode, value)
         end = padded.shape[-1] - extra_pad
         return padded[..., :end]
-    else:
-        return F.pad(x, paddings, mode, value)
+    return F.pad(x, paddings, mode, value)
 
 
-def unpad1d(x: torch.Tensor, paddings: tp.Tuple[int, int]):
+def unpad1d(x: torch.Tensor, paddings: tuple[int, int]):
     """Remove padding from x, handling properly zero padding. Only for 1d!"""
     padding_left, padding_right = paddings
     assert padding_left >= 0 and padding_right >= 0, (padding_left, padding_right)
@@ -138,18 +134,17 @@ class NormConv1d(nn.Module):
         *args,
         causal: bool = False,
         norm: str = "none",
-        norm_kwargs: tp.Dict[str, tp.Any] = {},
+        norm_kwargs: dict[str, tp.Any] = None,
         **kwargs,
     ):
+        if norm_kwargs is None:
+            norm_kwargs = {}
         super().__init__()
-        self.conv = apply_parametrization_norm(
-            RawStreamingConv1d(*args, **kwargs), norm
-        )
+        self.conv = apply_parametrization_norm(RawStreamingConv1d(*args, **kwargs), norm)
         self.norm_type = norm
 
     def forward(self, x):
-        x = self.conv(x)
-        return x
+        return self.conv(x)
 
 
 class NormConvTranspose1d(nn.Module):
@@ -162,18 +157,17 @@ class NormConvTranspose1d(nn.Module):
         *args,
         causal: bool = False,
         norm: str = "none",
-        norm_kwargs: tp.Dict[str, tp.Any] = {},
+        norm_kwargs: dict[str, tp.Any] = None,
         **kwargs,
     ):
+        if norm_kwargs is None:
+            norm_kwargs = {}
         super().__init__()
-        self.convtr = apply_parametrization_norm(
-            RawStreamingConvTranspose1d(*args, **kwargs), norm
-        )
+        self.convtr = apply_parametrization_norm(RawStreamingConvTranspose1d(*args, **kwargs), norm)
         self.norm_type = norm
 
     def forward(self, x):
-        x = self.convtr(x)
-        return x
+        return self.convtr(x)
 
 
 @dataclass
@@ -201,15 +195,18 @@ class StreamingConv1d(StreamingModule[_StreamingConv1dState]):
         bias: bool = True,
         causal: bool = False,
         norm: str = "none",
-        norm_kwargs: tp.Dict[str, tp.Any] = {},
+        norm_kwargs: dict[str, tp.Any] = None,
         pad_mode: str = "reflect",
     ):
+        if norm_kwargs is None:
+            norm_kwargs = {}
         super().__init__()
         # warn user on unusual setup between dilation and stride
         if stride > 1 and dilation > 1:
             warnings.warn(
                 "StreamingConv1d has been initialized with stride > 1 and dilation > 1"
-                f" (kernel_size={kernel_size} stride={stride}, dilation={dilation})."
+                f" (kernel_size={kernel_size} stride={stride}, dilation={dilation}).",
+                stacklevel=2,
             )
         self.conv = NormConv1d(
             in_channels,
@@ -237,9 +234,7 @@ class StreamingConv1d(StreamingModule[_StreamingConv1dState]):
     @property
     def _effective_kernel_size(self) -> int:
         dilation = self.conv.conv.dilation[0]
-        return (
-            self._kernel_size - 1
-        ) * dilation + 1  # effective kernel size with dilations
+        return (self._kernel_size - 1) * dilation + 1  # effective kernel size with dilations
 
     @property
     def _padding_total(self) -> int:
@@ -264,9 +259,7 @@ class StreamingConv1d(StreamingModule[_StreamingConv1dState]):
                 # Asymmetric padding required for odd strides
                 padding_right = padding_total // 2
                 padding_left = padding_total - padding_right
-                x = pad1d(
-                    x, (padding_left, padding_right + extra_padding), mode=self.pad_mode
-                )
+                x = pad1d(x, (padding_left, padding_right + extra_padding), mode=self.pad_mode)
         else:
             if state.padding_to_add > 0 and x.shape[-1] > 0:
                 x = pad1d(x, (state.padding_to_add, 0), mode=self.pad_mode)
@@ -298,8 +291,10 @@ class StreamingConvTranspose1d(StreamingModule[_StreamingConvTr1dState]):
         causal: bool = False,
         norm: str = "none",
         trim_right_ratio: float = 1.0,
-        norm_kwargs: tp.Dict[str, tp.Any] = {},
+        norm_kwargs: dict[str, tp.Any] = None,
     ):
+        if norm_kwargs is None:
+            norm_kwargs = {}
         super().__init__()
         self.convtr = NormConvTranspose1d(
             in_channels,
@@ -314,9 +309,9 @@ class StreamingConvTranspose1d(StreamingModule[_StreamingConvTr1dState]):
         )
         self.causal = causal
         self.trim_right_ratio = trim_right_ratio
-        assert (
-            self.causal or self.trim_right_ratio == 1.0
-        ), "`trim_right_ratio` != 1.0 only makes sense for causal convolutions"
+        assert self.causal or self.trim_right_ratio == 1.0, (
+            "`trim_right_ratio` != 1.0 only makes sense for causal convolutions"
+        )
         assert self.trim_right_ratio >= 0.0 and self.trim_right_ratio <= 1.0
 
     def _init_streaming_state(self, batch_size: int) -> _StreamingConvTr1dState:

@@ -1,7 +1,6 @@
 import os
 
 import modal
-
 from voice_app import HF_REPO, IMAGE, app, weights_volume
 
 

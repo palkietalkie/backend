@@ -22,7 +22,7 @@ import pytest
 from testcontainers.postgres import PostgresContainer
 
 if TYPE_CHECKING:
-    from app.db.session import DBConn
+    from app.services.neon.db_conn import DBConn
 
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("CLERK_JWKS_URL", "https://test.clerk.test/.well-known/jwks.json")
@@ -45,12 +45,8 @@ _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 async def _init_connection(conn: DBConn) -> None:
-    await conn.set_type_codec(
-        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
-    )
-    await conn.set_type_codec(
-        "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
-    )
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+    await conn.set_type_codec("json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
 
 
 async def _apply_migrations(url: str) -> None:
@@ -97,9 +93,7 @@ def db_url() -> Iterator[str]:
 @pytest.fixture
 async def pool(db_url: str) -> AsyncIterator[asyncpg.Pool]:
     """One pool per test so each connection lives on the test's event loop."""
-    pool = await asyncpg.create_pool(
-        db_url, min_size=1, max_size=4, init=_init_connection
-    )
+    pool = await asyncpg.create_pool(db_url, min_size=1, max_size=4, init=_init_connection)
     try:
         yield pool
     finally:
@@ -159,8 +153,8 @@ async def app_with_overrides(db: DBConn, fake_user: dict):
     from httpx import ASGITransport, AsyncClient
 
     from app.auth.resolve_current_user import resolve_current_user
-    from app.db.session import get_db
     from app.main import create_app
+    from app.services.neon.get_db import get_db
 
     async def _override_get_db() -> AsyncIterator[DBConn]:
         yield db

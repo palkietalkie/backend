@@ -13,39 +13,41 @@
 
 import argparse
 import asyncio
-from dataclasses import dataclass
-import random
+import contextlib
 import os
-from pathlib import Path
-import tarfile
-import time
+import random
 import secrets
 import sys
-from typing import Literal, Optional
+import tarfile
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
 
 import aiohttp
-from aiohttp import web
-from huggingface_hub import hf_hub_download
 import numpy as np
 import sentencepiece
 import sphn
 import torch
-import random
-
-from .client_utils import make_log, colorize
-from .models import loaders, MimiModel, LMModel, LMGen
-from .utils.connection import create_ssl_context, get_lan_ip
-from .utils.logging import setup_logger, ColorizedLog
+from aiohttp import web
 
 # Palkie Talkie modules bundled into /root/ by voice_image.py.
 from boost_loudness import boost_loudness  # noqa: F401
-from inactivity_thresholds import PALKIE_INACTIVITY_TIMEOUT_S, PALKIE_VOICE_RMS_THRESHOLD  # noqa: F401
+from huggingface_hub import hf_hub_download
+from inactivity_thresholds import (  # noqa: F401
+    PALKIE_INACTIVITY_TIMEOUT_S,
+    PALKIE_VOICE_RMS_THRESHOLD,
+)
+
+from .models import LMGen, LMModel, MimiModel, loaders
+from .utils.connection import create_ssl_context, get_lan_ip
+from .utils.logging import ColorizedLog, setup_logger
 
 logger = setup_logger(__name__)
 DeviceString = Literal["cuda"] | Literal["cpu"]  # | Literal["mps"]
 
 
-def torch_auto_device(requested: Optional[DeviceString] = None) -> torch.device:
+def torch_auto_device(requested: DeviceString | None = None) -> torch.device:
     """Return a torch.device based on the requested string or availability."""
     if requested is not None:
         return torch.device(requested)
@@ -117,9 +119,7 @@ class ServerState:
 
     def warmup(self):
         for _ in range(4):
-            chunk = torch.zeros(
-                1, 1, self.frame_size, dtype=torch.float32, device=self.device
-            )
+            chunk = torch.zeros(1, 1, self.frame_size, dtype=torch.float32, device=self.device)
             codes = self.mimi.encode(chunk)
             _ = self.other_mimi.encode(chunk)
             for c in range(codes.shape[-1]):
@@ -162,8 +162,7 @@ class ServerState:
                 raise FileNotFoundError(
                     f"Requested voice prompt '{voice_prompt_filename}' not found in '{self.voice_prompt_dir}'"
                 )
-            else:
-                voice_prompt_path = requested_voice_prompt_path
+            voice_prompt_path = requested_voice_prompt_path
 
         if self.lm_gen.voice_prompt != voice_prompt_path:
             if voice_prompt_path.endswith(".pt"):
@@ -172,9 +171,7 @@ class ServerState:
             else:
                 self.lm_gen.load_voice_prompt(voice_prompt_path)
         self.lm_gen.text_prompt_tokens = (
-            self.text_tokenizer.encode(
-                wrap_with_system_tags(request.query["text_prompt"])
-            )
+            self.text_tokenizer.encode(wrap_with_system_tags(request.query["text_prompt"]))
             if len(request.query["text_prompt"]) > 0
             else None
         )
@@ -187,11 +184,12 @@ class ServerState:
                     if message.type == aiohttp.WSMsgType.ERROR:
                         clog.log("error", f"{ws.exception()}")
                         break
-                    elif message.type == aiohttp.WSMsgType.CLOSED:
+                    if (
+                        message.type == aiohttp.WSMsgType.CLOSED
+                        or message.type == aiohttp.WSMsgType.CLOSE
+                    ):
                         break
-                    elif message.type == aiohttp.WSMsgType.CLOSE:
-                        break
-                    elif message.type != aiohttp.WSMsgType.BINARY:
+                    if message.type != aiohttp.WSMsgType.BINARY:
                         clog.log("error", f"unexpected message type {message.type}")
                         continue
                     message = message.data
@@ -237,18 +235,12 @@ class ServerState:
                 pcm = opus_reader.read_pcm()
                 if pcm is None or pcm.shape[-1] == 0:
                     continue
-                if all_pcm_data is None:
-                    all_pcm_data = pcm
-                else:
-                    all_pcm_data = np.concatenate((all_pcm_data, pcm))
+                all_pcm_data = pcm if all_pcm_data is None else np.concatenate((all_pcm_data, pcm))
                 while all_pcm_data.shape[-1] >= self.frame_size:
-                    be = time.time()
+                    time.time()
                     chunk = all_pcm_data[: self.frame_size]
                     all_pcm_data = all_pcm_data[self.frame_size :]
-                    if (
-                        float(np.sqrt(np.mean(chunk * chunk)))
-                        > PALKIE_VOICE_RMS_THRESHOLD
-                    ):
+                    if float(np.sqrt(np.mean(chunk * chunk))) > PALKIE_VOICE_RMS_THRESHOLD:
                         last_voice_ts = time.time()
                     chunk = torch.from_numpy(chunk)
                     chunk = chunk.to(device=self.device)[None, None]
@@ -262,9 +254,7 @@ class ServerState:
                         main_pcm = self.mimi.decode(tokens[:, 1:9])
                         _ = self.other_mimi.decode(tokens[:, 1:9])
                         main_pcm = main_pcm.cpu()
-                        opus_writer.append_pcm(
-                            boost_loudness(main_pcm[0, 0].detach().numpy())
-                        )
+                        opus_writer.append_pcm(boost_loudness(main_pcm[0, 0].detach().numpy()))
                         text_token = tokens[0, 0, 0].item()
                         if text_token not in (0, 3):
                             _text = self.text_tokenizer.id_to_piece(text_token)  # type: ignore
@@ -272,7 +262,7 @@ class ServerState:
                             msg = b"\x02" + bytes(_text, encoding="utf8")
                             await ws.send_bytes(msg)
                         else:
-                            text_token_map = ["EPAD", "BOS", "EOS", "PAD"]
+                            pass
 
         async def send_loop():
             while True:
@@ -314,7 +304,7 @@ class ServerState:
                         aiohttp.WSMsgType.ERROR,
                     ):
                         return False
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # No messages → client probably still alive
                     return True
                 except aiohttp.ClientConnectionError:
@@ -336,16 +326,12 @@ class ServerState:
                     asyncio.create_task(send_loop()),
                 ]
 
-                done, pending = await asyncio.wait(
-                    tasks, return_when=asyncio.FIRST_COMPLETED
-                )
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
                 # Force-kill remaining tasks
                 for task in pending:
                     task.cancel()
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await task
-                    except asyncio.CancelledError:
-                        pass
                 await ws.close()
                 clog.log("info", "session closed")
                 # await asyncio.gather(opus_loop(), recv_loop(), send_loop())
@@ -353,9 +339,7 @@ class ServerState:
         return ws
 
 
-def _get_voice_prompt_dir(
-    voice_prompt_dir: Optional[str], hf_repo: str
-) -> Optional[str]:
+def _get_voice_prompt_dir(voice_prompt_dir: str | None, hf_repo: str) -> str | None:
     """
     If voice_prompt_dir is None:
       - download voices.tgz from HF
@@ -384,7 +368,7 @@ def _get_voice_prompt_dir(
     return str(voices_dir)
 
 
-def _get_static_path(static: Optional[str]) -> Optional[str]:
+def _get_static_path(static: str | None) -> str | None:
     if static is None:
         logger.info("retrieving the static content")
         dist_tgz = hf_hub_download("nvidia/personaplex-7b-v1", "dist.tgz")
@@ -394,7 +378,7 @@ def _get_static_path(static: Optional[str]) -> Optional[str]:
             with tarfile.open(dist_tgz, "r:gz") as tar:
                 tar.extractall(path=dist_tgz.parent)
         return str(dist)
-    elif static != "none":
+    if static != "none":
         # When set to the "none" string, we don't serve any static content.
         return static
     return None
@@ -405,9 +389,7 @@ def main():
     parser.add_argument("--host", default="localhost", type=str)
     parser.add_argument("--port", default=8998, type=int)
     parser.add_argument("--static", type=str)
-    parser.add_argument(
-        "--gradio-tunnel", action="store_true", help="Activate a gradio tunnel."
-    )
+    parser.add_argument("--gradio-tunnel", action="store_true", help="Activate a gradio tunnel.")
     parser.add_argument(
         "--gradio-tunnel-token",
         help="Provide a custom (secret) token here to keep getting the same URL.",
@@ -417,9 +399,7 @@ def main():
     parser.add_argument(
         "--moshi-weight", type=str, help="Path to a local checkpoint file for Moshi."
     )
-    parser.add_argument(
-        "--mimi-weight", type=str, help="Path to a local checkpoint file for Mimi."
-    )
+    parser.add_argument("--mimi-weight", type=str, help="Path to a local checkpoint file for Mimi.")
     parser.add_argument(
         "--hf-repo",
         type=str,
@@ -463,15 +443,13 @@ def main():
         args.hf_repo,
     )
     if args.voice_prompt_dir is not None:
-        assert os.path.exists(
-            args.voice_prompt_dir
-        ), f"Directory missing: {args.voice_prompt_dir}"
+        assert os.path.exists(args.voice_prompt_dir), f"Directory missing: {args.voice_prompt_dir}"
     logger.info(f"voice_prompt_dir = {args.voice_prompt_dir}")
 
     static_path: None | str = _get_static_path(args.static)
-    assert static_path is None or os.path.exists(
-        static_path
-    ), f"Static path does not exist: {static_path}."
+    assert static_path is None or os.path.exists(static_path), (
+        f"Static path does not exist: {static_path}."
+    )
     logger.info(f"static_path = {static_path}")
     args.device = torch_auto_device(args.device)
 
@@ -512,9 +490,7 @@ def main():
     logger.info("loading moshi")
     if args.moshi_weight is None:
         args.moshi_weight = hf_hub_download(args.hf_repo, loaders.MOSHI_NAME)
-    lm = loaders.get_moshi_lm(
-        args.moshi_weight, device=args.device, cpu_offload=args.cpu_offload
-    )
+    lm = loaders.get_moshi_lm(args.moshi_weight, device=args.device, cpu_offload=args.cpu_offload)
     lm.eval()
     logger.info("moshi loaded")
     state = ServerState(
@@ -537,20 +513,14 @@ def main():
 
         logger.info(f"serving static content from {static_path}")
         app.router.add_get("/", handle_root)
-        app.router.add_static(
-            "/", path=static_path, follow_symlinks=True, name="static"
-        )
+        app.router.add_static("/", path=static_path, follow_symlinks=True, name="static")
     protocol = "http"
     ssl_context = None
     if args.ssl is not None:
         ssl_context, protocol = create_ssl_context(args.ssl)
-    host_ip = (
-        args.host if args.host not in ("0.0.0.0", "::", "localhost") else get_lan_ip()
-    )
+    host_ip = args.host if args.host not in ("0.0.0.0", "::", "localhost") else get_lan_ip()
     logger.info(f"Access the Web UI directly at {protocol}://{host_ip}:{args.port}")
     if setup_tunnel is not None:
         tunnel = setup_tunnel("localhost", args.port, tunnel_token, None)
-        logger.info(
-            f"Tunnel started, if executing on a remote GPU, you can use {tunnel}."
-        )
+        logger.info(f"Tunnel started, if executing on a remote GPU, you can use {tunnel}.")
     web.run_app(app, port=args.port, ssl_context=ssl_context)

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Pre-commit hook for the backend repo.
+# Wired via `git config core.hooksPath scripts/git`.
+# Runs the same checks CI runs (ruff format, ruff check, pyright) so a clean commit lands a green PR.
+# Pytest is intentionally out of scope: too slow + needs Docker (testcontainers).
+
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Prefer the project venv binaries directly (git commit runs hooks with a minimal env that doesn't include any activated venv on PATH).
+VENV_BIN=".venv/bin"
+RUFF="$VENV_BIN/ruff"
+PYRIGHT="$VENV_BIN/pyright"
+
+if [ ! -x "$RUFF" ]; then
+    echo "pre-commit: $RUFF missing — run 'uv pip install -e \".[dev]\"' inside .venv" >&2
+    exit 1
+fi
+if [ ! -x "$PYRIGHT" ]; then
+    echo "pre-commit: $PYRIGHT missing — run 'uv pip install -e \".[dev]\"' inside .venv" >&2
+    exit 1
+fi
+
+echo "pre-commit: ruff format --check"
+"$RUFF" format --check app/ inference/ scripts/ migrations/ conftest.py
+
+echo "pre-commit: ruff check"
+"$RUFF" check app/ inference/ scripts/ migrations/ conftest.py
+
+echo "pre-commit: pyright"
+"$PYRIGHT"

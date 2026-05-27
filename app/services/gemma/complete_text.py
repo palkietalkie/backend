@@ -8,9 +8,7 @@ from app.services.gemma.constants import (
 )
 
 
-async def complete_text(
-    prompt: str, *, system: str | None = None, max_tokens: int = 1024
-) -> str:
+async def complete_text(prompt: str, *, system: str | None = None, max_tokens: int = 1024) -> str:
     # Gemma's generateContent endpoint doesn't accept a separate system_instruction the way Gemini does, so prepend the system prompt to the user message.
     settings = get_settings()
     if not settings.gemini_api_key:
@@ -21,9 +19,7 @@ async def complete_text(
     if system:
         user_text = f"{system}\n\n{prompt}"
     else:
-        user_text = (
-            "You are a precise English-learning analysis assistant.\n\n" + prompt
-        )
+        user_text = "You are a precise English-learning analysis assistant.\n\n" + prompt
 
     body = {
         "contents": [{"role": "user", "parts": [{"text": user_text}]}],

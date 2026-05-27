@@ -6,9 +6,7 @@ from app.services.neon.db_conn import DBConn
 from app.services.neon.fetch_session_user_turns import fetch_session_user_turns
 
 
-async def run_kg_extraction(
-    session_id: uuid.UUID, user_id: uuid.UUID, db: DBConn
-) -> int:
+async def run_kg_extraction(session_id: uuid.UUID, user_id: uuid.UUID, db: DBConn) -> int:
     # Returns total node + edge count written to the KG.
     texts = await fetch_session_user_turns(session_id, db)
     entities, relations = await extract_kg(texts)

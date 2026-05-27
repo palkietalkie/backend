@@ -5,11 +5,7 @@ from app.services.gemma.complete_json import complete_json
 
 
 async def generate_quizzes(news: list[NewsStory]) -> list[Quiz]:
-    seed = (
-        "\n".join(f"- {n.title}" for n in news[:5])
-        if news
-        else "general everyday topics"
-    )
+    seed = "\n".join(f"- {n.title}" for n in news[:5]) if news else "general everyday topics"
     prompt = (
         "Generate 10 short English-conversation prompts (questions an English tutor would ask) "
         "with example answers. Seed topics:\n"

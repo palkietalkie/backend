@@ -34,14 +34,15 @@ Streaming module API that should be implemented by all Streaming components,
 """
 
 import abc
+import itertools
+import json
+import math
 from contextlib import contextmanager
 from dataclasses import dataclass, fields, is_dataclass
-import itertools
-import math
-import json
-from typing import List, Union, Protocol, TypeVar, Generic, Any, Optional
+from typing import Any, Protocol, TypeVar
+
 import torch
-from safetensors.torch import save_file, load_file
+from safetensors.torch import load_file, save_file
 
 
 class Resetable(Protocol):
@@ -50,7 +51,7 @@ class Resetable(Protocol):
 
 
 State = TypeVar("State", bound=Resetable)
-StreamingStateDict = dict[str, Union[torch.Tensor, int, float, str, bool, None]]
+StreamingStateDict = dict[str, torch.Tensor | int | float | str | bool | None]
 
 
 def is_dataclass_instance(obj):
@@ -92,7 +93,7 @@ def _restore_streaming_state_pt(
         raise KeyError(f"Expected to find a streaming state for {name}.")
 
 
-def _set_streaming_state_inplace(
+def _set_streaming_state_inplace[State: Resetable](
     streaming_state: State,
     state_dict: StreamingStateDict,
     prefix: str,
@@ -135,11 +136,11 @@ def _set_streaming_state_inplace(
         )
 
 
-def _restore_streaming_state_from_keys(
+def _restore_streaming_state_from_keys[State: Resetable](
     streaming_state: State,
     state_dict: StreamingStateDict,
     prefix: str,
-    keys: List[str],
+    keys: list[str],
     device: torch.device,
 ):
     """Restores the streaming state from the given `state_dict` dict
@@ -209,9 +210,9 @@ def safe_asdict(dataclass_obj):
     return out
 
 
-def _flatten_streaming_state(
+def _flatten_streaming_state[State: Resetable](
     state_dict: dict[str, torch.Tensor],
-    state_dict_metadata: dict[str, Union[int, float, str, None]],
+    state_dict_metadata: dict[str, int | float | str | None],
     state: dict[str, State],
     prefix: str,
 ):
@@ -264,7 +265,7 @@ def _flatten_streaming_state(
 def load_streaming_state(
     path: str,
     metadata_path: str,
-    device: Union[str, int] = "cpu",
+    device: str | int = "cpu",
 ) -> StreamingStateDict:
     """
     load_streaming_state(path, metadata_path)
@@ -286,13 +287,13 @@ def load_streaming_state(
         The loaded streaming state flattened as a dictionary.
     """
     state_dict = load_file(path, device=device)
-    with open(metadata_path, "rt", encoding="utf-8") as fin:
+    with open(metadata_path, encoding="utf-8") as fin:
         state_dict_metadata = json.load(fin)
     state_dict.update(state_dict_metadata)
     return state_dict
 
 
-class StreamingModule(abc.ABC, torch.nn.Module, Generic[State]):
+class StreamingModule[State: Resetable](abc.ABC, torch.nn.Module):
     """Common API for streaming components.
 
     Each streaming component has a streaming state, which is just a dict[str, Tensor].
@@ -380,9 +381,7 @@ class StreamingModule(abc.ABC, torch.nn.Module, Generic[State]):
         def _reset(name: str, module: StreamingModule):
             state = module._streaming_state
             if state is None:
-                raise ValueError(
-                    f"Trying to reset streaming, but {name} wasn't streaming."
-                )
+                raise ValueError(f"Trying to reset streaming, but {name} wasn't streaming.")
             state.reset()
 
         self._apply_named_streaming(_reset)
@@ -401,7 +400,7 @@ class StreamingModule(abc.ABC, torch.nn.Module, Generic[State]):
         self,
         save_path: str,
         metadata_save_path: str,
-        extra_state_dict: Optional[dict[str, torch.Tensor]] = None,
+        extra_state_dict: dict[str, torch.Tensor] | None = None,
     ):
         """Save the streaming state, including that of sub-modules, to the given paths.
 
@@ -421,7 +420,7 @@ class StreamingModule(abc.ABC, torch.nn.Module, Generic[State]):
         state = self.get_streaming_state()
         _flatten_streaming_state(state_dict, state_dict_metadata, state, prefix="")
         save_file(state_dict, save_path)
-        with open(metadata_save_path, "wt", encoding="utf-8") as fout:
+        with open(metadata_save_path, "w", encoding="utf-8") as fout:
             json.dump(state_dict_metadata, fout)
 
     def set_streaming_state_inplace(self, state: StreamingStateDict):
@@ -432,9 +431,7 @@ class StreamingModule(abc.ABC, torch.nn.Module, Generic[State]):
         device = next(self.parameters()).device
 
         def _set(name: str, module: StreamingModule):
-            _set_streaming_state_inplace(
-                module._streaming_state, state, prefix=name, device=device
-            )
+            _set_streaming_state_inplace(module._streaming_state, state, prefix=name, device=device)
 
         self._apply_named_streaming(_set)
         if state:
@@ -486,17 +483,16 @@ class StreamingAdd(StreamingModule[_StreamingAddState]):
     def forward(self, x: torch.Tensor, y: torch.Tensor):
         if self._streaming_state is None:
             return x + y
-        else:
-            prev_x = self._streaming_state.previous_x
-            prev_y = self._streaming_state.previous_y
-            if prev_x is not None:
-                x = torch.cat([prev_x, x], dim=-1)
-            if prev_y is not None:
-                y = torch.cat([prev_y, y], dim=-1)
-            m_l = min(x.shape[-1], y.shape[-1])
-            self._streaming_state.previous_x = x[..., m_l:]
-            self._streaming_state.previous_y = y[..., m_l:]
-            return x[..., :m_l] + y[..., :m_l]
+        prev_x = self._streaming_state.previous_x
+        prev_y = self._streaming_state.previous_y
+        if prev_x is not None:
+            x = torch.cat([prev_x, x], dim=-1)
+        if prev_y is not None:
+            y = torch.cat([prev_y, y], dim=-1)
+        m_l = min(x.shape[-1], y.shape[-1])
+        self._streaming_state.previous_x = x[..., m_l:]
+        self._streaming_state.previous_y = y[..., m_l:]
+        return x[..., :m_l] + y[..., :m_l]
 
 
 @dataclass
@@ -511,9 +507,7 @@ class RawStreamingConv1d(torch.nn.Conv1d, StreamingModule[_StreamingConvState]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert self.padding[0] == 0, "Padding should be handled outside."
-        assert (
-            self.stride[0] <= self.kernel_size[0]
-        ), "stride must be less than kernel_size."
+        assert self.stride[0] <= self.kernel_size[0], "stride must be less than kernel_size."
 
     def _init_streaming_state(self, batch_size: int) -> _StreamingConvState:
         return _StreamingConvState()
@@ -524,29 +518,26 @@ class RawStreamingConv1d(torch.nn.Conv1d, StreamingModule[_StreamingConvState]):
         kernel = (self.kernel_size[0] - 1) * self.dilation[0] + 1
         if self._streaming_state is None:
             return super().forward(input)
+        # Due to the potential overlap, we might have some cache of the previous time steps.
+        previous = self._streaming_state.previous
+        if previous is not None:
+            input = torch.cat([previous, input], dim=-1)
+        B, C, T = input.shape
+        # We now compute the number of full convolution frames, i.e. the frames
+        # that are ready to be computed.
+        num_frames = max(0, int(math.floor((T - kernel) / stride) + 1))
+        offset = num_frames * stride
+        # We will compute `num_frames` outputs, and we are advancing by `stride`
+        # for each of the frame, so we know the data before `stride * num_frames`
+        # will never be used again.
+        self._streaming_state.previous = input[..., offset:]
+        if num_frames > 0:
+            input_length = (num_frames - 1) * stride + kernel
+            out = super().forward(input[..., :input_length])
         else:
-            # Due to the potential overlap, we might have some cache of the previous time steps.
-            previous = self._streaming_state.previous
-            if previous is not None:
-                input = torch.cat([previous, input], dim=-1)
-            B, C, T = input.shape
-            # We now compute the number of full convolution frames, i.e. the frames
-            # that are ready to be computed.
-            num_frames = max(0, int(math.floor((T - kernel) / stride) + 1))
-            offset = num_frames * stride
-            # We will compute `num_frames` outputs, and we are advancing by `stride`
-            # for each of the frame, so we know the data before `stride * num_frames`
-            # will never be used again.
-            self._streaming_state.previous = input[..., offset:]
-            if num_frames > 0:
-                input_length = (num_frames - 1) * stride + kernel
-                out = super().forward(input[..., :input_length])
-            else:
-                # Not enough data as this point to output some new frames.
-                out = torch.empty(
-                    B, self.out_channels, 0, device=input.device, dtype=input.dtype
-                )
-            return out
+            # Not enough data as this point to output some new frames.
+            out = torch.empty(B, self.out_channels, 0, device=input.device, dtype=input.dtype)
+        return out
 
 
 @dataclass
@@ -557,16 +548,12 @@ class _StreamingConvTrState:
         self.partial = None
 
 
-class RawStreamingConvTranspose1d(
-    torch.nn.ConvTranspose1d, StreamingModule[_StreamingConvTrState]
-):
+class RawStreamingConvTranspose1d(torch.nn.ConvTranspose1d, StreamingModule[_StreamingConvTrState]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert self.padding[0] == 0, "Padding should be handled outside."
         assert self.dilation[0] == 1, "No dilation for now"
-        assert (
-            self.stride[0] <= self.kernel_size[0]
-        ), "stride must be less than kernel_size."
+        assert self.stride[0] <= self.kernel_size[0], "stride must be less than kernel_size."
         assert self.output_padding[0] == 0, "Output padding not supported."
 
     def _init_streaming_state(self, batch_size: int) -> _StreamingConvTrState:
@@ -578,34 +565,31 @@ class RawStreamingConvTranspose1d(
         kernel = self.kernel_size[0]
         if self._streaming_state is None:
             return super().forward(x)
-        else:
-            if T == 0:
-                return torch.empty(
-                    B, self.out_channels, 0, device=x.device, dtype=x.dtype
-                )
-            out = super().forward(x)
-            OT = out.shape[-1]
-            partial = self._streaming_state.partial
-            if partial is not None:
-                # Due to the potential overlap, the rightmost output of the conv transpose is not
-                # ready to be output, as it will receive contributions from the next input frames.
-                # Here we recover those `partial` output frames. We know that the first time step
-                # of the `partial` tensor corresponds to the first time step of `out` as anything
-                # coming before the first time step of `out` would have been already flushed.
-                PT = partial.shape[-1]
-                if self.bias is not None:
-                    out[..., :PT] += partial - self.bias[:, None]
-                else:
-                    out[..., :PT] += partial
-            # The input is T, the output is S * (T - 1) + K.
-            # The offset of the left of the next frame will be S * T
-            # so everything between 0 and S * T is ready to be output, and we need
-            # to keep in the internal state everything beyond that, i.e. S (T - 1) + K - S T = K - S
-            invalid_steps = kernel - stride
-            partial = out[..., OT - invalid_steps :]
-            out = out[..., : OT - invalid_steps]
-            self._streaming_state.partial = partial
-            return out
+        if T == 0:
+            return torch.empty(B, self.out_channels, 0, device=x.device, dtype=x.dtype)
+        out = super().forward(x)
+        OT = out.shape[-1]
+        partial = self._streaming_state.partial
+        if partial is not None:
+            # Due to the potential overlap, the rightmost output of the conv transpose is not
+            # ready to be output, as it will receive contributions from the next input frames.
+            # Here we recover those `partial` output frames. We know that the first time step
+            # of the `partial` tensor corresponds to the first time step of `out` as anything
+            # coming before the first time step of `out` would have been already flushed.
+            PT = partial.shape[-1]
+            if self.bias is not None:
+                out[..., :PT] += partial - self.bias[:, None]
+            else:
+                out[..., :PT] += partial
+        # The input is T, the output is S * (T - 1) + K.
+        # The offset of the left of the next frame will be S * T
+        # so everything between 0 and S * T is ready to be output, and we need
+        # to keep in the internal state everything beyond that, i.e. S (T - 1) + K - S T = K - S
+        invalid_steps = kernel - stride
+        partial = out[..., OT - invalid_steps :]
+        out = out[..., : OT - invalid_steps]
+        self._streaming_state.partial = partial
+        return out
 
 
 def test():

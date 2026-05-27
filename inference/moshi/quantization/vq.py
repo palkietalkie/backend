@@ -30,7 +30,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-import typing as tp
 
 import torch
 
@@ -65,8 +64,8 @@ class ResidualVectorQuantizer(BaseQuantizer):
     def __init__(
         self,
         dimension: int = 128,
-        input_dimension: tp.Optional[int] = None,
-        output_dimension: tp.Optional[int] = None,
+        input_dimension: int | None = None,
+        output_dimension: int | None = None,
         n_q: int = 8,
         q_dropout: bool = False,
         q_first_only_proba: float = 0.0,
@@ -77,7 +76,7 @@ class ResidualVectorQuantizer(BaseQuantizer):
         replaced_usage_ratio: float = 1.0,
         codebook_offset: int = 0,
         force_projection: bool = False,
-        generator_seed: tp.Optional[int] = None,
+        generator_seed: int | None = None,
     ):
         super().__init__()
         self.max_n_q = n_q
@@ -94,22 +93,16 @@ class ResidualVectorQuantizer(BaseQuantizer):
         self.output_proj: torch.nn.Module
         self.generator = None
         if generator_seed is not None:
-            self.generator = torch.Generator(
-                device="cuda" if torch.cuda.is_available() else "cpu"
-            )
+            self.generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu")
             self.generator.manual_seed(generator_seed)
         if self.input_dimension == self.dimension and not force_projection:
             self.input_proj = torch.nn.Identity()
         else:
-            self.input_proj = torch.nn.Conv1d(
-                self.input_dimension, self.dimension, 1, bias=False
-            )
+            self.input_proj = torch.nn.Conv1d(self.input_dimension, self.dimension, 1, bias=False)
         if self.output_dimension == self.dimension and not force_projection:
             self.output_proj = torch.nn.Identity()
         else:
-            self.output_proj = torch.nn.Conv1d(
-                self.dimension, self.output_dimension, 1, bias=False
-            )
+            self.output_proj = torch.nn.Conv1d(self.dimension, self.output_dimension, 1, bias=False)
         self.vq = ResidualVectorQuantization(
             dim=self.dimension,
             codebook_size=self.bins,
@@ -160,17 +153,15 @@ class ResidualVectorQuantizer(BaseQuantizer):
 
         x = self.input_proj(x)
         codes = self.vq.encode(x, n_q=n_q)
-        codes = codes.transpose(0, 1)
+        return codes.transpose(0, 1)
         # codes is [B, K, T], with T frames, K nb of codebooks.
-        return codes
 
     def decode(self, codes: torch.Tensor) -> torch.Tensor:
         """Decode the given codes to the quantized representation."""
         # codes is [B, K, T], with T frames, K nb of codebooks, vq.decode expects [K, B, T].
         codes = codes.transpose(0, 1)
         quantized = self.vq.decode(codes)
-        quantized = self.output_proj(quantized)
-        return quantized
+        return self.output_proj(quantized)
 
     @property
     def total_codebooks(self):
@@ -279,9 +270,7 @@ class SplitResidualVectorQuantizer(BaseQuantizer):
             return semantic_result
         acoustic_result = self.rvq_rest(x, frame_rate)
         full_quantized_emb = semantic_result.x + acoustic_result.x
-        full_quantized_codes = torch.cat(
-            [semantic_result.codes, acoustic_result.codes], dim=1
-        )
+        full_quantized_codes = torch.cat([semantic_result.codes, acoustic_result.codes], dim=1)
         # This is the actual number of quantizers used,  e.g. taking into account quantizer dropout.
         n_q_semantic = semantic_result.codes.shape[1]
         n_q_acoustic = acoustic_result.codes.shape[1]

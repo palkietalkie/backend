@@ -15,9 +15,7 @@ def test_get_driver_is_singleton(monkeypatch) -> None:
         calls.append((uri, auth))
         return _FakeDriver()
 
-    monkeypatch.setattr(
-        get_driver_mod.AsyncGraphDatabase, "driver", _fake_driver_factory
-    )
+    monkeypatch.setattr(get_driver_mod.AsyncGraphDatabase, "driver", _fake_driver_factory)
     monkeypatch.setattr(get_driver_mod, "_driver", None)
 
     a = get_driver()
@@ -38,9 +36,7 @@ def test_get_driver_uses_configured_uri(monkeypatch, settings) -> None:
         seen["auth"] = auth
         return _FakeDriver()
 
-    monkeypatch.setattr(
-        get_driver_mod.AsyncGraphDatabase, "driver", _fake_driver_factory
-    )
+    monkeypatch.setattr(get_driver_mod.AsyncGraphDatabase, "driver", _fake_driver_factory)
     monkeypatch.setattr(get_driver_mod, "_driver", None)
     get_driver()
     assert seen["uri"] == settings.neo4j_uri

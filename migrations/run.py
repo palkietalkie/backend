@@ -24,12 +24,8 @@ async def _run() -> None:
             " applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
             ")"
         )
-        applied = {
-            row[0] for row in await conn.fetch("SELECT version FROM schema_version")
-        }
-        files = sorted(
-            Path(__file__).resolve().parent.glob("*.sql")
-        )  # noqa: ASYNC240 — sync glob is fine at migration time
+        applied = {row[0] for row in await conn.fetch("SELECT version FROM schema_version")}
+        files = sorted(Path(__file__).resolve().parent.glob("*.sql"))  # noqa: ASYNC240 — sync glob is fine at migration time
         for path in files:
             version = path.stem
             if version in applied:

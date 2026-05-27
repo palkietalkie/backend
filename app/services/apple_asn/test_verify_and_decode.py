@@ -6,9 +6,7 @@ from app.services.apple_asn.verify_and_decode import verify_and_decode
 
 
 def test_verify_and_decode_outer_signature_failure() -> None:
-    verifier = FakeVerifier(
-        notification=notification_dict(raw_type="SUBSCRIBED"), outer_fail=True
-    )
+    verifier = FakeVerifier(notification=notification_dict(raw_type="SUBSCRIBED"), outer_fail=True)
     with pytest.raises(InvalidSignatureError):
         verify_and_decode(verifier, "doesntmatter")
 

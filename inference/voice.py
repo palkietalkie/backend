@@ -18,7 +18,6 @@ import tarfile
 import time
 
 import modal
-
 from voice_app import HF_REPO, IMAGE, SCALEDOWN_WINDOW, app, weights_volume
 
 

@@ -19,12 +19,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import platform
 import socket
 import subprocess
-import platform
-from shutil import which
 import urllib.request
 from pathlib import Path
+from shutil import which
+
 from .logging import setup_logger
 
 logger = setup_logger(__name__)

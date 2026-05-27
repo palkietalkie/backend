@@ -78,9 +78,7 @@ def build_ogg_crc_table() -> list[int]:
         register = index << 24
         for _bit in range(8):
             register = (
-                ((register << 1) ^ OGG_CRC_POLY)
-                if (register & 0x8000_0000)
-                else (register << 1)
+                ((register << 1) ^ OGG_CRC_POLY) if (register & 0x8000_0000) else (register << 1)
             )
         table.append(register & 0xFFFF_FFFF)
     return table
@@ -97,9 +95,7 @@ def ogg_crc32(data: bytes) -> int:
     return crc
 
 
-def make_page(
-    packet: bytes, header_type: int, granule: int, serial: int, seq: int
-) -> bytes:
+def make_page(packet: bytes, header_type: int, granule: int, serial: int, seq: int) -> bytes:
     seg = []
     if len(packet) == 0:
         seg.append(0)
@@ -206,9 +202,7 @@ async def main() -> int:
                     pcm_bytes = np.zeros(FRAME_SAMPLES, dtype=np.int16).tobytes()
                     pkt = enc.encode(pcm_bytes, FRAME_SAMPLES)
                     granule += FRAME_SAMPLES
-                    pg = make_page(
-                        pkt, header_type=0x00, granule=granule, serial=serial, seq=seq
-                    )
+                    pg = make_page(pkt, header_type=0x00, granule=granule, serial=serial, seq=seq)
                     seq += 1
                     try:
                         await ws.send(b"\x01" + pg)
@@ -237,19 +231,15 @@ async def main() -> int:
                                 label = (
                                     "audio"
                                     if kind == 1
-                                    else "text" if kind == 2 else f"kind=0x{kind:02x}"
+                                    else "text"
+                                    if kind == 2
+                                    else f"kind=0x{kind:02x}"
                                 )
-                                print(
-                                    f"[probe] inbound #{inbound_count}: {len(msg)}B {label}"
-                                )
+                                print(f"[probe] inbound #{inbound_count}: {len(msg)}B {label}")
                 except TimeoutError:
-                    print(
-                        f"[probe] recv timeout — got {inbound_count} inbound frames total"
-                    )
+                    print(f"[probe] recv timeout — got {inbound_count} inbound frames total")
                 except websockets.ConnectionClosed as e:
-                    print(
-                        f"[probe] WS closed by server: code={e.code} reason={e.reason!r}"
-                    )
+                    print(f"[probe] WS closed by server: code={e.code} reason={e.reason!r}")
 
             await asyncio.gather(send_silence(), recv_loop())
 

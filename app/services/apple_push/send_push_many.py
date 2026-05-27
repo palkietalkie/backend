@@ -10,6 +10,4 @@ async def send_push_many(
     body: str,
     badge: int | None = None,
 ) -> list[PushResult]:
-    return list(
-        await asyncio.gather(*(send_push(t, title, body, badge) for t in tokens))
-    )
+    return list(await asyncio.gather(*(send_push(t, title, body, badge) for t in tokens)))

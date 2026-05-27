@@ -23,10 +23,12 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from torch import nn
 import math
+
 import torch
-from ..utils.compile import torch_compile_lazy
+from torch import nn
+
+from moshi.utils.compile import torch_compile_lazy
 
 
 @torch_compile_lazy
@@ -58,10 +60,7 @@ def apply_rope(
     ds = torch.arange(D // 2, device=q.device, dtype=torch.float32)
     freqs = torch.exp(ds * (-math.log(max_period) * 2 / D))
     ts = offset.float() + torch.arange(T, device=q.device, dtype=torch.float32)
-    if time_before_heads:
-        ts = ts.view(-1, 1, 1)
-    else:
-        ts = ts.view(1, -1, 1)
+    ts = ts.view(-1, 1, 1) if time_before_heads else ts.view(1, -1, 1)
 
     dims = q.shape[:-1]
     q = q.view(*dims, D // 2, 2)

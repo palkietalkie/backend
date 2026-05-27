@@ -25,11 +25,7 @@ async def get_verifier() -> Any:
             return _state.VERIFIER_CACHE
         settings = get_settings()
         roots = await load_apple_root_certs()
-        env = (
-            AppleEnv.SANDBOX
-            if settings.app_env != "production"
-            else AppleEnv.PRODUCTION
-        )
+        env = AppleEnv.SANDBOX if settings.app_env != "production" else AppleEnv.PRODUCTION
         # OCSP/CRL would slow every webhook by 100ms+, so disable online checks.
         _state.VERIFIER_CACHE = SignedDataVerifier(
             root_certificates=roots,

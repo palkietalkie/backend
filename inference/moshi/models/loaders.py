@@ -24,18 +24,19 @@
 # LICENSE file in the root directory of this source tree.
 """Retrieves the pretrained models for Moshi and Mimi."""
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
-from safetensors.torch import load_model, load_file
 import torch
+from safetensors.torch import load_file, load_model
 
 logger = logging.getLogger(__name__)
 
+from moshi.modules import SEANetDecoder, SEANetEncoder, transformer
+from moshi.quantization import SplitResidualVectorQuantizer
+
 from .compression import MimiModel
 from .lm import LMModel
-from ..modules import SEANetEncoder, SEANetDecoder, transformer
-from ..quantization import SplitResidualVectorQuantizer
 
 SAMPLE_RATE = 24000
 FRAME_RATE = 12.5
@@ -131,12 +132,8 @@ def get_mimi(filename: str | Path, device: torch.device | str = "cpu") -> MimiMo
     """Return a pretrained Mimi model."""
     encoder = SEANetEncoder(**_seanet_kwargs)
     decoder = SEANetDecoder(**_seanet_kwargs)
-    encoder_transformer = transformer.ProjectedTransformer(
-        device=device, **_transformer_kwargs
-    )
-    decoder_transformer = transformer.ProjectedTransformer(
-        device=device, **_transformer_kwargs
-    )
+    encoder_transformer = transformer.ProjectedTransformer(device=device, **_transformer_kwargs)
+    decoder_transformer = transformer.ProjectedTransformer(device=device, **_transformer_kwargs)
     quantizer = SplitResidualVectorQuantizer(
         **_quantizer_kwargs,
     )
@@ -189,9 +186,7 @@ def get_moshi_lm(
         lm_kwargs["delays"] = delays
 
     if cpu_offload and filename is not None:
-        return _get_moshi_lm_with_offload(
-            filename, copy_missing_weights, device, dtype, lm_kwargs
-        )
+        return _get_moshi_lm_with_offload(filename, copy_missing_weights, device, dtype, lm_kwargs)
 
     # Init with meta device to avoid init dummy memory
     init_device = "meta" if filename is not None else device
@@ -221,21 +216,17 @@ def get_moshi_lm(
         if "depformer" in name and "self_attn" in name and name in model_sd:
             if tensor.shape != model_sd[name].shape:
                 print("Expanding %s", name)
-                missing = (
-                    tensor
-                    if copy_missing_weights
-                    else model_sd[name][tensor.shape[0] :]
-                )
+                missing = tensor if copy_missing_weights else model_sd[name][tensor.shape[0] :]
                 state_dict[name] = torch.concat([tensor, missing], dim=0)
 
     # Patch 2: fill missing keys by copying 0..7 -> 8..15 for certain groups
     if copy_missing_weights:
         to_replace = ["gating", "linears", "depformer_in", "depformer_emb"]
-        for name in model_sd.keys():
+        for name in model_sd:
             if name in state_dict:
                 continue
             replaced = False
-            for old, new in zip(range(8), range(8, 16)):
+            for old, new in zip(range(8), range(8, 16), strict=False):
                 for rep in to_replace:
                     needle = f"{rep}.{new}."
                     if needle in name:
@@ -274,7 +265,7 @@ def _get_moshi_lm_with_offload(
     and moved to GPU only during forward pass.
     """
     try:
-        from accelerate import infer_auto_device_map, dispatch_model
+        from accelerate import dispatch_model, infer_auto_device_map
     except ImportError:
         raise ImportError(
             "CPU offloading requires the 'accelerate' package. "
@@ -300,20 +291,16 @@ def _get_moshi_lm_with_offload(
         if "depformer" in name and "self_attn" in name and name in model_sd:
             if tensor.shape != model_sd[name].shape:
                 logger.info(f"Expanding {name}")
-                missing = (
-                    tensor
-                    if copy_missing_weights
-                    else model_sd[name][tensor.shape[0] :]
-                )
+                missing = tensor if copy_missing_weights else model_sd[name][tensor.shape[0] :]
                 state_dict[name] = torch.concat([tensor, missing], dim=0)
 
     if copy_missing_weights:
         to_replace = ["gating", "linears", "depformer_in", "depformer_emb"]
-        for name in model_sd.keys():
+        for name in model_sd:
             if name in state_dict:
                 continue
             replaced = False
-            for old, new in zip(range(8), range(8, 16)):
+            for old, new in zip(range(8), range(8, 16), strict=False):
                 for rep in to_replace:
                     needle = f"{rep}.{new}."
                     if needle in name:

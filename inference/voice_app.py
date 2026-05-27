@@ -13,9 +13,8 @@ from __future__ import annotations
 import os
 
 import modal
-
 from compute_scaledown_window import compute_scaledown_window
-from voice_image import WEIGHTS_DIR, image
+from voice_image import image
 
 HF_REPO = "nvidia/personaplex-7b-v1"
 

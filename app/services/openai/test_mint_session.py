@@ -37,9 +37,7 @@ def test_voice_enum_includes_known_ids() -> None:
 
 def test_endpoint_url_is_ga_client_secrets_not_beta_sessions() -> None:
     # Regression: the Beta endpoint /v1/realtime/sessions returns 400 beta_api_shape_disabled. GA endpoint is /v1/realtime/client_secrets.
-    assert (
-        OPENAI_CLIENT_SECRETS_URL == "https://api.openai.com/v1/realtime/client_secrets"
-    )
+    assert OPENAI_CLIENT_SECRETS_URL == "https://api.openai.com/v1/realtime/client_secrets"
 
 
 class _FakeResponse:
@@ -76,9 +74,7 @@ class _FakeClient:
 async def test_mint_extracts_token_from_top_level_value() -> None:
     # Regression: Beta response nested the token under ``client_secret.value``; GA returns it at top-level ``value``. Pulling from the wrong key silently produced ``RuntimeError: missing client_secret.value`` before the fix.
     fake = _FakeClient(
-        _FakeResponse(
-            200, {"value": "ek_abc123", "expires_at": 1234567890, "session": {}}
-        )
+        _FakeResponse(200, {"value": "ek_abc123", "expires_at": 1234567890, "session": {}})
     )
     session = await mint_openai_session(
         text_prompt="be a real person",

@@ -44,4 +44,4 @@ async def update_persona(
     liked_rows = await db.fetch(LIKED_BY_USER_SQL, user["id"])
     liked_ids: set[uuid.UUID] = {row["persona_id"] for row in liked_rows}
     assert persona is not None
-    return build_persona_out_from_row(persona, user_id=user["id"], liked_ids=liked_ids)
+    return build_persona_out_from_row(persona, user_id=user["id"], liked_ids=liked_ids)  # type: ignore[arg-type]

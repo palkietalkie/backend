@@ -41,10 +41,6 @@ permissions:
   pull-requests: write
   statuses: write
 
-defaults:
-  run:
-    working-directory: backend
-
 jobs:
   ruff:
     name: Lint (ruff)
@@ -63,11 +59,14 @@ jobs:
       - name: Install dependencies
         run: uv pip install --system -e ".[dev]"
 
-      - name: Ruff check
-        run: ruff check app tests
+      - name: Ruff format check
+        run: ruff format --check app/ inference/ scripts/ migrations/ conftest.py
 
-  mypy:
-    name: Type check (mypy)
+      - name: Ruff lint
+        run: ruff check app/ inference/ scripts/ migrations/ conftest.py
+
+  pyright:
+    name: Type check (pyright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,8 +82,8 @@ jobs:
       - name: Install dependencies
         run: uv pip install --system -e ".[dev]"
 
-      - name: Mypy
-        run: mypy app
+      - name: Pyright
+        run: pyright
 
   pytest:
     name: Tests + coverage
@@ -132,4 +131,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
-          path: backend/coverage.xml
+          path: coverage.xml

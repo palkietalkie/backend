@@ -24,9 +24,7 @@ def _b64url_uint(value: int) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
-def _sign(
-    claims: dict[str, Any], private_key_pem: bytes, kid: str = "test-kid-1"
-) -> str:
+def _sign(claims: dict[str, Any], private_key_pem: bytes, kid: str = "test-kid-1") -> str:
     return jwt.encode(
         claims,
         private_key_pem,
@@ -88,9 +86,7 @@ async def test_verify_clerk_jwt_happy_path(keys_and_pem, settings) -> None:
 @respx.mock
 async def test_verify_clerk_jwt_caches_jwks(keys_and_pem, settings) -> None:
     jwks, pem = keys_and_pem
-    route = respx.get(settings.clerk_jwks_url).mock(
-        return_value=httpx.Response(200, json=jwks)
-    )
+    route = respx.get(settings.clerk_jwks_url).mock(return_value=httpx.Response(200, json=jwks))
     token = _sign(
         {
             "sub": "u1",
@@ -167,17 +163,13 @@ async def test_verify_clerk_jwt_no_kid(keys_and_pem, settings) -> None:
     assert exc.value.status_code == 401
 
 
-async def test_resolve_current_user_creates_user_on_first_sight(
-    monkeypatch, db
-) -> None:
+async def test_resolve_current_user_creates_user_on_first_sight(monkeypatch, db) -> None:
     async def _fake_verify(token: str) -> dict[str, Any]:
         return {"sub": "user_newcomer", "email": "new@palkietalkie.test"}
 
     monkeypatch.setattr(resolve_current_user, "verify_clerk_jwt", _fake_verify)
 
-    user = await resolve_current_user.resolve_current_user(
-        authorization="Bearer fake-token", db=db
-    )
+    user = await resolve_current_user.resolve_current_user(authorization="Bearer fake-token", db=db)
     assert user["clerk_user_id"] == "user_newcomer"
     assert user["email"] == "new@palkietalkie.test"
 

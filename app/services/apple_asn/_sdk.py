@@ -2,6 +2,7 @@
 
 from typing import Any
 
+# pyright: reportAssignmentType=false
 try:
     from appstoreserverlibrary.models.Environment import (
         Environment as AppleEnv,
@@ -17,7 +18,7 @@ except ImportError:  # pragma: no cover — handled gracefully at runtime
     AppleEnv = None  # type: ignore[assignment,misc]
     SignedDataVerifier = None  # type: ignore[assignment,misc]
 
-    class VerificationException(Exception):  # type: ignore[no-redef]
+    class VerificationException(Exception):  # type: ignore[no-redef,assignment]
         pass
 
 

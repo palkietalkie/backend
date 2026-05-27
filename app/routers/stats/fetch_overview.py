@@ -85,9 +85,7 @@ async def fetch_overview(
             level=level,
             total_words=totals[level],
             used_words=used[level],
-            coverage_pct=round(
-                (used[level] / totals[level] * 100.0) if totals[level] else 0.0, 1
-            ),
+            coverage_pct=round((used[level] / totals[level] * 100.0) if totals[level] else 0.0, 1),
         )
         for level in CEFR_LEVELS
     ]

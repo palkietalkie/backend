@@ -12,11 +12,11 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from app.services.dispatch_event import dispatch_event
-from app.services.extract_clerk_user_id import extract_clerk_user_id
-from app.services.verify_event import verify_event
 
+from app.services.stripe_webhooks.dispatch_event import dispatch_event
+from app.services.stripe_webhooks.extract_clerk_user_id import extract_clerk_user_id
 from app.services.stripe_webhooks.invalid_signature_error import InvalidSignatureError
+from app.services.stripe_webhooks.verify_event import verify_event
 
 WEBHOOK_SECRET = "whsec_test_secret"
 
@@ -170,9 +170,7 @@ async def test_dispatch_logs_entitlement_change_event(db, stripe_user) -> None:
         metadata={"clerk_user_id": stripe_user["clerk_user_id"]},
     )
     await dispatch_event(db, event)
-    rows = await db.fetch(
-        "SELECT event_type FROM events WHERE user_id = $1", stripe_user["id"]
-    )
+    rows = await db.fetch("SELECT event_type FROM events WHERE user_id = $1", stripe_user["id"])
     assert any(r["event_type"] == "entitlement_change" for r in rows)
 
 

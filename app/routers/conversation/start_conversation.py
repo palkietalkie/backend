@@ -84,11 +84,10 @@ async def start_conversation(
         if persona_row_raw is None:
             logger.warning(
                 "persona %s not in presets and not in DB (user=%s)",
-                body.persona_id, user["id"],
+                body.persona_id,
+                user["id"],
             )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="persona not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="persona not found")
         persona_row: PersonaRow = dict(persona_row_raw)  # type: ignore[assignment]
         if persona_row["user_id"] != user["id"] and not persona_row["is_public"]:
             raise HTTPException(
@@ -109,8 +108,7 @@ async def start_conversation(
     if body.lat is not None and body.lon is not None:
         weather = await fetch_weather(body.lat, body.lon)
     weather_label = (
-        f"{weather.temperature_c:.0f}°C, {weather.label}, "
-        f"{'day' if weather.is_day else 'night'}"
+        f"{weather.temperature_c:.0f}°C, {weather.label}, {'day' if weather.is_day else 'night'}"
         if weather
         else None
     )

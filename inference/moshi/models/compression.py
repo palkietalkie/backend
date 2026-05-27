@@ -13,25 +13,23 @@
 for Mimi. Also defines the main interface that a model must follow to be usable as an audio tokenizer.
 """
 
+import logging
 from abc import abstractmethod
 from contextlib import nullcontext
 from dataclasses import dataclass
-import logging
-import typing as tp
 
 import torch
 from torch import nn
 
-
-from ..quantization import (
-    QuantizedResult,
+from moshi.modules.resample import ConvDownsample1d, ConvTrUpsample1d
+from moshi.modules.streaming import State, StreamingModule
+from moshi.quantization import (
     BaseQuantizer,
-    SplitResidualVectorQuantizer,
+    QuantizedResult,
     ResidualVectorQuantizer,
+    SplitResidualVectorQuantizer,
 )
-from ..modules.resample import ConvDownsample1d, ConvTrUpsample1d
-from ..modules.streaming import StreamingModule, State
-from ..utils.compile import no_compile, CUDAGraphed
+from moshi.utils.compile import CUDAGraphed, no_compile
 
 logger = logging.getLogger()
 
@@ -135,8 +133,8 @@ class MimiModel(CompressionModel[_MimiState]):
         sample_rate: int,
         channels: int,
         causal: bool = False,
-        encoder_transformer: tp.Optional[nn.Module] = None,
-        decoder_transformer: tp.Optional[nn.Module] = None,
+        encoder_transformer: nn.Module | None = None,
+        decoder_transformer: nn.Module | None = None,
         resample_method: str = "interpolate",
         upsample_channel_wise_bug: bool = True,
         freeze_encoder: bool = False,
@@ -169,17 +167,15 @@ class MimiModel(CompressionModel[_MimiState]):
             self.quantizer.ema_frozen_(True)
         self.freeze_quantizer = freeze_quantizer
         self.freeze_quantizer_level = (
-            freeze_quantizer_level
-            if freeze_quantizer_level > 0
-            else self.quantizer.num_codebooks
+            freeze_quantizer_level if freeze_quantizer_level > 0 else self.quantizer.num_codebooks
         )
 
         # We will need the dimension for the resampling. In general the encoder will be a SeanetEncoder
         # which exposes a `dimension` attribute.
         dimension = encoder.dimension
-        assert isinstance(
-            dimension, int
-        ), f"Dimension should be int, got {dimension} of type {type(dimension)}."
+        assert isinstance(dimension, int), (
+            f"Dimension should be int, got {dimension} of type {type(dimension)}."
+        )
         self.dimension = dimension
 
         assert resample_method in [
@@ -189,17 +185,15 @@ class MimiModel(CompressionModel[_MimiState]):
         ], f"Invalid resample_method {resample_method}"
         self.resample_method = resample_method
         if encoder_frame_rate != frame_rate:
-            assert not (
-                causal and resample_method == "interpolate"
-            ), "Cannot interpolate with causal model."
+            assert not (causal and resample_method == "interpolate"), (
+                "Cannot interpolate with causal model."
+            )
             if resample_method in ["conv", "avg_pool"]:
-                assert (
-                    self.encoder_frame_rate > self.frame_rate
-                ), "Cannot upsample with conv."
+                assert self.encoder_frame_rate > self.frame_rate, "Cannot upsample with conv."
                 downsample_stride = self.encoder_frame_rate / self.frame_rate
-                assert downsample_stride == int(
-                    downsample_stride
-                ), f"Only integer strides are supported, got {downsample_stride}"
+                assert downsample_stride == int(downsample_stride), (
+                    f"Only integer strides are supported, got {downsample_stride}"
+                )
                 learnt = resample_method == "conv"
                 self.downsample = ConvDownsample1d(
                     int(downsample_stride),
@@ -270,8 +264,7 @@ class MimiModel(CompressionModel[_MimiState]):
         if self.resample_method == "interpolate":
             target_length = int(length * new_frame_rate / frame_rate)
             return nn.functional.interpolate(x, size=target_length, mode="linear")
-        else:
-            return self.downsample(x)
+        return self.downsample(x)
 
     def _to_encoder_framerate(self, x: torch.Tensor):
         # Convert from overall framerate to the encoder frame rate.
@@ -283,27 +276,23 @@ class MimiModel(CompressionModel[_MimiState]):
         if self.resample_method == "interpolate":
             target_length = int(length * new_frame_rate / frame_rate)
             return nn.functional.interpolate(x, size=target_length, mode="linear")
-        else:
-            return self.upsample(x)
+        return self.upsample(x)
 
     @property
     def _context_for_encoder_decoder(self):
         if self.torch_compile_encoder_decoder:
             return nullcontext()
-        else:
-            return no_compile()
+        return no_compile()
 
     def forward(self, x: torch.Tensor) -> QuantizedResult:
         assert x.dim() == 3
         length = x.shape[-1]
-        extra_metrics: tp.Dict[str, torch.Tensor] = {}
+        extra_metrics: dict[str, torch.Tensor] = {}
 
         if self.freeze_quantizer:
             if isinstance(self.quantizer, SplitResidualVectorQuantizer):
                 self.quantizer.rvq_first.eval()
-                for i in range(
-                    self.freeze_quantizer_level - self.quantizer.n_q_semantic
-                ):
+                for i in range(self.freeze_quantizer_level - self.quantizer.n_q_semantic):
                     self.quantizer.rvq_rest.vq.layers[i].eval()
             elif isinstance(self.quantizer, ResidualVectorQuantizer):
                 for i in range(self.freeze_quantizer_level):
@@ -349,9 +338,9 @@ class MimiModel(CompressionModel[_MimiState]):
         Returns:
             Unquantized embeddings.
         """
-        assert (
-            x.dim() == 3
-        ), f"CompressionModel._encode_to_unquantized_latent expects audio of shape [B, C, T] but got {x.shape}"
+        assert x.dim() == 3, (
+            f"CompressionModel._encode_to_unquantized_latent expects audio of shape [B, C, T] but got {x.shape}"
+        )
         state = self._streaming_state
         with self._context_for_encoder_decoder:
             emb = self.encoder(x)
@@ -361,8 +350,7 @@ class MimiModel(CompressionModel[_MimiState]):
             else:
                 assert state.graphed_tr_enc is not None
                 (emb,) = state.graphed_tr_enc(emb)
-        emb = self._to_framerate(emb)
-        return emb
+        return self._to_framerate(emb)
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Encode the given input tensor to quantized representation.
@@ -375,8 +363,7 @@ class MimiModel(CompressionModel[_MimiState]):
                 with K the number of codebooks used and T the timestep.
         """
         emb = self._encode_to_unquantized_latent(x)
-        codes = self.quantizer.encode(emb)
-        return codes
+        return self.quantizer.encode(emb)
 
     def encode_to_latent(self, x: torch.Tensor, quantize: bool = True) -> torch.Tensor:
         """Projects a batch of waveforms to latent space.
@@ -390,9 +377,8 @@ class MimiModel(CompressionModel[_MimiState]):
         emb = self._encode_to_unquantized_latent(x)
         if not quantize:
             return emb
-        else:
-            codes = self.quantizer.encode(emb)
-            return self.decode_latent(codes)
+        codes = self.quantizer.encode(emb)
+        return self.decode_latent(codes)
 
     def decode(self, codes: torch.Tensor):
         """Decode the given codes to a reconstructed representation.
@@ -413,9 +399,8 @@ class MimiModel(CompressionModel[_MimiState]):
                 assert state.graphed_tr_dec is not None
                 (emb,) = state.graphed_tr_dec(emb)
         with self._context_for_encoder_decoder:
-            out = self.decoder(emb)
+            return self.decoder(emb)
         # out contains extra padding added by the encoder and decoder
-        return out
 
     def decode_latent(self, codes: torch.Tensor) -> torch.Tensor:
         """Decode from the discrete codes to continuous latent space."""

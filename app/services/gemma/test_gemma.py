@@ -46,9 +46,7 @@ async def test_complete_text_concatenates_multiple_parts(settings) -> None:
 
 @respx.mock
 async def test_complete_text_empty_on_missing_candidates(settings) -> None:
-    respx.post(GEMMA_URL).mock(
-        return_value=httpx.Response(200, json={"candidates": []})
-    )
+    respx.post(GEMMA_URL).mock(return_value=httpx.Response(200, json={"candidates": []}))
     assert await complete_text("p") == ""
 
 
@@ -75,9 +73,7 @@ async def test_complete_json_parses_plain_json(settings) -> None:
 @respx.mock
 async def test_complete_json_strips_markdown_fences(settings) -> None:
     respx.post(GEMMA_URL).mock(
-        return_value=httpx.Response(
-            200, json=_gemma_response('```json\n{"foo": 1}\n```')
-        )
+        return_value=httpx.Response(200, json=_gemma_response('```json\n{"foo": 1}\n```'))
     )
     out = await complete_json("p")
     assert out == {"foo": 1}
@@ -97,9 +93,7 @@ async def test_complete_json_extracts_first_balanced_object(settings) -> None:
 
 @respx.mock
 async def test_complete_json_returns_empty_on_parse_failure(settings) -> None:
-    respx.post(GEMMA_URL).mock(
-        return_value=httpx.Response(200, json=_gemma_response("not json"))
-    )
+    respx.post(GEMMA_URL).mock(return_value=httpx.Response(200, json=_gemma_response("not json")))
     out = await complete_json("p")
     assert out == {}
 

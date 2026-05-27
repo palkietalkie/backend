@@ -14,9 +14,7 @@ def parse_payload(data: dict[str, Any]) -> tuple[list[KGEntity], list[KGRelation
             continue
         props_raw = e.get("props") or {}
         props = {
-            k: v
-            for k, v in props_raw.items()
-            if isinstance(k, str) and isinstance(v, (str, int))
+            k: v for k, v in props_raw.items() if isinstance(k, str) and isinstance(v, (str, int))
         }
         entities.append(KGEntity(type=etype, name=name.strip(), props=props))
 
