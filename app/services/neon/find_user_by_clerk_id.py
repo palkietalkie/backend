@@ -1,4 +1,5 @@
 from app.services.neon.db_conn import DBConn
+from app.services.neon.make_rows import make_user_row
 from app.services.neon.rows import UserRow
 
 
@@ -13,4 +14,4 @@ async def find_user_by_clerk_id(db: DBConn, clerk_user_id: str) -> UserRow | Non
            WHERE clerk_user_id = $1""",
         clerk_user_id,
     )
-    return dict(row) if row is not None else None  # type: ignore[return-value]
+    return make_user_row(row) if row is not None else None

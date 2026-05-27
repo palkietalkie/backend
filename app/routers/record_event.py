@@ -7,6 +7,7 @@ client and server signals.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 class EventIn(BaseModel):
     event_type: str = Field(min_length=1, max_length=64)
     # Free-form structured payload. For cold-start: {"duration_ms": 5234, "phase_timings": {...}}.
-    props: dict = Field(default_factory=dict)
+    props: dict[str, Any] = Field(default_factory=lambda: {})
     # Optional client-side timestamp. Server stamps `ts` either way; this lets the client report when the event actually happened (handles offline replay).  # noqa: E501
     client_ts: datetime | None = None
 

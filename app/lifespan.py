@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import stripe
@@ -12,7 +12,7 @@ from app.services.neo4j.get_driver import get_driver
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     settings = get_settings()
     logging.basicConfig(level=settings.log_level.upper())
 

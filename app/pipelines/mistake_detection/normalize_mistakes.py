@@ -1,24 +1,25 @@
-from typing import Any
+from pydantic import BaseModel, ValidationError
 
 from app.pipelines.mistake_detection.constants import VALID_CATEGORIES
 from app.pipelines.mistake_detection.mistake_record import MistakeRecord
 
 
-def normalize_mistakes(raw: list[Any]) -> list[MistakeRecord]:
+class _MistakeIn(BaseModel):
+    original: str
+    corrected: str
+    category: str
+
+
+def normalize_mistakes(raw: list[object]) -> list[MistakeRecord]:
     out: list[MistakeRecord] = []
-    for m in raw:
-        if not isinstance(m, dict):
+    for item in raw:
+        try:
+            m = _MistakeIn.model_validate(item)
+        except ValidationError:
             continue
-        original = m.get("original")
-        corrected = m.get("corrected")
-        category = m.get("category")
-        if not (
-            isinstance(original, str) and isinstance(corrected, str) and isinstance(category, str)
-        ):
+        if m.category not in VALID_CATEGORIES:
             continue
-        if category not in VALID_CATEGORIES:
+        if m.original.strip() == m.corrected.strip():
             continue
-        if original.strip() == corrected.strip():
-            continue
-        out.append(MistakeRecord(original=original, corrected=corrected, category=category))
+        out.append(MistakeRecord(original=m.original, corrected=m.corrected, category=m.category))
     return out

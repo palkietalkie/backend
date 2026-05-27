@@ -2,6 +2,7 @@ import uuid
 
 from app.services.neo4j.get_driver import get_driver
 from app.services.neo4j.models import KGEntity, KGRelation
+from app.services.neo4j.open_session import open_session
 
 
 async def upsert_kg(
@@ -10,7 +11,7 @@ async def upsert_kg(
     relations: list[KGRelation],
 ) -> None:
     driver = get_driver()
-    async with driver.session() as session:
+    async with open_session(driver) as session:
         for ent in entities:
             await session.run(
                 """

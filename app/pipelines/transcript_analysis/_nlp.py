@@ -2,11 +2,15 @@
 
 from typing import Any
 
-NLP: Any = None
-try:
-    import spacy
 
-    NLP = spacy.load("en_core_web_sm", disable=["ner", "parser"])
-except ImportError, OSError:
-    # ImportError: spacy not installed (rare). OSError: model not downloaded (dev).
-    NLP = None
+def _load() -> Any:
+    try:
+        import spacy
+
+        return spacy.load("en_core_web_sm", disable=["ner", "parser"])
+    except ImportError, OSError:
+        # ImportError: spacy not installed (rare). OSError: model not downloaded (dev).
+        return None
+
+
+nlp: Any = _load()

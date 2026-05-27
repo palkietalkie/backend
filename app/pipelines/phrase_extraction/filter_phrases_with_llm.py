@@ -1,6 +1,11 @@
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from app.services.gemma.complete_json import complete_json
+
+
+class _KeepPayload(BaseModel):
+    keep: list[str] = []
 
 
 async def filter_phrases_with_llm(candidates: list[str]) -> list[str]:
@@ -17,5 +22,8 @@ async def filter_phrases_with_llm(candidates: list[str]) -> list[str]:
         data = await complete_json(prompt)
     except httpx.HTTPError:
         return candidates
-    keep = data.get("keep") or []
-    return [str(p) for p in keep if isinstance(p, str)]
+    try:
+        parsed = _KeepPayload.model_validate(data)
+    except ValidationError:
+        return []
+    return parsed.keep

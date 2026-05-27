@@ -1,7 +1,11 @@
 """Consent router tests."""
 
+from httpx import AsyncClient
 
-async def test_consent_starts_unset(app_with_overrides) -> None:
+from app.services.neon.rows import UserRow
+
+
+async def test_consent_starts_unset(app_with_overrides: tuple[AsyncClient, UserRow]) -> None:
     client, _ = app_with_overrides
     resp = await client.get("/consent")
     assert resp.status_code == 200
@@ -11,7 +15,7 @@ async def test_consent_starts_unset(app_with_overrides) -> None:
     assert body["product_improvement"] is False
 
 
-async def test_set_consent(app_with_overrides) -> None:
+async def test_set_consent(app_with_overrides: tuple[AsyncClient, UserRow]) -> None:
     client, _ = app_with_overrides
     resp = await client.put(
         "/consent",

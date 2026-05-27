@@ -6,6 +6,7 @@ Returns the current temperature, weather code, and a short human label for promp
 from dataclasses import dataclass
 
 import httpx
+from pydantic import BaseModel, ValidationError
 
 # Compact subset of the WMO weather codes Open-Meteo returns.
 _WEATHER_CODE_LABELS: dict[int, str] = {
@@ -40,6 +41,16 @@ class WeatherSnapshot:
     is_day: bool
 
 
+class _CurrentBlock(BaseModel):
+    temperature_2m: float
+    weather_code: int = 0
+    is_day: int = 1
+
+
+class _ForecastResponse(BaseModel):
+    current: _CurrentBlock | None = None
+
+
 async def fetch_weather(lat: float, lon: float) -> WeatherSnapshot | None:
     url = "https://api.open-meteo.com/v1/forecast"
     params: dict[str, str | float] = {
@@ -52,17 +63,15 @@ async def fetch_weather(lat: float, lon: float) -> WeatherSnapshot | None:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url, params=params)
             resp.raise_for_status()
-            data = resp.json()
-    except httpx.HTTPError, ValueError:
+            payload = _ForecastResponse.model_validate(resp.json())
+    except httpx.HTTPError, ValueError, ValidationError:
         return None
 
-    current = data.get("current") or {}
-    if "temperature_2m" not in current:
+    current = payload.current
+    if current is None:
         return None
-
-    code = int(current.get("weather_code", 0))
     return WeatherSnapshot(
-        temperature_c=float(current["temperature_2m"]),
-        label=_WEATHER_CODE_LABELS.get(code, "unknown weather"),
-        is_day=bool(current.get("is_day", 1)),
+        temperature_c=current.temperature_2m,
+        label=_WEATHER_CODE_LABELS.get(current.weather_code, "unknown weather"),
+        is_day=bool(current.is_day),
     )

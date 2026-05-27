@@ -5,6 +5,7 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.routers.profile.build_profile_out import ProfileOut, build_profile_out
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
+from app.services.neon.make_rows import make_user_row
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -52,5 +53,4 @@ async def update_profile(
         body.timezone,
     )
     assert row is not None
-    updated: UserRow = dict(row)  # type: ignore[assignment]
-    return build_profile_out(updated)
+    return build_profile_out(make_user_row(row))

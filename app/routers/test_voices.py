@@ -1,7 +1,11 @@
 """Voice library router tests."""
 
+from httpx import AsyncClient
 
-async def test_list_voices_returns_all_17(app_with_overrides) -> None:
+from app.services.neon.rows import UserRow
+
+
+async def test_list_voices_returns_all_17(app_with_overrides: tuple[AsyncClient, UserRow]) -> None:
     client, _ = app_with_overrides
     resp = await client.get("/voices")
     assert resp.status_code == 200

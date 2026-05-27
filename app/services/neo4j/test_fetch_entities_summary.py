@@ -1,11 +1,15 @@
 import uuid
 
+import pytest
+
 from app.services.neo4j import fetch_entities_summary as fetch_entities_summary_mod
 from app.services.neo4j._fakes import FakeDriver
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 
 
-async def test_fetch_entities_summary_formats_descriptors(monkeypatch) -> None:
+async def test_fetch_entities_summary_formats_descriptors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake = FakeDriver()
     fake.fake_session.enqueue(
         [{"name": "Alice", "type": "person"}, {"name": "Tokyo", "type": "place"}]

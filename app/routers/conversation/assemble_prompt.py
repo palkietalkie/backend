@@ -21,7 +21,7 @@ def assemble_prompt(
     weather = weather_label or "weather unknown"
     kg_line = ", ".join(kg_entities[:10]) if kg_entities else ""
     cal_line = "; ".join(today_events_titles[:5]) if today_events_titles else ""
-    profile_bits = []
+    profile_bits: list[str] = []
     if user["native_language"]:
         profile_bits.append(f"native language {user['native_language']}")
     if user["goals"]:
@@ -41,7 +41,7 @@ def assemble_prompt(
             f'Pronounce their name like "{user["name_pronunciation"]}" — say it out loud that way.',
         ]
 
-    memory_lines = []
+    memory_lines: list[str] = []
     if profile:
         memory_lines.append(f"Things they've told you about themselves: {profile}.")
     if kg_line:

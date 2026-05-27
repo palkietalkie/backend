@@ -1,6 +1,6 @@
 """SDK availability shim. Kept private to the apple_asn package."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Pyright gets the SDK-typed names directly; runtime falls through to the try/except below.
@@ -31,4 +31,9 @@ else:
             pass
 
 
-_ = Any  # keep typing import live for downstream re-export consumers
+__all__ = [
+    "APPLE_LIB_AVAILABLE",
+    "AppleEnv",
+    "SignedDataVerifier",
+    "VerificationException",
+]

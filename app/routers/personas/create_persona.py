@@ -9,7 +9,8 @@ from app.routers.personas.build_persona_out_from_row import build_persona_out_fr
 from app.routers.personas.validate_voice import validate_voice
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
-from app.services.neon.rows import PersonaRow, UserRow
+from app.services.neon.make_rows import make_persona_row
+from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -58,5 +59,5 @@ async def create_persona(
         user["id"],
     )
     assert row is not None
-    persona: PersonaRow = dict(row)  # type: ignore[assignment]
+    persona = make_persona_row(row)
     return build_persona_out_from_row(persona, user_id=user["id"], liked_ids=set())

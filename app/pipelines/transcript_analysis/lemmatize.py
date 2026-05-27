@@ -6,9 +6,9 @@ _WORD_RE = re.compile(r"[A-Za-z']+")
 
 
 def lemmatize(text: str) -> list[str]:
-    if _nlp.NLP is None:
+    if _nlp.nlp is None:
         return [w.lower() for w in _WORD_RE.findall(text)]
-    doc = _nlp.NLP(text)
+    doc = _nlp.nlp(text)
     return [
         tok.lemma_.lower()
         for tok in doc

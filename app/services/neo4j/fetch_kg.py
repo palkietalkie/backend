@@ -2,13 +2,14 @@ import uuid
 from typing import Any
 
 from app.services.neo4j.get_driver import get_driver
+from app.services.neo4j.open_session import open_session
 
 
 async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
     driver = get_driver()
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
-    async with driver.session() as session:
+    async with open_session(driver) as session:
         result = await session.run(
             "MATCH (n:Entity {user_id: $uid}) RETURN n.name AS name, n.type AS type, "
             "properties(n) AS props",

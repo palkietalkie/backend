@@ -11,6 +11,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
+import shutil
+import subprocess
+import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
@@ -19,10 +23,14 @@ from typing import TYPE_CHECKING
 
 import asyncpg
 import pytest
+from httpx import AsyncClient
 from testcontainers.postgres import PostgresContainer
 
+from app.services.neon.db_conn import DBConn
+from app.services.neon.rows import UserRow
+
 if TYPE_CHECKING:
-    from app.services.neon.db_conn import DBConn
+    from app.config import Settings
 
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("CLERK_JWKS_URL", "https://test.clerk.test/.well-known/jwks.json")
@@ -42,6 +50,80 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-openai-key")
 os.environ.setdefault("INFERENCE_PROVIDER", "personaplex")
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+
+
+_PROVIDER_APPS = ("Docker", "OrbStack", "Rancher Desktop")
+_PROVIDER_BINS = ("colima",)
+
+
+def _docker_running() -> bool:
+    docker = shutil.which("docker")
+    if docker is None:
+        return False
+    return subprocess.run([docker, "info"], capture_output=True, check=False).returncode == 0  # noqa: S603 — path from shutil.which
+
+
+def _install_docker_desktop() -> None:
+    """Install Docker Desktop via Homebrew cask. Only called when no docker provider is present on this host."""
+    if platform.system() != "Darwin":
+        raise RuntimeError(
+            "Auto-install only supported on macOS; install docker manually on this OS."
+        )
+    brew = shutil.which("brew")
+    if brew is None:
+        raise RuntimeError(
+            "No docker provider installed and `brew` isn't on PATH — install Homebrew first."
+        )
+    print("[conftest] no docker provider found, installing Docker Desktop via Homebrew cask…")
+    subprocess.run([brew, "install", "--cask", "docker"], check=True)  # noqa: S603 — path from shutil.which
+
+
+def _start_daemon() -> str | None:
+    """Boot whichever docker provider is installed on this host. Returns the provider name we launched (so we can quit it on teardown) or None if we couldn't auto-start."""
+    if platform.system() == "Darwin":
+        for app_name in _PROVIDER_APPS:
+            if Path(f"/Applications/{app_name}.app").is_dir():
+                open_bin = shutil.which("open")
+                if open_bin is None:
+                    return None
+                subprocess.run([open_bin, "-a", app_name], check=True)  # noqa: S603 — path from shutil.which
+                return app_name
+    for bin_name in _PROVIDER_BINS:
+        bin_path = shutil.which(bin_name)
+        if bin_path is not None:
+            subprocess.run([bin_path, "start"], check=True)  # noqa: S603 — path from shutil.which
+            return bin_name
+    return None
+
+
+def _stop_daemon(provider: str) -> None:
+    if provider in _PROVIDER_APPS:
+        osascript = shutil.which("osascript")
+        if osascript is None:
+            return
+        subprocess.run([osascript, "-e", f'quit app "{provider}"'], check=False)  # noqa: S603 — path from shutil.which
+        return
+    bin_path = shutil.which(provider)
+    if bin_path is not None:
+        subprocess.run([bin_path, "stop"], check=False)  # noqa: S603 — path from shutil.which
+
+
+def _ensure_docker_daemon() -> str | None:
+    """testcontainers needs a live docker daemon. Boot whichever provider is installed; install Docker Desktop via Homebrew if none is present. Returns the provider name iff we were the ones who started it (so we can stop it on teardown)."""
+    if _docker_running():
+        return None
+    provider = _start_daemon()
+    if provider is None:
+        _install_docker_desktop()
+        provider = _start_daemon()
+    if provider is None:
+        raise RuntimeError("Docker provider install completed but no provider was detected after.")
+    deadline = time.monotonic() + 90.0
+    while not _docker_running():
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"{provider} didn't come up within 90s — check the menubar / shell.")
+        time.sleep(2)
+    return provider
 
 
 async def _init_connection(conn: DBConn) -> None:
@@ -64,7 +146,7 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Iterator:
+def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     """Session-scoped loop so the per-test asyncio fixtures share a loop with the container setup."""
     loop = asyncio.new_event_loop()
     yield loop
@@ -74,20 +156,25 @@ def event_loop() -> Iterator:
 @pytest.fixture(scope="session")
 def db_url() -> Iterator[str]:
     """One Postgres container for the whole pytest session, migrations applied once."""
-    with PostgresContainer("postgres:16-alpine") as pg:
-        raw = pg.get_connection_url()
-        url = raw.replace("postgresql+psycopg2://", "postgresql://")
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(_apply_migrations(url))
-        finally:
-            loop.close()
-        os.environ["NEON_DATABASE_URL"] = url
-        from app.config import get_settings
+    started_provider = _ensure_docker_daemon()
+    try:
+        with PostgresContainer("postgres:16-alpine") as pg:
+            raw = pg.get_connection_url()
+            url = raw.replace("postgresql+psycopg2://", "postgresql://")
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(_apply_migrations(url))
+            finally:
+                loop.close()
+            os.environ["NEON_DATABASE_URL"] = url
+            from app.config import get_settings
 
-        get_settings.cache_clear()
-        get_settings()
-        yield url
+            get_settings.cache_clear()
+            get_settings()
+            yield url
+    finally:
+        if started_provider is not None:
+            _stop_daemon(started_provider)
 
 
 @pytest.fixture
@@ -117,7 +204,7 @@ async def db(pool: asyncpg.Pool) -> AsyncIterator[DBConn]:
 
 
 @pytest.fixture
-async def fake_user(db: DBConn) -> dict:
+async def fake_user(db: DBConn) -> UserRow:
     """Baseline user row for router tests."""
     user_id = uuid.uuid4()
     now = datetime.now(UTC)
@@ -126,7 +213,7 @@ async def fake_user(db: DBConn) -> dict:
                               location_city, timezone, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                     display_name, native_language, target_accent, goals,
+                     display_name, name_pronunciation, native_language, target_accent, goals,
                      location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at""",
         user_id,
@@ -139,11 +226,33 @@ async def fake_user(db: DBConn) -> dict:
         now,
     )
     assert row is not None
-    return dict(row)
+    # asyncpg.Record indexes as Any → assignable to the TypedDict's declared field types.
+    # rows.py is auto-generated from the live Neon schema, so the column set is guaranteed to match.
+    return UserRow(
+        id=row["id"],
+        clerk_user_id=row["clerk_user_id"],
+        email=row["email"],
+        premium=row["premium"],
+        premium_ends_at=row["premium_ends_at"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        display_name=row["display_name"],
+        name_pronunciation=row["name_pronunciation"],
+        native_language=row["native_language"],
+        target_accent=row["target_accent"],
+        goals=row["goals"],
+        location_city=row["location_city"],
+        timezone=row["timezone"],
+        personalization_consent=row["personalization_consent"],
+        product_improvement_consent=row["product_improvement_consent"],
+        consent_screen_seen_at=row["consent_screen_seen_at"],
+    )
 
 
 @pytest.fixture
-async def app_with_overrides(db: DBConn, fake_user: dict):
+async def app_with_overrides(
+    db: DBConn, fake_user: UserRow
+) -> AsyncIterator[tuple[AsyncClient, UserRow]]:
     """Async test client with auth + DB dependency overrides applied.
 
     - ``current_user`` is replaced with a no-op that returns ``fake_user``.
@@ -159,11 +268,11 @@ async def app_with_overrides(db: DBConn, fake_user: dict):
     async def _override_get_db() -> AsyncIterator[DBConn]:
         yield db
 
-    async def _override_current_user() -> dict:
+    async def _override_current_user() -> UserRow:
         """Re-read the fake user on the per-request connection so route mutations are visible."""
         row = await db.fetchrow(
             """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                      display_name, native_language, target_accent, goals,
+                      display_name, name_pronunciation, native_language, target_accent, goals,
                       location_city, timezone,
                       personalization_consent, product_improvement_consent, consent_screen_seen_at
                FROM users
@@ -171,7 +280,25 @@ async def app_with_overrides(db: DBConn, fake_user: dict):
             fake_user["id"],
         )
         assert row is not None
-        return dict(row)
+        return UserRow(
+            id=row["id"],
+            clerk_user_id=row["clerk_user_id"],
+            email=row["email"],
+            premium=row["premium"],
+            premium_ends_at=row["premium_ends_at"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            display_name=row["display_name"],
+            name_pronunciation=row["name_pronunciation"],
+            native_language=row["native_language"],
+            target_accent=row["target_accent"],
+            goals=row["goals"],
+            location_city=row["location_city"],
+            timezone=row["timezone"],
+            personalization_consent=row["personalization_consent"],
+            product_improvement_consent=row["product_improvement_consent"],
+            consent_screen_seen_at=row["consent_screen_seen_at"],
+        )
 
     fastapi_app = create_app()
     fastapi_app.dependency_overrides[resolve_current_user] = _override_current_user
@@ -183,13 +310,15 @@ async def app_with_overrides(db: DBConn, fake_user: dict):
 
 
 @pytest.fixture
-async def client(app_with_overrides) -> AsyncIterator:
+async def client(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+) -> AsyncIterator[AsyncClient]:
     cl, _ = app_with_overrides
     yield cl
 
 
 @pytest.fixture
-def settings() -> Iterator:
+def settings() -> Iterator[Settings]:
     """Fresh ``Settings`` snapshot for tests that read config directly."""
     from app.config import get_settings
 

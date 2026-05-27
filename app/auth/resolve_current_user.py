@@ -8,6 +8,7 @@ from app.auth.extract_bearer import extract_bearer
 from app.auth.verify_clerk_jwt import verify_clerk_jwt
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
+from app.services.neon.make_rows import make_user_row
 from app.services.neon.rows import UserRow
 
 
@@ -30,7 +31,7 @@ async def resolve_current_user(
 
     row = await db.fetchrow(
         """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                  display_name, native_language, target_accent, goals,
+                  display_name, name_pronunciation, native_language, target_accent, goals,
                   location_city, timezone,
                   personalization_consent, product_improvement_consent, consent_screen_seen_at
            FROM users
@@ -42,7 +43,7 @@ async def resolve_current_user(
             """INSERT INTO users (id, clerk_user_id, email)
                VALUES ($1, $2, $3)
                RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                         display_name, native_language, target_accent, goals,
+                         display_name, name_pronunciation, native_language, target_accent, goals,
                          location_city, timezone,
                          personalization_consent, product_improvement_consent, consent_screen_seen_at""",
             uuid.uuid4(),
@@ -50,9 +51,9 @@ async def resolve_current_user(
             email,
         )
         assert row is not None
-        return dict(row)  # type: ignore[return-value]
+        return make_user_row(row)
 
-    user: UserRow = dict(row)  # type: ignore[assignment]
+    user = make_user_row(row)
     if email and user["email"] != email:
         await db.execute(
             "UPDATE users SET email = $2, updated_at = NOW() WHERE id = $1",

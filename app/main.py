@@ -61,8 +61,10 @@ def create_app() -> FastAPI:
     )
 
     @fastapi_app.get("/health", tags=["health"])
-    async def health() -> dict[str, str]:
+    async def health() -> dict[str, str]:  # noqa: RUF029 — FastAPI requires async route handler
         return {"status": "ok", "env": settings.app_env}
+
+    _ = health  # keep pyright from flagging the closure-only handler as unused
 
     fastapi_app.include_router(conversation_start_router)
     fastapi_app.include_router(conversation_transcript_router)

@@ -1,9 +1,11 @@
+from typing import Any
+
 from app.pipelines.kg_extraction.parse_payload import parse_payload
 from app.services.neo4j.models import KGEntity, KGRelation
 
 
 def test_parse_payload_clean_input() -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "entities": [
             {"type": "person", "name": "Alice", "props": {"city": "Paris"}},
             {"type": "place", "name": "Paris", "props": {}},
@@ -21,7 +23,7 @@ def test_parse_payload_clean_input() -> None:
 
 
 def test_parse_payload_drops_malformed_entities() -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "entities": [
             "not-a-dict",
             {"type": "person", "name": ""},
@@ -37,7 +39,7 @@ def test_parse_payload_drops_malformed_entities() -> None:
 
 
 def test_parse_payload_filters_non_scalar_props() -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "entities": [
             {
                 "type": "person",
@@ -57,7 +59,7 @@ def test_parse_payload_filters_non_scalar_props() -> None:
 
 
 def test_parse_payload_drops_malformed_relations() -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "entities": [],
         "relations": [
             "not-a-dict",

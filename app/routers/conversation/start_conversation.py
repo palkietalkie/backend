@@ -21,7 +21,8 @@ from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
-from app.services.neon.rows import PersonaRow, UserRow
+from app.services.neon.make_rows import make_persona_row
+from app.services.neon.rows import UserRow
 from app.services.openai.constants import OpenAIVoiceId
 from app.services.openai.mint_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
@@ -88,7 +89,7 @@ async def start_conversation(
                 user["id"],
             )
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="persona not found")
-        persona_row: PersonaRow = dict(persona_row_raw)  # type: ignore[assignment]
+        persona_row = make_persona_row(persona_row_raw)
         if persona_row["user_id"] != user["id"] and not persona_row["is_public"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="persona not owned by user"

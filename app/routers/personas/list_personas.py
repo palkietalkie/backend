@@ -12,7 +12,8 @@ from app.routers.personas.build_persona_out_from_preset import (
 from app.routers.personas.build_persona_out_from_row import build_persona_out_from_row
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
-from app.services.neon.rows import PersonaRow, UserRow
+from app.services.neon.make_rows import make_persona_row
+from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -38,7 +39,7 @@ async def list_personas(
            WHERE user_id = $1 OR is_public = TRUE""",
         user["id"],
     )
-    db_personas: list[PersonaRow] = [dict(row) for row in db_rows]  # type: ignore[misc]
+    db_personas = [make_persona_row(row) for row in db_rows]
 
     preset_like_counts: dict[uuid.UUID, int] = {}
     if PRESETS:

@@ -8,7 +8,6 @@ is best-effort context for the conversation-start prompt.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 import httpx
 
@@ -18,10 +17,8 @@ from app.services.google_calendar.refresh_token import (
     refresh_token as refresh_google_token,
 )
 from app.services.neon.db_conn import DBConn
-from app.services.neon.rows import CalendarTokenRow, UserRow
-
-if TYPE_CHECKING:
-    pass
+from app.services.neon.make_rows import make_calendar_token_row
+from app.services.neon.rows import UserRow
 
 
 async def fetch_todays_events(user: UserRow, db: DBConn) -> list[CalendarEvent]:
@@ -32,7 +29,7 @@ async def fetch_todays_events(user: UserRow, db: DBConn) -> list[CalendarEvent]:
            WHERE user_id = $1""",
         user["id"],
     )
-    tokens: list[CalendarTokenRow] = [dict(row) for row in rows]  # type: ignore[misc]
+    tokens = [make_calendar_token_row(row) for row in rows]
     out: list[CalendarEvent] = []
     for token in tokens:
         try:

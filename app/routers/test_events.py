@@ -1,7 +1,14 @@
 """Telemetry endpoint contract tests."""
 
+from httpx import AsyncClient
 
-async def test_record_event_persists_row(app_with_overrides, db) -> None:
+from app.services.neon.db_conn import DBConn
+from app.services.neon.rows import UserRow
+
+
+async def test_record_event_persists_row(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
     client, user = app_with_overrides
     resp = await client.post(
         "/events",

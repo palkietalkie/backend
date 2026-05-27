@@ -10,9 +10,11 @@ import json
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
+from app.services.neon.db_conn import DBConn
 from app.services.stripe_webhooks.dispatch_event import dispatch_event
 from app.services.stripe_webhooks.extract_clerk_user_id import extract_clerk_user_id
 from app.services.stripe_webhooks.invalid_signature_error import InvalidSignatureError
@@ -28,7 +30,7 @@ def _stripe_sig(payload: bytes, secret: str, ts: int | None = None) -> tuple[str
     return f"t={ts},v1={sig}", ts
 
 
-def _event(etype: str, **data) -> dict:
+def _event(etype: str, **data: Any) -> dict[str, Any]:
     return {
         "id": f"evt_{uuid.uuid4().hex[:12]}",
         "object": "event",
@@ -73,7 +75,7 @@ def test_extract_clerk_user_id_from_subscription_metadata() -> None:
 
 
 def test_extract_clerk_user_id_from_customer_metadata() -> None:
-    data = {"customer": {"metadata": {"clerk_user_id": "user_b"}}}
+    data: dict[str, object] = {"customer": {"metadata": {"clerk_user_id": "user_b"}}}
     assert extract_clerk_user_id(data) == "user_b"
 
 
@@ -82,7 +84,7 @@ def test_extract_clerk_user_id_missing() -> None:
 
 
 @pytest.fixture
-async def stripe_user(db) -> dict:
+async def stripe_user(db: DBConn) -> dict[str, Any]:
     uid = uuid.uuid4()
     row = await db.fetchrow(
         """INSERT INTO users (id, clerk_user_id, premium)
@@ -95,7 +97,9 @@ async def stripe_user(db) -> dict:
     return dict(row)
 
 
-async def test_dispatch_subscription_updated_active(db, stripe_user) -> None:
+async def test_dispatch_subscription_updated_active(
+    db: DBConn, stripe_user: dict[str, Any]
+) -> None:
     period_end = int((datetime.now(UTC) + timedelta(days=30)).timestamp())
     event = _event(
         "customer.subscription.updated",
@@ -110,11 +114,14 @@ async def test_dispatch_subscription_updated_active(db, stripe_user) -> None:
     row = await db.fetchrow(
         "SELECT premium, premium_ends_at FROM users WHERE id = $1", stripe_user["id"]
     )
+    assert row is not None
     assert row["premium"] is True
     assert row["premium_ends_at"] is None
 
 
-async def test_dispatch_subscription_cancel_at_period_end(db, stripe_user) -> None:
+async def test_dispatch_subscription_cancel_at_period_end(
+    db: DBConn, stripe_user: dict[str, Any]
+) -> None:
     period_end_ts = int((datetime.now(UTC) + timedelta(days=10)).timestamp())
     event = _event(
         "customer.subscription.updated",
@@ -128,11 +135,12 @@ async def test_dispatch_subscription_cancel_at_period_end(db, stripe_user) -> No
     row = await db.fetchrow(
         "SELECT premium, premium_ends_at FROM users WHERE id = $1", stripe_user["id"]
     )
+    assert row is not None
     assert row["premium"] is True
     assert row["premium_ends_at"] is not None
 
 
-async def test_dispatch_subscription_deleted(db, stripe_user) -> None:
+async def test_dispatch_subscription_deleted(db: DBConn, stripe_user: dict[str, Any]) -> None:
     period_end_ts = int((datetime.now(UTC) + timedelta(days=5)).timestamp())
     event = _event(
         "customer.subscription.deleted",
@@ -144,11 +152,14 @@ async def test_dispatch_subscription_deleted(db, stripe_user) -> None:
     row = await db.fetchrow(
         "SELECT premium, premium_ends_at FROM users WHERE id = $1", stripe_user["id"]
     )
+    assert row is not None
     assert row["premium"] is True
     assert row["premium_ends_at"] is not None
 
 
-async def test_dispatch_charge_refunded_revokes_immediately(db, stripe_user) -> None:
+async def test_dispatch_charge_refunded_revokes_immediately(
+    db: DBConn, stripe_user: dict[str, Any]
+) -> None:
     await db.execute("UPDATE users SET premium = TRUE WHERE id = $1", stripe_user["id"])
     event = _event(
         "charge.refunded",
@@ -159,11 +170,14 @@ async def test_dispatch_charge_refunded_revokes_immediately(db, stripe_user) -> 
     row = await db.fetchrow(
         "SELECT premium, premium_ends_at FROM users WHERE id = $1", stripe_user["id"]
     )
+    assert row is not None
     assert row["premium"] is False
     assert row["premium_ends_at"] is not None
 
 
-async def test_dispatch_logs_entitlement_change_event(db, stripe_user) -> None:
+async def test_dispatch_logs_entitlement_change_event(
+    db: DBConn, stripe_user: dict[str, Any]
+) -> None:
     event = _event(
         "charge.refunded",
         id="ch_1",
@@ -174,13 +188,13 @@ async def test_dispatch_logs_entitlement_change_event(db, stripe_user) -> None:
     assert any(r["event_type"] == "entitlement_change" for r in rows)
 
 
-async def test_dispatch_no_clerk_user_id(db) -> None:
+async def test_dispatch_no_clerk_user_id(db: DBConn) -> None:
     event = _event("customer.subscription.updated", id="sub_1")
     out = await dispatch_event(db, event)
     assert out == "no clerk_user_id in metadata"
 
 
-async def test_dispatch_unhandled_event_type(db, stripe_user) -> None:
+async def test_dispatch_unhandled_event_type(db: DBConn, stripe_user: dict[str, Any]) -> None:
     event = _event(
         "invoice.payment_failed",
         id="inv_1",

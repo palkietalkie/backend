@@ -18,7 +18,7 @@ and ``src/openai/types/realtime/*``.
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
@@ -33,6 +33,14 @@ from app.services.openai.constants import (
 logger = logging.getLogger(__name__)
 
 
+class HTTPPoster(Protocol):
+    """Structural type covering both httpx.AsyncClient.post and the in-test FakeClient — only the kwargs we actually use."""
+
+    async def post(
+        self, url: str, *, json: dict[str, Any], headers: dict[str, str]
+    ) -> httpx.Response: ...
+
+
 @dataclass(frozen=True)
 class OpenAISession:
     ws_url: str
@@ -44,7 +52,7 @@ async def mint_openai_session(
     text_prompt: str,
     voice_id: OpenAIVoiceId,
     *,
-    http_client: httpx.AsyncClient | None = None,
+    http_client: HTTPPoster | None = None,
 ) -> OpenAISession:
     settings = get_settings()
     payload: dict[str, Any] = {

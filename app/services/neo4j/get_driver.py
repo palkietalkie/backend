@@ -1,14 +1,13 @@
 from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from app.config import get_settings
-
-# Shared singleton state — close_driver.py mutates this too.
-_driver: AsyncDriver | None = None
+from app.services.neo4j.driver_state import driver_state
 
 
 def get_driver() -> AsyncDriver:
-    global _driver
-    if _driver is None:
+    if driver_state.driver is None:
         s = get_settings()
-        _driver = AsyncGraphDatabase.driver(s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password))
-    return _driver
+        driver_state.driver = AsyncGraphDatabase.driver(
+            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
+        )
+    return driver_state.driver

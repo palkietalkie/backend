@@ -6,6 +6,7 @@ We mint short-lived RS256 tokens signed by an ephemeral key whose JWK we serve t
 import base64
 import time
 import uuid
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -17,6 +18,8 @@ from fastapi import HTTPException
 from jose import jwt
 
 from app.auth import fetch_jwks, resolve_current_user, verify_clerk_jwt
+from app.config import Settings
+from app.services.neon.db_conn import DBConn
 
 
 def _b64url_uint(value: int) -> str:
@@ -34,16 +37,14 @@ def _sign(claims: dict[str, Any], private_key_pem: bytes, kid: str = "test-kid-1
 
 
 @pytest.fixture(autouse=True)
-def _reset_jwks_cache():
-    fetch_jwks._cached_jwks = None
-    fetch_jwks._fetched_at = 0.0
+def reset_jwks_cache() -> Iterator[None]:
+    fetch_jwks.reset_cache()
     yield
-    fetch_jwks._cached_jwks = None
-    fetch_jwks._fetched_at = 0.0
+    fetch_jwks.reset_cache()
 
 
 @pytest.fixture
-def keys_and_pem():
+def keys_and_pem() -> tuple[dict[str, Any], bytes]:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
@@ -51,7 +52,7 @@ def keys_and_pem():
         encryption_algorithm=serialization.NoEncryption(),
     )
     public_numbers = private_key.public_key().public_numbers()
-    jwks = {
+    jwks: dict[str, Any] = {
         "keys": [
             {
                 "kty": "RSA",
@@ -67,7 +68,9 @@ def keys_and_pem():
 
 
 @respx.mock
-async def test_verify_clerk_jwt_happy_path(keys_and_pem, settings) -> None:
+async def test_verify_clerk_jwt_happy_path(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
     jwks, pem = keys_and_pem
     respx.get(settings.clerk_jwks_url).mock(return_value=httpx.Response(200, json=jwks))
     claims_in = {
@@ -84,7 +87,9 @@ async def test_verify_clerk_jwt_happy_path(keys_and_pem, settings) -> None:
 
 
 @respx.mock
-async def test_verify_clerk_jwt_caches_jwks(keys_and_pem, settings) -> None:
+async def test_verify_clerk_jwt_caches_jwks(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
     jwks, pem = keys_and_pem
     route = respx.get(settings.clerk_jwks_url).mock(return_value=httpx.Response(200, json=jwks))
     token = _sign(
@@ -102,7 +107,9 @@ async def test_verify_clerk_jwt_caches_jwks(keys_and_pem, settings) -> None:
 
 
 @respx.mock
-async def test_verify_clerk_jwt_unknown_kid(keys_and_pem, settings) -> None:
+async def test_verify_clerk_jwt_unknown_kid(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
     jwks, pem = keys_and_pem
     respx.get(settings.clerk_jwks_url).mock(return_value=httpx.Response(200, json=jwks))
     token = _sign(
@@ -122,7 +129,9 @@ async def test_verify_clerk_jwt_unknown_kid(keys_and_pem, settings) -> None:
 
 
 @respx.mock
-async def test_verify_clerk_jwt_bad_signature(keys_and_pem, settings) -> None:
+async def test_verify_clerk_jwt_bad_signature(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
     jwks, pem = keys_and_pem
     respx.get(settings.clerk_jwks_url).mock(return_value=httpx.Response(200, json=jwks))
     token = _sign(
@@ -146,7 +155,9 @@ async def test_verify_clerk_jwt_malformed_header() -> None:
     assert exc.value.status_code == 401
 
 
-async def test_verify_clerk_jwt_no_kid(keys_and_pem, settings) -> None:
+async def test_verify_clerk_jwt_no_kid(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
     _, pem = keys_and_pem
     raw = jwt.encode(
         {
@@ -163,7 +174,9 @@ async def test_verify_clerk_jwt_no_kid(keys_and_pem, settings) -> None:
     assert exc.value.status_code == 401
 
 
-async def test_resolve_current_user_creates_user_on_first_sight(monkeypatch, db) -> None:
+async def test_resolve_current_user_creates_user_on_first_sight(
+    monkeypatch: pytest.MonkeyPatch, db: DBConn
+) -> None:
     async def _fake_verify(token: str) -> dict[str, Any]:
         return {"sub": "user_newcomer", "email": "new@palkietalkie.test"}
 
@@ -174,13 +187,15 @@ async def test_resolve_current_user_creates_user_on_first_sight(monkeypatch, db)
     assert user["email"] == "new@palkietalkie.test"
 
 
-async def test_resolve_current_user_missing_bearer(db) -> None:
+async def test_resolve_current_user_missing_bearer(db: DBConn) -> None:
     with pytest.raises(HTTPException) as exc:
         await resolve_current_user.resolve_current_user(authorization=None, db=db)
     assert exc.value.status_code == 401
 
 
-async def test_resolve_current_user_updates_email(monkeypatch, db) -> None:
+async def test_resolve_current_user_updates_email(
+    monkeypatch: pytest.MonkeyPatch, db: DBConn
+) -> None:
     user_id = uuid.uuid4()
     clerk_id = "user_existing"
     await db.execute(

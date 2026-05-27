@@ -1,5 +1,11 @@
 """Smoke tests. No external services touched."""
 
+from pathlib import Path
+
+import pytest
+from httpx import AsyncClient
+from starlette.routing import Route
+
 
 def test_app_imports() -> None:
     from app.main import app
@@ -10,7 +16,7 @@ def test_app_imports() -> None:
 def test_routes_registered() -> None:
     from app.main import app
 
-    paths = {route.path for route in app.routes}  # type: ignore[attr-defined]
+    paths = {route.path for route in app.routes if isinstance(route, Route)}
     expected = {
         "/health",
         "/conversation/start",
@@ -34,7 +40,7 @@ def test_routes_registered() -> None:
     assert not missing, f"missing routes: {missing}"
 
 
-def test_settings_defaults(monkeypatch, tmp_path) -> None:
+def test_settings_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Default settings (no env, no .env) — ``app_env`` defaults to ``development``."""
     from app.config import Settings, get_settings
 
@@ -57,7 +63,7 @@ def test_settings_defaults(monkeypatch, tmp_path) -> None:
     get_settings.cache_clear()
 
 
-async def test_health_endpoint(client) -> None:
+async def test_health_endpoint(client: AsyncClient) -> None:
     resp = await client.get("/health")
     assert resp.status_code == 200
     body = resp.json()

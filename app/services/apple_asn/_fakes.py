@@ -18,14 +18,14 @@ class FakeVerifier:
         self,
         *,
         notification: Any,
-        transaction: dict | None = None,
-        renewal: dict | None = None,
+        transaction: dict[str, Any] | None = None,
+        renewal: dict[str, Any] | None = None,
         outer_fail: bool = False,
         inner_fail: bool = False,
     ) -> None:
         self._notification = notification
-        self._transaction = transaction or {}
-        self._renewal = renewal or {}
+        self._transaction: dict[str, Any] = transaction or {}
+        self._renewal: dict[str, Any] = renewal or {}
         self._outer_fail = outer_fail
         self._inner_fail = inner_fail
 
@@ -34,12 +34,12 @@ class FakeVerifier:
             raise make_verification_error("bad outer sig")
         return self._notification
 
-    def verify_and_decode_signed_transaction(self, _payload: str) -> dict:
+    def verify_and_decode_signed_transaction(self, _payload: str) -> dict[str, Any]:
         if self._inner_fail:
             raise make_verification_error("bad inner sig")
         return self._transaction
 
-    def verify_and_decode_renewal_info(self, _payload: str) -> dict:
+    def verify_and_decode_renewal_info(self, _payload: str) -> dict[str, Any]:
         if self._inner_fail:
             raise make_verification_error("bad inner sig")
         return self._renewal
@@ -50,7 +50,7 @@ def notification_dict(
     raw_type: str,
     signed_txn: str | None = "signed-txn",
     signed_renewal: str | None = "signed-renewal",
-) -> dict:
+) -> dict[str, Any]:
     data: dict[str, Any] = {}
     if signed_txn is not None:
         data["signedTransactionInfo"] = signed_txn

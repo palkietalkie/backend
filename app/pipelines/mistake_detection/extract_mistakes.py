@@ -1,9 +1,15 @@
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from app.pipelines.mistake_detection.build_prompt import build_prompt
 from app.pipelines.mistake_detection.mistake_record import MistakeRecord
 from app.pipelines.mistake_detection.normalize_mistakes import normalize_mistakes
 from app.services.gemma.complete_json import complete_json
+
+
+class _MistakeBatch(BaseModel):
+    # Permissive — normalize_mistakes does the field-level filtering. Here we just lift the LLM JSON into a real list[dict[str, object]] so pyright can see typed values flow downstream.
+    mistakes: list[dict[str, object]] = []
 
 
 async def extract_mistakes(texts: list[str]) -> list[MistakeRecord]:
@@ -16,4 +22,9 @@ async def extract_mistakes(texts: list[str]) -> list[MistakeRecord]:
         data = await complete_json(prompt)
     except httpx.HTTPError:
         return []
-    return normalize_mistakes(list(data.get("mistakes") or []))
+    try:
+        batch = _MistakeBatch.model_validate(data)
+    except ValidationError:
+        return []
+    items: list[object] = list(batch.mistakes)
+    return normalize_mistakes(items)

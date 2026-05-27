@@ -6,6 +6,7 @@ asserted through the same path (the JWT goes into the ``auth_token`` query param
 
 from urllib.parse import parse_qs, urlparse
 
+from app.config import Settings
 from app.services.personaplex.build_handshake import PersonaPlexHandshake, build_handshake
 from app.services.personaplex.build_ws_url import build_ws_url
 from app.services.personaplex.sampling import DEFAULT_DECODING_PARAMS, SamplingParams
@@ -93,7 +94,7 @@ def test_build_ws_url_accepts_override_decoding_params() -> None:
     assert qs["text_temperature"] == ["0.5"]
 
 
-def test_build_handshake_returns_dataclass(settings) -> None:
+def test_build_handshake_returns_dataclass(settings: Settings) -> None:
     handshake = build_handshake(
         text_prompt="System prompt body",
         voice_id="NATM1",
@@ -107,7 +108,7 @@ def test_build_handshake_returns_dataclass(settings) -> None:
     assert qs["auth_token"] == ["jwt-xyz"]
 
 
-def test_build_handshake_propagates_jwt_into_url(settings) -> None:
+def test_build_handshake_propagates_jwt_into_url(settings: Settings) -> None:
     jwt = "eyJhbGciOiJSUzI1NiJ9.payload.sig"
     handshake = build_handshake(text_prompt="x", voice_id="V", auth_token=jwt)
     qs = parse_qs(urlparse(handshake.ws_url).query)

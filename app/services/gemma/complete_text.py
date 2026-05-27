@@ -1,4 +1,5 @@
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
 from app.services.gemma.constants import (
@@ -6,6 +7,22 @@ from app.services.gemma.constants import (
     DEFAULT_TIMEOUT_SECONDS,
     ENDPOINT_TEMPLATE,
 )
+
+
+class _Part(BaseModel):
+    text: str = ""
+
+
+class _Content(BaseModel):
+    parts: list[_Part] = []
+
+
+class _Candidate(BaseModel):
+    content: _Content | None = None
+
+
+class _GemmaResponse(BaseModel):
+    candidates: list[_Candidate] = []
 
 
 async def complete_text(prompt: str, *, system: str | None = None, max_tokens: int = 1024) -> str:
@@ -37,12 +54,9 @@ async def complete_text(prompt: str, *, system: str | None = None, max_tokens: i
         data = resp.json()
 
     try:
-        parts = data["candidates"][0]["content"]["parts"]
-    except KeyError, IndexError, TypeError:
+        parsed = _GemmaResponse.model_validate(data)
+    except ValidationError:
         return ""
-    out: list[str] = []
-    for part in parts:
-        text = part.get("text") if isinstance(part, dict) else None
-        if isinstance(text, str):
-            out.append(text)
-    return "".join(out).strip()
+    if not parsed.candidates or parsed.candidates[0].content is None:
+        return ""
+    return "".join(p.text for p in parsed.candidates[0].content.parts).strip()

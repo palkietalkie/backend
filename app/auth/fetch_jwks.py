@@ -12,6 +12,13 @@ _fetched_at: float = 0.0
 _TTL_SECONDS = 3600
 
 
+def reset_cache() -> None:
+    # Test-only: drop the in-memory JWKS cache so a fresh fetch happens on next verify call.
+    global _cached_jwks, _fetched_at
+    _cached_jwks = None
+    _fetched_at = 0.0
+
+
 async def fetch_jwks() -> JWKS:
     """Returns cached JWKS (JSON Web Key Set) or fetches fresh. Concurrent callers may double-fetch once; cost is bounded by Clerk's edge cache."""
     global _cached_jwks, _fetched_at

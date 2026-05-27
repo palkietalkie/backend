@@ -16,8 +16,16 @@ class Quiz:
     answer: str
 
 
+def _empty_news() -> list[NewsStory]:
+    return []
+
+
+def _empty_quizzes() -> list[Quiz]:
+    return []
+
+
 @dataclass
 class DailyContent:
     day: date
-    news: list[NewsStory] = field(default_factory=list)
-    quizzes: list[Quiz] = field(default_factory=list)
+    news: list[NewsStory] = field(default_factory=_empty_news)
+    quizzes: list[Quiz] = field(default_factory=_empty_quizzes)
