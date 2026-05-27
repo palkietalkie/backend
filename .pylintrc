@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+# C0301 (line-too-long): project rule is long lines beat wrapped comments. Same policy as ruff E501.
+# C0114 (missing-module-docstring) + C0115 (missing-class-docstring) + C0116 (missing-function-docstring): project rule is default to no docstring; well-named identifiers + file names carry the meaning.
+# R0902 (too-many-instance-attributes): noisy on Pydantic / dataclass record types where every attribute is intentional.
+disable=C0301,C0114,C0115,C0116,R0902

@@ -1,0 +1,2 @@
+ALTER TABLE personas
+    ADD COLUMN description VARCHAR(280) NOT NULL DEFAULT '';

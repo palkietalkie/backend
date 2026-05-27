@@ -1,0 +1,27 @@
+# Exclude test files from production image (colocated next to source).
+**/test_*.py
+**/*_test.py
+**/conftest.py
+
+# Caches
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+
+# Local virtualenvs + git history must not bloat build context
+.venv/
+.git/
+.github/
+
+# Local env files (production image gets env via Fly secrets)
+.env
+.env.production
+
+# Editor / OS
+.DS_Store
