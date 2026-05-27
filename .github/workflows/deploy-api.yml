@@ -17,6 +17,33 @@ jobs:
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Verify required Fly secrets present
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          REQUIRED=(
+            CLERK_ISSUER CLERK_JWKS_URL CLERK_SECRET_KEY
+            NEON_DATABASE_URL
+            STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET
+            GEMINI_API_KEY OPENAI_API_KEY
+            WS_TICKET_SECRET
+            NEO4J_URI NEO4J_USER NEO4J_PASSWORD
+            PINECONE_API_KEY
+            MODAL_TOKEN_ID MODAL_TOKEN_SECRET
+          )
+          PRESENT=$(flyctl secrets list -a palkietalkie-api --json | jq -r '.[].name // .[].Name')
+          MISSING=()
+          for name in "${REQUIRED[@]}"; do
+            if ! echo "$PRESENT" | grep -qx "$name"; then
+              MISSING+=("$name")
+            fi
+          done
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Fly app palkietalkie-api missing required secrets: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "All ${#REQUIRED[@]} required Fly secrets present."
+
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only
         env:

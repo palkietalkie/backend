@@ -26,6 +26,25 @@ jobs:
       - name: Install Modal
         run: uv pip install --system "modal>=0.66"
 
+      - name: Verify required Modal secrets present
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          REQUIRED=(ws_ticket huggingface)
+          PRESENT=$(modal secret list --env main --json | jq -r '.[].name // .[].Name')
+          MISSING=()
+          for name in "${REQUIRED[@]}"; do
+            if ! echo "$PRESENT" | grep -qx "$name"; then
+              MISSING+=("$name")
+            fi
+          done
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Modal env=main missing required secrets: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "All ${#REQUIRED[@]} required Modal main secrets present."
+
       - name: Deploy voice
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
