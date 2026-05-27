@@ -1,25 +1,34 @@
 """SDK availability shim. Kept private to the apple_asn package."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-# pyright: reportAssignmentType=false
-try:
-    from appstoreserverlibrary.models.Environment import (
-        Environment as AppleEnv,
-    )
+if TYPE_CHECKING:
+    # Pyright gets the SDK-typed names directly; runtime falls through to the try/except below.
+    from appstoreserverlibrary.models.Environment import Environment as AppleEnv
     from appstoreserverlibrary.signed_data_verifier import (
         SignedDataVerifier,
         VerificationException,
     )
 
     APPLE_LIB_AVAILABLE = True
-except ImportError:  # pragma: no cover — handled gracefully at runtime
-    APPLE_LIB_AVAILABLE = False
-    AppleEnv = None  # type: ignore[assignment,misc]
-    SignedDataVerifier = None  # type: ignore[assignment,misc]
+else:
+    try:
+        from appstoreserverlibrary.models.Environment import (
+            Environment as AppleEnv,
+        )
+        from appstoreserverlibrary.signed_data_verifier import (
+            SignedDataVerifier,
+            VerificationException,
+        )
 
-    class VerificationException(Exception):  # type: ignore[no-redef,assignment]
-        pass
+        APPLE_LIB_AVAILABLE = True
+    except ImportError:  # pragma: no cover — handled gracefully at runtime
+        APPLE_LIB_AVAILABLE = False
+        AppleEnv = None
+        SignedDataVerifier = None
+
+        class VerificationException(Exception):
+            pass
 
 
 _ = Any  # keep typing import live for downstream re-export consumers

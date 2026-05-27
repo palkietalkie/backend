@@ -34,7 +34,7 @@ def test_routes_registered() -> None:
     assert not missing, f"missing routes: {missing}"
 
 
-def test_settings_defaults(monkeypatch) -> None:
+def test_settings_defaults(monkeypatch, tmp_path) -> None:
     """Default settings (no env, no .env) — ``app_env`` defaults to ``development``."""
     from app.config import Settings, get_settings
 
@@ -48,8 +48,10 @@ def test_settings_defaults(monkeypatch) -> None:
         "PERSONAPLEX_SCHEME",
     ):
         monkeypatch.delenv(name, raising=False)
+    # chdir to a clean tmp dir so Pydantic Settings doesn't pick up the project's .env.
+    monkeypatch.chdir(tmp_path)
     get_settings.cache_clear()
-    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    s = Settings()
     assert s.app_env == "development"
     assert "127.0.0.1" in s.personaplex_ws_url
     get_settings.cache_clear()

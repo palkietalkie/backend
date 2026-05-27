@@ -23,9 +23,11 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
                 }
             )
 
+        # The edge type is always :RELATED; the LLM-supplied label lives in `r.kind`.
+        # Older rows (from before the schema change) may not have a kind property — coalesce to the edge type so the response is never null.
         result = await session.run(
             "MATCH (a:Entity {user_id: $uid})-[r]->(b:Entity {user_id: $uid}) "
-            "RETURN a.name AS src, type(r) AS rel, b.name AS dst",
+            "RETURN a.name AS src, coalesce(r.kind, type(r)) AS rel, b.name AS dst",
             uid=str(user_id),
         )
         async for record in result:

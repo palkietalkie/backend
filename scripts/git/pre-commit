@@ -22,6 +22,18 @@ if [ ! -x "$PYRIGHT" ]; then
     exit 1
 fi
 
+echo "pre-commit: regenerate app/services/neon/rows.py from live Neon schema"
+ROWS_PY="app/services/neon/rows.py"
+ROWS_PY_BEFORE=$(cat "$ROWS_PY" 2>/dev/null || true)
+uv run scripts/generate_neon_types.py
+# Format the generated file so the drift check compares apples to apples (committed file is already ruff-formatted).
+"$RUFF" format --quiet "$ROWS_PY"
+ROWS_PY_AFTER=$(cat "$ROWS_PY")
+if [ "$ROWS_PY_BEFORE" != "$ROWS_PY_AFTER" ]; then
+    echo "pre-commit: $ROWS_PY drifted from live Neon schema — re-stage it and re-commit" >&2
+    exit 1
+fi
+
 echo "pre-commit: ruff format --check"
 "$RUFF" format --check app/ inference/ scripts/ migrations/ conftest.py
 

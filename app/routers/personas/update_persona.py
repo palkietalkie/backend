@@ -35,13 +35,12 @@ async def update_persona(
     if body.voice_id is not None:
         validate_voice(body.voice_id)
 
-    sql, values = build_patch_sql(persona, body)
+    sql, _values = build_patch_sql(persona, body)
     if sql:
-        row = await db.fetchrow(sql, *values)
-        assert row is not None
-        persona = dict(row)  # type: ignore[assignment]
+        await db.execute(sql, *_values)
+        persona = await fetch_persona_by_id(db, persona_id)
+        assert persona is not None
 
     liked_rows = await db.fetch(LIKED_BY_USER_SQL, user["id"])
     liked_ids: set[uuid.UUID] = {row["persona_id"] for row in liked_rows}
-    assert persona is not None
-    return build_persona_out_from_row(persona, user_id=user["id"], liked_ids=liked_ids)  # type: ignore[arg-type]
+    return build_persona_out_from_row(persona, user_id=user["id"], liked_ids=liked_ids)

@@ -25,15 +25,18 @@ async def upsert_kg(
                 props=ent.props,
             )
         for rel in relations:
-            # Relationship type is dynamic; sanitize to ASCII upper underscore.
-            rel_type = "".join(c if c.isalnum() else "_" for c in rel.relation.upper()) or "RELATED"
+            # Stable relation type :RELATED — the LLM-supplied label (e.g. FRIENDS_WITH, WORKS_AT) lives as a `kind` property on the edge.
+            # Keeps the Cypher fully literal (no string interpolation, no LiteralString casts) and still lets readers filter by kind.
+            kind = "".join(c if c.isalnum() else "_" for c in rel.relation.upper()) or "RELATED"
             await session.run(
-                f"""
-                MATCH (a:Entity {{user_id: $uid, name: $src}})
-                MATCH (b:Entity {{user_id: $uid, name: $dst}})
-                MERGE (a)-[:{rel_type}]->(b)
-                """,  # type: ignore[arg-type]
+                """
+                MATCH (a:Entity {user_id: $uid, name: $src})
+                MATCH (b:Entity {user_id: $uid, name: $dst})
+                MERGE (a)-[r:RELATED]->(b)
+                SET r.kind = $kind
+                """,
                 uid=str(user_id),
                 src=rel.src_name,
                 dst=rel.dst_name,
+                kind=kind,
             )
