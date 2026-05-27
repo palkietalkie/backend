@@ -1,0 +1,32 @@
+# Palkie Talkie backend on Fly.io.
+# Region sjc co-locates with Lambda Labs us-west-1 (where PersonaPlex runs) for low RTT.
+app = "palkietalkie-api"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  LOG_LEVEL = "INFO"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  # 512MB OOM'd with 2 uvicorn workers + spaCy + SDKs imported. 1024 fits comfortably with 1 worker; can drop back to 512 if we lazy-load spaCy.
+  memory_mb = 1024

@@ -1,0 +1,18 @@
+{
+  "include": ["app", "conftest.py", "migrations/run.py"],
+  "exclude": [
+    ".venv",
+    "**/__pycache__",
+    "**/inference/**",
+    "modal_apps",
+    "app/scripts/**",
+    "scripts/**"
+  ],
+  "extraPaths": ["."],
+  "stubPath": "stubs",
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "strict",
+  "useLibraryCodeForTypes": true
+}

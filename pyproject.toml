@@ -1,0 +1,114 @@
+[project]
+name = "palkietalkie-backend"
+version = "0.1.0"
+description = "Palkie Talkie FastAPI backend: Clerk auth, Stripe + ASN webhooks, NLP pipelines, KG, push."
+requires-python = ">=3.14"
+authors = [{ name = "Palkie Talkie" }]
+license = { text = "Proprietary" }
+
+dependencies = [
+    "aioapns>=4.0",
+    "app-store-server-library>=3.1.1",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.136.3",
+    "httpx>=0.28.1",
+    "neo4j>=6.2.0",
+    "openai>=2.38.0",
+    "pinecone-client>=6.0.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "python-jose[cryptography]>=3.5.0",
+    # spacy stable wheels max out at cp313; we're on cp314. Keep floor at the last cp314-installable version until spacy 4.x stable ships with cp314 wheels (currently only 4.0.0.dev3 pre-release supports it).
+    "spacy>=3.7.6",
+    "stripe>=15.1.0",
+    "uvicorn[standard]>=0.48.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "asyncpg-stubs>=0.30.0",
+    "httpx>=0.28.1",
+    "pyright>=1.1.405",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
+    "respx>=0.23.1",
+    "ruff>=0.15.14",
+    "testcontainers[postgres]>=4.7.0",
+    "types-python-jose>=3.3.4.20240106",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "ASYNC", "S", "C4", "RET", "SIM", "TID"]
+# E501 disabled globally: project rule is "never wrap comments for width" (single long line is fine).
+ignore = ["S101", "B008", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/routers/personas/build_patch_sql.py" = ["S608"]  # PATCH SQL built from a fixed allow-list, all user data flows via $N parameters
+"app/services/apple_asn/_sdk.py" = ["N818"]  # VerificationException name matches the Apple SDK's exception class
+"app/services/google_calendar/refresh_token.py" = ["S105"]  # false positive: TOKEN_URL is a URL
+"**/test_*.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230"]
+"conftest.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230", "E402"]
+"inference/moshi/**" = [
+    "N806",  # ML tensor-dim convention: B, K, T, H, D, C, S
+    "N812",  # `import torch.nn.functional as F` is the PyTorch convention
+    "N803",  # ML kwargs sometimes follow paper notation
+    "N802",  # ML class method names sometimes follow paper notation
+    "E402",  # vendored module-level imports below other code
+    "S202",  # tarfile.extractall is on weights from a trusted HF repo we explicitly download
+    "S311",  # pseudo-random for ML seeding, not crypto
+    "S603",  # subprocess in vendored utility code, paths controlled
+    "S104",  # binding to 0.0.0.0 in the dev CLI server
+    "S310",  # vendored CLI fetches URLs controlled by NVIDIA
+    "B904",  # vendored exception chains
+    "SIM102",  # readable nested ifs in ML branching
+    "SIM108",  # ternaries preferred in our code, but vendored keeps if/else
+    "RET504",  # vendored returns assigned-then-returned for readability
+    "RET505",  # vendored uses else-after-return
+    "C419",  # vendored allows redundant list comprehensions
+    "UP006",  # vendored uses typing.List / Optional for Python 3.8 compat
+    "UP045",  # vendored Optional[X] preserved
+    "TID252",  # vendored uses relative parent imports
+    "B006",  # vendored mutable default args (intentional in some places)
+    "F811",  # vendored has occasional shadowed imports
+    "F401",  # vendored has unused imports for typing
+    "ASYNC230",  # vendored opens files inside async funcs (acceptable for ML weight loading)
+    "ASYNC240",  # vendored uses os.path inside async — same justification
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["app"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = [
+    "app/scripts/*",
+    "app/**/test_*.py",
+    "app/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
