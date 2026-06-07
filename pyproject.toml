@@ -42,6 +42,8 @@ dev = [
     "ruff>=0.15.14",
     "testcontainers[postgres]>=4.7.0",
     "types-python-jose>=3.3.4.20240106",
+    # Same pattern as pillow/pyjwt above: the runtime dep lives in `scripts/regenerate_cefr_vocab.py`'s PEP 723 inline block; mirrored here so pyright can resolve it against the dev .venv.
+    "wordfreq>=3.1.1",
 ]
 
 [build-system]

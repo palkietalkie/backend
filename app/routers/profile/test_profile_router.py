@@ -5,7 +5,6 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
-from app.routers.profile import update_profile as update_profile_mod
 from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import UserRow
 
@@ -34,12 +33,7 @@ async def test_list_practice_options_exposes_enums(
 
 async def test_update_profile_patches_fields(
     app_with_overrides: tuple[AsyncClient, UserRow],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def _no_guess(*_a: Any, **_k: Any) -> str:
-        return ""
-
-    monkeypatch.setattr(update_profile_mod, "guess_name_pronunciation", _no_guess)
     client, _ = app_with_overrides
     resp = await client.patch(
         "/profile",
@@ -168,7 +162,6 @@ async def test_update_profile_respects_explicit_empty_pronunciation(
     async def _guess(*_a: Any, **_k: Any) -> str:
         return "AUTO-FILLED"
 
-    monkeypatch.setattr(update_profile_mod, "guess_name_pronunciation", _guess)
     monkeypatch.setattr(fetch_profile_mod, "guess_name_pronunciation", _guess)
     client, user = app_with_overrides
     await db.execute("UPDATE users SET name_pronunciation = 'WAY-yu' WHERE id = $1", user["id"])
