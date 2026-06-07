@@ -138,7 +138,8 @@ async def test_fetch_profile_returns_suggestion_when_pronunciation_empty(
     assert resp.status_code == 200
     body = resp.json()
     assert body["name_pronunciation"] in (None, "")
-    assert body["name_pronunciation_suggestion"] == f"{user['display_name'].upper()}-suggested"
+    display_name = user["display_name"] or ""
+    assert body["name_pronunciation_suggestion"] == f"{display_name.upper()}-suggested"
     persisted = await db.fetchval("SELECT name_pronunciation FROM users WHERE id = $1", user["id"])
     assert persisted is None
 

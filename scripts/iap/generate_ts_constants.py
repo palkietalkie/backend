@@ -25,7 +25,7 @@ OUT_PATH = (
 
 
 def main() -> None:
-    rows = []
+    rows: list[str] = []
     for s in SUBSCRIPTIONS:
         rows.append(
             "  {\n"

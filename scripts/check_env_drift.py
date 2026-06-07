@@ -53,7 +53,7 @@ def _read_secrets_keys(path: Path) -> set[str]:
 
 def _read_fly_env_keys(path: Path) -> set[str]:
     data = tomllib.loads(path.read_text())
-    env = data.get("env") or {}
+    env: dict[str, object] = data.get("env") or {}
     return {str(k) for k in env}
 
 
@@ -79,8 +79,10 @@ def main() -> int:
             )
 
     # Invariant 2: fly.toml [env] and fly.dev.toml [env] hold the same key set.
-    fly_prd = _read_fly_env_keys(ROOT / "fly.toml") if (ROOT / "fly.toml").exists() else set()
-    fly_dev = (
+    fly_prd: set[str] = (
+        _read_fly_env_keys(ROOT / "fly.toml") if (ROOT / "fly.toml").exists() else set()
+    )
+    fly_dev: set[str] = (
         _read_fly_env_keys(ROOT / "fly.dev.toml") if (ROOT / "fly.dev.toml").exists() else set()
     )
     only_prd = fly_prd - fly_dev

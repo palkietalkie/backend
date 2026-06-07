@@ -6,11 +6,11 @@ import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import asyncpg
+    from app.services.neon.db_conn import DBConn
 
 
 async def fetch_session_audio(
-    db: asyncpg.Connection, session_id: uuid.UUID, source: str = "mic"
+    db: DBConn, session_id: uuid.UUID, source: str = "mic"
 ) -> tuple[bytes, str] | None:
     """`source="mic"` returns the iOS mic recording; `source="model"` returns the AI's raw PCM16 output captured before iOS playback DSP touched it."""
     row = await db.fetchrow(

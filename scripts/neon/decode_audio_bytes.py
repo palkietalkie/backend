@@ -11,6 +11,7 @@ import zlib
 
 import numpy as np
 import soundfile as sf
+from numpy.typing import NDArray
 
 
 def _try_decompress(raw: bytes) -> bytes:
@@ -24,13 +25,12 @@ def _try_decompress(raw: bytes) -> bytes:
         return raw
 
 
-def decode_audio_bytes(raw: bytes) -> tuple[np.ndarray, int]:
+def decode_audio_bytes(raw: bytes) -> tuple[NDArray[np.float64], int]:
     raw = _try_decompress(raw)
     try:
-        audio, sr = sf.read(io.BytesIO(raw), dtype="float32")
-        if audio.ndim > 1:
-            audio = audio.mean(axis=1)
-        return audio.astype(np.float64), int(sr)
+        audio_raw, sr_raw = sf.read(io.BytesIO(raw), dtype="float32")
+        audio = audio_raw.mean(axis=1) if audio_raw.ndim > 1 else audio_raw
+        return audio.astype(np.float64), int(sr_raw)
     except (sf.LibsndfileError, RuntimeError, ValueError):  # fmt: skip
         n_pcm = len(raw) // 2 * 2
         pcm = np.frombuffer(raw[:n_pcm], dtype="<i2").astype(np.float64) / 32768.0

@@ -6,12 +6,10 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import asyncpg
+    from app.services.neon.db_conn import DBConn
 
 
-async def fetch_session_transcripts(
-    db: asyncpg.Connection, session_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def fetch_session_transcripts(db: DBConn, session_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = await db.fetch(
         """SELECT speaker, started_at, text
            FROM transcripts

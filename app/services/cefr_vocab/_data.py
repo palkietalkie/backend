@@ -9,7 +9,7 @@ from pathlib import Path
 from app.services.cefr_vocab.cefr_entry import CefrEntry
 from app.services.cefr_vocab.constants import LEVELS
 
-_CSV = Path(__file__).resolve().parent / "data.csv"
+CSV_PATH = Path(__file__).resolve().parent / "data.csv"
 
 
 def _load() -> tuple[
@@ -19,7 +19,7 @@ def _load() -> tuple[
 ]:
     by_lemma: dict[str, CefrEntry] = {}
     by_level: dict[str, list[tuple[str, int]]] = {lvl: [] for lvl in LEVELS}
-    with _CSV.open(newline="") as f:
+    with CSV_PATH.open(newline="") as f:
         for row in csv.DictReader(f):
             level = row["cefr"]
             rank = int(row["rank"])

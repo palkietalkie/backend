@@ -16,7 +16,7 @@ from app.services.apple_asn.reset_caches import reset_caches
 @pytest.fixture(autouse=True)
 def reset_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     # Send the disk cache under tmp so each test sees a fresh filesystem.
-    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))  # type: ignore[arg-type]
     reset_caches()
     yield
     reset_caches()

@@ -54,7 +54,7 @@ async def test_connect_google_calendar_returns_auth_url(
         client, user = app_with_overrides
         resp = await client.post("/integrations/google-calendar/connect")
         assert resp.status_code == 200
-        url = resp.json()["auth_url"]
+        url: str = resp.json()["auth_url"]
         parsed = urlparse(url)
         assert parsed.netloc == "accounts.google.com"
         qs = parse_qs(parsed.query)

@@ -94,7 +94,7 @@ async def test_list_personas_sort_recent(
 async def test_list_personas_excludes_other_users_private(
     app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
 ) -> None:
-    client, user = app_with_overrides
+    client, _user = app_with_overrides
     # Seed a different user and their private persona.
     other_id = uuid.uuid4()
     await db.execute(
@@ -244,7 +244,7 @@ async def test_delete_persona_rejects_other_users(
 async def test_like_persona_bumps_count(
     app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
 ) -> None:
-    client, user = app_with_overrides
+    client, _user = app_with_overrides
     other_id = uuid.uuid4()
     await db.execute(
         """INSERT INTO users (id, clerk_user_id, premium) VALUES ($1, $2, FALSE)""",

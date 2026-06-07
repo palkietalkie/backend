@@ -19,7 +19,7 @@ import numpy as np
 import opuslib
 import websockets
 
-# Reuse the canonical HMAC ticket logic — same `mint()` Fly uses, single source of truth in `app.services.ws_ticket`. The probe reads `WS_TICKET_SECRET` from backend/.env so it signs with the exact same secret Modal verifies against.
+# Reuse the canonical HMAC ticket logic — same `mint_ws_ticket()` Fly uses, single source of truth in `app.services.ws_ticket`. The probe reads `WS_TICKET_SECRET` from backend/.env so it signs with the exact same secret Modal verifies against.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 for line in (Path(__file__).resolve().parents[1] / ".env").read_text().splitlines():
     line = line.strip()
@@ -27,7 +27,7 @@ for line in (Path(__file__).resolve().parents[1] / ".env").read_text().splitline
         k, v = line.split("=", 1)
         os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
-from app.services.ws_ticket import mint  # noqa: E402
+from app.services.ws_ticket.mint_ws_ticket import mint_ws_ticket  # noqa: E402
 
 SAMPLE_RATE = 24000
 CHANNELS = 1
@@ -53,7 +53,7 @@ def build_ws_url() -> str:
     params = {
         "text_prompt": "You are a friendly conversation partner. Open the conversation in character.",
         "voice_prompt": "NATM1.pt",
-        "auth_token": mint("probe-user"),
+        "auth_token": mint_ws_ticket("probe-user"),
         **SAMPLING_DEFAULTS,
     }
     return f"{MODAL_WS_BASE}/api/chat?{urlencode(params, safe='')}"
@@ -65,7 +65,7 @@ OGG_CRC_POLY = 0x04C1_1DB7
 
 
 def build_ogg_crc_table() -> list[int]:
-    table = []
+    table: list[int] = []
     for index in range(256):
         register = index << 24
         for _bit in range(8):
@@ -88,7 +88,7 @@ def ogg_crc32(data: bytes) -> int:
 
 
 def make_page(packet: bytes, header_type: int, granule: int, serial: int, seq: int) -> bytes:
-    seg = []
+    seg: list[int] = []
     if len(packet) == 0:
         seg.append(0)
     else:
@@ -240,8 +240,8 @@ async def main() -> int:
             )
             return 0 if inbound_count > 0 else 1
 
-    except websockets.InvalidStatusCode as e:
-        print(f"[probe] WS handshake rejected: status={e.status_code}")
+    except websockets.exceptions.InvalidStatus as e:
+        print(f"[probe] WS handshake rejected: status={e.response.status_code}")
         return 2
     except Exception as e:
         print(f"[probe] error: {type(e).__name__}: {e}")

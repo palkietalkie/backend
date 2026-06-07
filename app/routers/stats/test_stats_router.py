@@ -143,7 +143,7 @@ async def test_list_cefr_missing_filters_used_words(
     client, _user = app_with_overrides
     resp = await client.get("/stats/cefr", params={"limit": 5})
     assert resp.status_code == 200
-    body = resp.json()
+    body: list[dict[str, object]] = resp.json()
     assert isinstance(body, list)
     if body:
         first = body[0]
