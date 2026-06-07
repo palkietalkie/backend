@@ -15,11 +15,9 @@ def _try_load(text: str) -> dict[str, Any]:
         return {}
 
 
-async def complete_json(
-    prompt: str, *, system: str | None = None, max_tokens: int = 1024
-) -> dict[str, Any]:
+async def complete_json(prompt: str, *, system: str | None = None) -> dict[str, Any]:
     # On parse failure, return an empty dict instead of raising — pipelines should treat that as "no findings".
-    text = await complete_text(prompt, system=system, max_tokens=max_tokens)
+    text = await complete_text(prompt, system=system)
     if not text:
         return {}
     if text.startswith("```"):

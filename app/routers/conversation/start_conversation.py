@@ -4,25 +4,28 @@ from datetime import UTC, datetime
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
-from neo4j.exceptions import Neo4jError
+from neo4j.exceptions import GqlError
 from pydantic import BaseModel, Field
 
 from app.auth.resolve_current_user import resolve_current_user
 from app.config import get_settings
 from app.personas.presets.find_preset_by_id import find_preset_by_id
-from app.personas.prompt_assembler.persona_prompt_fields import PersonaPromptFields
-from app.routers.conversation.assemble_prompt import assemble_prompt
+from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
 from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
     PROVIDER_OPENAI,
     PROVIDER_PERSONAPLEX,
 )
+from app.routers.entitlement.check_is_premium_now import check_is_premium_now
+from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
 from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
+from app.services.neon.sum_seconds_used_this_week import sum_seconds_used_this_week
+from app.services.neon.sum_seconds_used_today import sum_seconds_used_today
 from app.services.openai.constants import OpenAIVoiceId
 from app.services.openai.mint_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
@@ -58,6 +61,20 @@ async def start_conversation(
     db: DBConn = Depends(get_db),
 ) -> StartResponse:
     settings = get_settings()
+    # Free-plan caps. Two windows apply — the daily one resets at user-local midnight, the weekly one at user-local Monday 00:00. Whichever the user hits first stops them; rejecting here (rather than mid-conversation) keeps the iOS UX simple: either you get a session or you get an "out of time" screen with an Upgrade CTA.
+    if not check_is_premium_now(user):
+        used_today = await sum_seconds_used_today(user, db)
+        if used_today >= FREE_MINUTES_PER_DAY * 60:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"daily free limit reached ({FREE_MINUTES_PER_DAY} min). upgrade or come back at local midnight.",
+            )
+        used_this_week = await sum_seconds_used_this_week(user, db)
+        if used_this_week >= FREE_MINUTES_PER_WEEK * 60:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"weekly free limit reached ({FREE_MINUTES_PER_WEEK} min). upgrade or come back next Monday.",
+            )
     provider = settings.inference_provider.lower()
     preset = find_preset_by_id(body.persona_id)
     persona_voice_id: str
@@ -116,7 +133,8 @@ async def start_conversation(
 
     try:
         kg_entities = await fetch_entities_summary(user["id"])
-    except Neo4jError:
+    except GqlError:
+        # GqlError covers both `Neo4jError` (server-side response errors) and `DriverError` (connection / DNS / auth / config failures). KG enrichment is best-effort — don't 500 the conversation start when Neo4j is unreachable.
         kg_entities = []
 
     try:
@@ -125,29 +143,35 @@ async def start_conversation(
         events = []
     event_titles = [e.title for e in events]
 
-    last_row = await db.fetchrow(
-        """SELECT id, user_id, persona_id, started_at, ended_at, duration_seconds
+    # Recall the user's last 3 conversations WITH THIS SAME PERSONA. Each persona has their own memory of the user — Aiden doesn't get fed Naoko's transcript tail. Pulling 3 not 1 so the persona has shared history beyond the very last chat; longer-term recall (per-session summaries + vector search) is the planned upgrade in /CLAUDE.md.
+    last_rows = await db.fetch(
+        """SELECT id, started_at, ended_at
            FROM conversation_sessions
-           WHERE user_id = $1 AND ended_at IS NOT NULL
+           WHERE user_id = $1 AND persona_id = $2 AND ended_at IS NOT NULL
            ORDER BY ended_at DESC
-           LIMIT 1""",
+           LIMIT 3""",
         user["id"],
+        body.persona_id,
     )
     recent_recall: str | None = None
-    is_first_meeting = last_row is None
-    if last_row is not None:
-        transcript_rows = await db.fetch(
-            """SELECT id, session_id, speaker, text, started_at, ended_at
-               FROM transcripts
-               WHERE session_id = $1
-               ORDER BY started_at DESC
-               LIMIT $2""",
-            last_row["id"],
-            10,
-        )
-        if transcript_rows:
+    if last_rows:
+        session_tails: list[str] = []
+        for session_row in reversed(last_rows):
+            transcript_rows = await db.fetch(
+                """SELECT speaker, text
+                   FROM transcripts
+                   WHERE session_id = $1
+                   ORDER BY started_at DESC
+                   LIMIT 10""",
+                session_row["id"],
+            )
+            if not transcript_rows:
+                continue
             ordered = list(reversed(transcript_rows))
-            recent_recall = " | ".join(f"{t['speaker']}: {t['text'][:200]}" for t in ordered)
+            joined = " | ".join(f"{t['speaker']}: {t['text'][:200]}" for t in ordered)
+            session_tails.append(joined)
+        if session_tails:
+            recent_recall = "\n---\n".join(session_tails)
 
     text_prompt = assemble_prompt(
         persona_fields,
@@ -156,7 +180,6 @@ async def start_conversation(
         weather_label,
         event_titles,
         recent_recall=recent_recall,
-        is_first_meeting=is_first_meeting,
         topic_override=body.topic_override,
     )
 
@@ -191,6 +214,7 @@ async def start_conversation(
         openai_session = await mint_openai_session(
             text_prompt=text_prompt,
             voice_id=openai_voice,
+            is_premium=bool(user["premium"]),
         )
         return StartResponse(
             session_id=session_id,

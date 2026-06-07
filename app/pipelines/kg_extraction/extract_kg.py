@@ -12,7 +12,7 @@ async def extract_kg(texts: list[str]) -> tuple[list[KGEntity], list[KGRelation]
         return [], []
     prompt = build_prompt("\n".join(f"- {t}" for t in texts))
     try:
-        data = await complete_json(prompt, max_tokens=2048)
+        data = await complete_json(prompt)
     except httpx.HTTPError:
         return [], []
     return parse_payload(data)

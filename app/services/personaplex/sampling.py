@@ -2,9 +2,7 @@
 
 Pure value object. No httpx / FastAPI / network imports — directly testable.
 
-Defaults match the upstream NVIDIA reference client (``github.com/NVIDIA/personaplex``); tune
-only if Audio QA shows a regression.
-"""
+Defaults match the upstream NVIDIA reference client (``github.com/NVIDIA/personaplex``); tune only if Audio QA shows a regression."""
 
 from dataclasses import asdict, dataclass
 

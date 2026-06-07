@@ -15,5 +15,4 @@ APPLE_NOTIFICATION_TO_STATE: dict[str, tuple[str, bool]] = {
 APPLE_ROOT_URLS: tuple[str, ...] = (
     "https://www.apple.com/certificateauthority/AppleRootCA-G3.cer",
     "https://www.apple.com/certificateauthority/AppleRootCA-G2.cer",
-    "https://www.apple.com/certificateauthority/AppleIncRootCertificate.cer",
 )

@@ -11,6 +11,12 @@ from app.routers.conversation.append_transcript import router as conversation_tr
 from app.routers.conversation.end_conversation import router as conversation_end_router
 from app.routers.conversation.list_sessions import router as conversation_sessions_router
 from app.routers.conversation.start_conversation import router as conversation_start_router
+from app.routers.conversation.upload_mic_audio import (
+    router as conversation_upload_mic_audio_router,
+)
+from app.routers.conversation.upload_model_audio import (
+    router as conversation_upload_model_audio_router,
+)
 from app.routers.entitlement.fetch_entitlement import router as entitlement_router
 from app.routers.fetch_kg import router as kg_router
 from app.routers.fetch_today_content import router as content_router
@@ -25,6 +31,7 @@ from app.routers.integrations.list_integrations import router as integrations_li
 from app.routers.integrations.push_apple_calendar_events import (
     router as integrations_apple_events_router,
 )
+from app.routers.list_languages import router as languages_router
 from app.routers.list_voices import router as voices_router
 from app.routers.personas.create_persona import router as personas_create_router
 from app.routers.personas.delete_persona import router as personas_delete_router
@@ -32,7 +39,9 @@ from app.routers.personas.like_persona import router as personas_like_router
 from app.routers.personas.list_personas import router as personas_list_router
 from app.routers.personas.unlike_persona import router as personas_unlike_router
 from app.routers.personas.update_persona import router as personas_update_router
+from app.routers.plan_limits import router as plan_limits_router
 from app.routers.profile.fetch_profile import router as profile_fetch_router
+from app.routers.profile.list_practice_options import router as profile_practice_options_router
 from app.routers.profile.update_profile import router as profile_update_router
 from app.routers.record_event import router as events_router
 from app.routers.register_apns_token import router as devices_router
@@ -70,9 +79,12 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(conversation_transcript_router)
     fastapi_app.include_router(conversation_end_router)
     fastapi_app.include_router(conversation_sessions_router)
+    fastapi_app.include_router(conversation_upload_mic_audio_router)
+    fastapi_app.include_router(conversation_upload_model_audio_router)
     fastapi_app.include_router(stripe_webhook_router)
     fastapi_app.include_router(apple_asn_webhook_router)
     fastapi_app.include_router(entitlement_router)
+    fastapi_app.include_router(plan_limits_router)
     fastapi_app.include_router(personas_list_router)
     fastapi_app.include_router(personas_create_router)
     fastapi_app.include_router(personas_update_router)
@@ -90,11 +102,13 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(integrations_outlook_router)
     fastapi_app.include_router(profile_fetch_router)
     fastapi_app.include_router(profile_update_router)
+    fastapi_app.include_router(profile_practice_options_router)
     fastapi_app.include_router(kg_router)
     fastapi_app.include_router(content_router)
     fastapi_app.include_router(devices_router)
     fastapi_app.include_router(events_router)
     fastapi_app.include_router(voices_router)
+    fastapi_app.include_router(languages_router)
     fastapi_app.include_router(consent_fetch_router)
     fastapi_app.include_router(consent_update_router)
     return fastapi_app

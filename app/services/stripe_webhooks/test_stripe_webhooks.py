@@ -1,8 +1,6 @@
 """Stripe webhook signature verification + dispatch tests.
 
-Signature verification uses a real Stripe-style HMAC, computed inline to avoid mocking the
-Stripe SDK's verification routine. Dispatch is exercised against the postgres test container.
-"""
+Signature verification uses a real Stripe-style HMAC, computed inline to avoid mocking the Stripe SDK's verification routine. Dispatch is exercised against the postgres test container."""
 
 import hashlib
 import hmac

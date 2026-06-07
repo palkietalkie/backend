@@ -1,8 +1,6 @@
 """PersonaPlex client tests.
 
-URL construction is pure — assert the exact percent-encoded query string. JWT propagation is
-asserted through the same path (the JWT goes into the ``auth_token`` query param).
-"""
+URL construction is pure — assert the exact percent-encoded query string. JWT propagation is asserted through the same path (the JWT goes into the ``auth_token`` query param)."""
 
 from urllib.parse import parse_qs, urlparse
 

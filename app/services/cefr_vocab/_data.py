@@ -9,7 +9,7 @@ from pathlib import Path
 from app.services.cefr_vocab.cefr_entry import CefrEntry
 from app.services.cefr_vocab.constants import LEVELS
 
-_CSV = Path(__file__).resolve().parents[2] / "scripts" / "data" / "cefr_vocab.csv"
+_CSV = Path(__file__).resolve().parent / "data.csv"
 
 
 def _load() -> tuple[

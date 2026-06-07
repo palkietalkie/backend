@@ -1,0 +1,2 @@
+ALTER TABLE personas DROP COLUMN IF EXISTS target_language;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS target_language VARCHAR(64) NOT NULL DEFAULT 'English';

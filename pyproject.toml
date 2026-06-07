@@ -15,19 +15,25 @@ dependencies = [
     "neo4j>=6.2.0",
     "openai>=2.38.0",
     "pinecone-client>=6.0.0",
-    "pydantic>=2.13.4",
+    # `[email]` pulls email-validator, required for `pydantic.EmailStr` (used by the waitlist endpoint). Without it the FastAPI app fails to start with "email-validator is not installed".
+    "pydantic[email]>=2.13.4",
     "pydantic-settings>=2.14.1",
     "python-jose[cryptography]>=3.5.0",
     # spacy stable wheels max out at cp313; we're on cp314. Keep floor at the last cp314-installable version until spacy 4.x stable ships with cp314 wheels (currently only 4.0.0.dev3 pre-release supports it).
     "spacy>=3.7.6",
     "stripe>=15.1.0",
     "uvicorn[standard]>=0.48.0",
+    "numpy>=2.4.6",
+    "soundfile>=0.13.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "asyncpg-stubs>=0.30.0",
     "httpx>=0.28.1",
+    # Pillow + pyjwt: used by `scripts/asc/*` codegen + JWT minting. Inline PEP 723 deps already satisfy the runtime, but listing here so pyright can resolve type stubs against the local .venv.
+    "pillow>=10.4",
+    "pyjwt[crypto]>=2.9",
     "pyright>=1.1.405",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
@@ -92,6 +98,9 @@ ignore = ["S101", "B008", "E501"]
 asyncio_mode = "auto"
 testpaths = ["app"]
 addopts = "-ra --strict-markers"
+markers = [
+    "sandbox: hits external sandbox APIs (Stripe Sandbox, Apple App Store Server Sandbox). Skip with `pytest -m 'not sandbox'`.",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
@@ -100,7 +109,6 @@ filterwarnings = [
 source = ["app"]
 branch = true
 omit = [
-    "app/scripts/*",
     "app/**/test_*.py",
     "app/test_*.py",
 ]

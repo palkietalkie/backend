@@ -25,7 +25,7 @@ fi
 echo "pre-commit: regenerate app/services/neon/rows.py from live Neon schema"
 ROWS_PY="app/services/neon/rows.py"
 ROWS_PY_BEFORE=$(cat "$ROWS_PY" 2>/dev/null || true)
-uv run scripts/generate_neon_types.py
+uv run scripts/neon/generate_neon_types.py
 # Format the generated file so the drift check compares apples to apples (committed file is already ruff-formatted).
 "$RUFF" format --quiet "$ROWS_PY"
 ROWS_PY_AFTER=$(cat "$ROWS_PY")
@@ -42,3 +42,14 @@ echo "pre-commit: ruff check"
 
 echo "pre-commit: pyright"
 "$PYRIGHT"
+
+echo "pre-commit: check env drift (.env/.env.production/fly.toml/fly.dev.toml vs .env.example)"
+uv run scripts/check_env_drift.py
+
+# End-to-end: deploy backend + Modal voice to dev so the freshly-committed code goes live on the dev infra the phone hits.
+# Skip the iOS install since this is the backend repo; the iOS hook handles its own install.
+BOOT_SH="$(git rev-parse --show-toplevel)/../scripts/boot.sh"
+if [ -x "$BOOT_SH" ]; then
+    echo "pre-commit: boot.sh --no-ios (deploy backend + Modal dev)"
+    "$BOOT_SH" --no-ios
+fi

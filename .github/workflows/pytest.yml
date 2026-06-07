@@ -104,14 +104,22 @@ jobs:
 
       - name: Run pytest with coverage gate
         env:
-          # conftest.py spins up Postgres via testcontainers and overrides NEON_DATABASE_URL; the rest of these are read by Settings at import time.
           APP_ENV: test
           CLERK_JWKS_URL: "https://test.clerk.test/.well-known/jwks.json"
           CLERK_ISSUER: "https://test.clerk.test"
           STRIPE_WEBHOOK_SECRET: whsec_test_secret
-          STRIPE_SECRET_KEY: sk_test_dummy
+          # Sandbox creds for the webhook tests in app/routers/webhooks/. backend/.env values are dev/sandbox; GH Secret names match .env names exactly so there's no translation layer.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_INDIVIDUAL_MONTHLY: ${{ secrets.STRIPE_PRICE_INDIVIDUAL_MONTHLY }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GEMINI_API_KEY: test-gemini-key
-          APPLE_BUNDLE_ID: ai.palkietalkie.test
+          APPLE_BUNDLE_ID: ${{ secrets.APPLE_BUNDLE_ID }}
+          APPLE_STOREKIT_ISSUER_ID: ${{ secrets.APPLE_STOREKIT_ISSUER_ID }}
+          APPLE_STOREKIT_KEY_ID: ${{ secrets.APPLE_STOREKIT_KEY_ID }}
+          APPLE_STOREKIT_PRIVATE_KEY: ${{ secrets.APPLE_STOREKIT_PRIVATE_KEY }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_PRIVATE_KEY: ${{ secrets.APPLE_ASC_PRIVATE_KEY }}
           PERSONAPLEX_HOST: personaplex.test
           PERSONAPLEX_PORT: "443"
           PERSONAPLEX_SCHEME: wss
@@ -124,7 +132,7 @@ jobs:
             --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=70
+            --cov-fail-under=90
 
       - name: Upload coverage XML artifact
         if: always()

@@ -9,8 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """All runtime configuration, loaded from environment.
 
-    Defaults are safe placeholders for local dev / tests. Production deploys override via Fly
-    secrets.
+    Defaults are safe placeholders for local dev / tests. Production deploys override via Fly secrets.
     """
 
     model_config = SettingsConfigDict(
@@ -49,7 +48,7 @@ class Settings(BaseSettings):
 
     # --- Apple ---
     apple_bundle_id: str = "com.palkietalkie.app"
-    apple_asn_shared_secret: str = ""
+    apple_verify_receipt_shared_secret: str = ""
 
     # --- LLMs ---
     # Google AI Studio API key. Same key works for both Gemini and Gemma endpoints — we use it for the `gemma-2-9b-it:generateContent` endpoint everywhere (daily quizzes, mistake detection, phrase extraction, KG extraction).  # noqa: E501
@@ -80,15 +79,19 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str = ""
     google_oauth_redirect_uri: str = "http://localhost:8000/integrations/google-calendar/callback"
 
+    # --- Slack ---
+    # Bot User OAuth token (xoxb-…) for the PT Slack workspace. Same auth used by scripts/slack.sh so we don't run two separate Slack integrations. Optional — if unset, outbound chat.postMessage skips silently.
+    slack_bot_token: str = ""
+    # Channel ID for the #gtm channel. Every iOS event, Apple ASN webhook event, and Stripe webhook event pings here so we can watch user activity in real time. Channel IDs are public identifiers and could live in fly.toml [env] too — keeping here so settings can read them with the same env lookup pattern.
+    slack_channel_gtm: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def personaplex_ws_base(self) -> str:
-        """Base WebSocket URL (scheme + host + port) for PersonaPlex. The full URL is built in
-        ``app.services.personaplex.build_handshake`` because it includes per-conversation query
-        params (text prompt, voice id, JWT, decoding hyperparameters)."""
+        """Base WebSocket URL (scheme + host + port) for PersonaPlex. The full URL is built in ``app.services.personaplex.build_handshake`` because it includes per-conversation query params (text prompt, voice id, JWT, decoding hyperparameters)."""
         # Default ports (80 / 443) are conventionally omitted from URLs
         if (self.personaplex_scheme == "wss" and self.personaplex_port == 443) or (
             self.personaplex_scheme == "ws" and self.personaplex_port == 80
@@ -98,8 +101,7 @@ class Settings(BaseSettings):
 
     @property
     def personaplex_ws_url(self) -> str:
-        """Backwards-compat alias used by smoke tests. Returns the base URL, not the full
-        per-conversation URL (see ``personaplex_ws_base``)."""
+        """Backwards-compat alias used by smoke tests. Returns the base URL, not the full per-conversation URL (see ``personaplex_ws_base``)."""
         return self.personaplex_ws_base
 
 

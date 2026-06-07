@@ -22,6 +22,7 @@ class PersonaOut(BaseModel):
     is_owner: bool
     like_count: int
     liked_by_me: bool
+    sort_weight: int = 100
 
 
 def build_persona_out_from_preset(
@@ -44,4 +45,5 @@ def build_persona_out_from_preset(
         is_owner=False,
         like_count=like_counts.get(p.id, 0),
         liked_by_me=p.id in liked_ids,
+        sort_weight=p.sort_weight,
     )

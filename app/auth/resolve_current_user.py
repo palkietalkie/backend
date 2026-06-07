@@ -31,7 +31,7 @@ async def resolve_current_user(
 
     row = await db.fetchrow(
         """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                  display_name, name_pronunciation, native_language, target_accent, goals,
+                  display_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
                   location_city, timezone,
                   personalization_consent, product_improvement_consent, consent_screen_seen_at
            FROM users
@@ -43,7 +43,7 @@ async def resolve_current_user(
             """INSERT INTO users (id, clerk_user_id, email)
                VALUES ($1, $2, $3)
                RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                         display_name, name_pronunciation, native_language, target_accent, goals,
+                         display_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
                          location_city, timezone,
                          personalization_consent, product_improvement_consent, consent_screen_seen_at""",
             uuid.uuid4(),

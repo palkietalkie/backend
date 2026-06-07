@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS allow_native_language_assist BOOLEAN NOT NULL DEFAULT TRUE;

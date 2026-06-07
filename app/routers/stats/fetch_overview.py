@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
@@ -21,6 +23,8 @@ class CefrCoverage(BaseModel):
 
 
 class StatsOverview(BaseModel):
+    # Consecutive UTC-day streak ending today (or yesterday if no session today yet — the streak survives one "empty" day so it doesn't reset mid-afternoon before the user has practiced). 0 if no sessions in last 2 days.
+    day_streak: int
     session_total_seconds: int
     sessions_count: int
     unique_words: int
@@ -45,6 +49,20 @@ async def fetch_overview(
            WHERE user_id = $1""",
         user["id"],
     )
+
+    session_days_rows = await db.fetch(
+        """SELECT DISTINCT (started_at AT TIME ZONE 'UTC')::date AS day
+           FROM conversation_sessions
+           WHERE user_id = $1""",
+        user["id"],
+    )
+    session_days = {row["day"] for row in session_days_rows}
+    today_utc = datetime.now(UTC).date()
+    cursor = today_utc if today_utc in session_days else today_utc - timedelta(days=1)
+    day_streak = 0
+    while cursor in session_days:
+        day_streak += 1
+        cursor -= timedelta(days=1)
     sessions_count = await db.fetchval(
         "SELECT COUNT(id)::bigint FROM conversation_sessions WHERE user_id = $1",
         user["id"],
@@ -77,6 +95,16 @@ async def fetch_overview(
         round(user_words / (user_talk_seconds / 60.0), 1) if user_talk_seconds >= 1 else None
     )
 
+    pitch_row = await db.fetchrow(
+        """SELECT MIN((props->>'min_hz')::float) AS pmin, MAX((props->>'max_hz')::float) AS pmax
+           FROM events
+           WHERE user_id = $1 AND event_type = 'pitch_range'""",
+        user["id"],
+    )
+    pitch_range_hz: float | None = None
+    if pitch_row is not None and pitch_row["pmin"] is not None and pitch_row["pmax"] is not None:
+        pitch_range_hz = round(float(pitch_row["pmax"]) - float(pitch_row["pmin"]), 1)
+
     used_lemmas = await list_user_lemmas(db, user["id"])
     totals = count_by_level()
     used = count_used_by_level(used_lemmas)
@@ -91,12 +119,13 @@ async def fetch_overview(
     ]
 
     return StatsOverview(
+        day_streak=day_streak,
         session_total_seconds=int(total_seconds or 0),
         sessions_count=int(sessions_count or 0),
         unique_words=int(unique_words or 0),
         unique_phrases=int(unique_phrases or 0),
         user_talk_pct=user_talk_pct,
         speaking_rate_wpm=speaking_rate_wpm,
-        pitch_range_hz=None,
+        pitch_range_hz=pitch_range_hz,
         cefr_coverage=coverage,
     )

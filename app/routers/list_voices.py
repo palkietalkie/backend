@@ -1,9 +1,6 @@
 """GET /voices — list the voice catalog for the active inference provider.
 
-The catalog depends on ``INFERENCE_PROVIDER``: PersonaPlex's NATM/NATF/VARM/VARF
-ids vs OpenAI's named voices. iOS uses this to populate the voice picker on the
-persona customize screen.
-"""
+The catalog depends on ``INFERENCE_PROVIDER``: PersonaPlex's NATM/NATF/VARM/VARF ids vs OpenAI's named voices. iOS uses this to populate the voice picker on the persona customize screen."""
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

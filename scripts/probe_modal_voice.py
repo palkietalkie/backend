@@ -1,18 +1,10 @@
 """End-to-end probe of the Modal voice WebSocket.
 
-Bypasses iOS entirely. Mints a real HMAC ticket (same secret as Fly + Modal),
-opens the same `/api/chat` WebSocket iOS would, sends valid Ogg-Opus packets
-encoded with `opuslib`, and asserts we receive a handshake byte + at least one
-audio/text frame from the model within a timeout.
+Bypasses iOS entirely. Mints a real HMAC ticket (same secret as Fly + Modal), opens the same `/api/chat` WebSocket iOS would, sends valid Ogg-Opus packets encoded with `opuslib`, and asserts we receive a handshake byte + at least one audio/text frame from the model within a timeout.
 
-If this passes, the iOS Ogg-Opus framing is the bug.
-If this fails, the Modal server pipeline is the bug.
+If this passes, the iOS Ogg-Opus framing is the bug. If this fails, the Modal server pipeline is the bug.
 
-Run:
-    cd backend
-    source .venv/bin/activate
-    python scripts/probe_modal_voice.py
-"""
+Run: cd backend source .venv/bin/activate python scripts/probe_modal_voice.py"""
 
 from __future__ import annotations
 
