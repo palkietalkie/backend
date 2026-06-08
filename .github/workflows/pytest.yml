@@ -124,9 +124,10 @@ jobs:
           STRIPE_PRICE_INDIVIDUAL_MONTHLY: ${{ secrets.STRIPE_PRICE_INDIVIDUAL_MONTHLY }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GEMINI_API_KEY: test-gemini-key
-          APPLE_BUNDLE_ID: ${{ secrets.APPLE_BUNDLE_ID }}
-          APPLE_STOREKIT_ISSUER_ID: ${{ secrets.APPLE_STOREKIT_ISSUER_ID }}
-          APPLE_STOREKIT_KEY_ID: ${{ secrets.APPLE_STOREKIT_KEY_ID }}
+          APPLE_BUNDLE_ID: com.palkietalkie.app # public iOS bundle id (App Store visible, ios/project.yml). Not a secret.
+          # Public identifiers (not secrets): Key ID is shown in App Store Connect's API Keys page; Issuer ID is your Apple Developer team UUID. Both appear in JWT iss/kid claims that anyone with the signed token can see. Useless without the matching APPLE_STOREKIT_PRIVATE_KEY (the .p8).
+          APPLE_STOREKIT_ISSUER_ID: 129df326-897e-414d-acda-0e89b6b4f653
+          APPLE_STOREKIT_KEY_ID: BVB84H5GUG
           APPLE_STOREKIT_PRIVATE_KEY: ${{ secrets.APPLE_STOREKIT_PRIVATE_KEY }}
           APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}

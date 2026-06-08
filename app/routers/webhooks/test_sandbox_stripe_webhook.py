@@ -78,9 +78,10 @@ async def test_real_stripe_sandbox_subscription_flips_premium() -> None:
             description=f"live integration test {clerk_user_id}",
         )
         # Attach a pre-made test PaymentMethod by token ID — never put raw card data on the wire. Stripe sandboxes nag if you pass `card={"number": ...}` even with their published Visa test card. `pm_card_visa` is the documented Stripe-provided PM that "always succeeds without 3DS." Other useful IDs: `pm_card_visa_chargeDeclined`, `pm_card_authenticationRequired`.
-        stripe.PaymentMethod.attach("pm_card_visa", customer=customer.id)
+        # `attach()` returns a PaymentMethod object whose `.id` is the customer-bound `pm_1...` id. Use THAT id to set the default — Stripe used to alias the literal token "pm_card_visa" back to the attached pm id, but stopped accepting the alias on Customer.modify in recent API versions, producing "customer does not have a payment method with the ID pm_1..." even though the attach succeeded.
+        attached_pm = stripe.PaymentMethod.attach("pm_card_visa", customer=customer.id)
         stripe.Customer.modify(
-            customer.id, invoice_settings={"default_payment_method": "pm_card_visa"}
+            customer.id, invoice_settings={"default_payment_method": attached_pm.id}
         )
         subscription = stripe.Subscription.create(
             customer=customer.id,
