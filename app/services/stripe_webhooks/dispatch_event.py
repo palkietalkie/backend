@@ -1,18 +1,26 @@
+import logging
 from datetime import UTC, datetime
 
 import stripe
 
 from app.services.neon.apply_subscription_state import apply_subscription_state
 from app.services.neon.db_conn import DBConn
+from app.services.neon.find_user_by_clerk_id import find_user_by_clerk_id
 from app.services.stripe_webhooks.constants import ACTIVE_STATUSES, SOURCE
 from app.services.stripe_webhooks.extract_clerk_user_id import extract_clerk_user_id
 from app.services.stripe_webhooks.extract_period_end import extract_period_end
+
+_logger = logging.getLogger(__name__)
 
 
 async def dispatch_event(db: DBConn, event: stripe.Event) -> str:
     etype = event["type"]
     data = event["data"]["object"]
     clerk_user_id = extract_clerk_user_id(data)
+    _logger.info("stripe_dispatch etype=%s clerk_user_id=%s", etype, clerk_user_id)
+    if clerk_user_id:
+        existing = await find_user_by_clerk_id(db, clerk_user_id)
+        _logger.info("stripe_dispatch user_lookup found=%s", existing is not None)
     if not clerk_user_id:
         return "no clerk_user_id in metadata"
 

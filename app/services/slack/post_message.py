@@ -16,6 +16,9 @@ _CHAT_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 
 async def post_message(channel: str, text: str) -> None:
     settings = get_settings()
+    # Only prd posts to Slack. Dev/test/local backends would spam the same channels with throwaway signups + sandbox webhook noise, drowning out real prd events.
+    if settings.app_env != "production":
+        return
     if not settings.slack_bot_token or not channel:
         return
     try:

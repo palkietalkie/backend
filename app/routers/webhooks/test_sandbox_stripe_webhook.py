@@ -58,6 +58,15 @@ async def test_real_stripe_sandbox_subscription_flips_premium() -> None:
     )
     db_url = os.environ["NEON_DATABASE_URL"]
 
+    import hashlib
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(db_url)
+    url_sha = hashlib.sha256(db_url.encode()).hexdigest()[:16]
+    print(
+        f"\n[TEST DEBUG] NEON host={parsed.hostname} db={parsed.path} user={parsed.username} sha={url_sha}"
+    )
+
     user_id = uuid.uuid4()
     clerk_user_id = f"user_live_stripe_{user_id.hex[:8]}"
 

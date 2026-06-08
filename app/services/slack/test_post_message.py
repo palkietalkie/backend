@@ -15,7 +15,18 @@ def clear_settings_cache():
     get_settings.cache_clear()
 
 
+async def test_skips_when_not_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
+    get_settings.cache_clear()
+    with respx.mock(base_url="https://slack.com", assert_all_called=False) as router:
+        route = router.post("/api/chat.postMessage")
+        await post_message("C0B8R2H1E8H", "hi")
+    assert not route.called
+
+
 async def test_skips_when_bot_token_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "")
     monkeypatch.setenv("SLACK_CHANNEL_GTM", "C0B8R2H1E8H")
     get_settings.cache_clear()
@@ -26,6 +37,7 @@ async def test_skips_when_bot_token_unset(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 async def test_skips_when_channel_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     get_settings.cache_clear()
     with respx.mock(base_url="https://slack.com", assert_all_called=False) as router:
@@ -35,6 +47,7 @@ async def test_skips_when_channel_empty(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 async def test_posts_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     get_settings.cache_clear()
     with respx.mock(base_url="https://slack.com", assert_all_called=False) as router:
@@ -51,6 +64,7 @@ async def test_posts_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_logs_when_slack_returns_not_ok(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     get_settings.cache_clear()
     with respx.mock(base_url="https://slack.com", assert_all_called=False) as router:
@@ -63,6 +77,7 @@ async def test_logs_when_slack_returns_not_ok(
 
 
 async def test_swallows_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     get_settings.cache_clear()
     with respx.mock(base_url="https://slack.com", assert_all_called=False) as router:
