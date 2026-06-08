@@ -1,20 +1,10 @@
-"""Stripe webhook signature verification. Wraps `stripe.Webhook.construct_event` to raise our own InvalidSignatureError on every failure mode (missing sig, bad sig, non-dict payload)."""
-
-import json
+"""Stripe webhook signature verification. Wraps `stripe.Webhook.construct_event` to raise our own InvalidSignatureError on signature failure modes and otherwise return Stripe's typed `Event`."""
 
 import pytest
 import stripe
 
 from app.services.stripe_webhooks.invalid_signature_error import InvalidSignatureError
 from app.services.stripe_webhooks.verify_event import verify_event
-
-
-def _stub_construct_event(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Replace the real signature verifier with a no-op so we control the failure modes from outside.
-    def _noop(**_kwargs: object) -> None:
-        return None
-
-    monkeypatch.setattr(stripe.Webhook, "construct_event", _noop)
 
 
 def test_raises_when_signature_header_missing() -> None:
@@ -31,22 +21,28 @@ def test_raises_when_stripe_signature_check_fails(monkeypatch: pytest.MonkeyPatc
         verify_event(payload=b'{"x": 1}', signature="t=1,v1=deadbeef", secret="whsec_x")
 
 
-def test_raises_when_payload_is_not_json(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_construct_event(monkeypatch)
-    with pytest.raises(InvalidSignatureError, match="not a JSON object"):
-        verify_event(payload=b"not json at all", signature="t=1,v1=x", secret="whsec_x")
-
-
-def test_raises_when_payload_is_not_a_dict(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_construct_event(monkeypatch)
-    with pytest.raises(InvalidSignatureError, match="not a JSON object"):
-        verify_event(payload=b"[1,2,3]", signature="t=1,v1=x", secret="whsec_x")
-
-
-def test_returns_parsed_dict_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_construct_event(monkeypatch)
-    event = {"id": "evt_1", "type": "customer.subscription.updated"}
-    result = verify_event(
-        payload=json.dumps(event).encode(), signature="t=1,v1=x", secret="whsec_x"
+def test_returns_stripe_event_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When construct_event succeeds, verify_event passes its typed `stripe.Event` straight through. Reading typed `.type` / `.data.object` downstream keeps us off the Pydantic-shim path that previously dropped real webhook payloads where `customer` was a string id."""
+    event = stripe.Event.construct_from(  # pyright: ignore[reportUnknownMemberType]
+        {"id": "evt_1", "type": "customer.subscription.updated", "data": {"object": {}}},
+        key="sk_test",
     )
-    assert result == event
+
+    def _ok(**_kwargs: object) -> stripe.Event:
+        return event
+
+    monkeypatch.setattr(stripe.Webhook, "construct_event", _ok)
+    result = verify_event(payload=b"{}", signature="t=1,v1=x", secret="whsec_x")
+    assert result is event
+    assert result["type"] == "customer.subscription.updated"
+
+
+def test_raises_when_construct_event_raises_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stripe's construct_event raises ValueError on malformed JSON payloads; we surface that as InvalidSignatureError too so the router responds with 400."""
+
+    def _value_err(**_kwargs: object) -> None:
+        raise ValueError("not json")
+
+    monkeypatch.setattr(stripe.Webhook, "construct_event", _value_err)
+    with pytest.raises(InvalidSignatureError, match="not json"):
+        verify_event(payload=b"garbage", signature="t=1,v1=x", secret="whsec_x")
