@@ -1126,7 +1126,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.3" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
-    { name = "modal", marker = "extra == 'dev'", specifier = ">=1.2" },
+    { name = "modal", marker = "extra == 'dev'", specifier = ">=1.4" },
     { name = "neo4j", specifier = ">=6.2.0" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "openai", specifier = ">=2.38.0" },

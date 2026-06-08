@@ -13,7 +13,7 @@ BASE_REF="${1:-origin/main}"
 # Make sure the base ref is fetched (shallow clones in CI miss it by default).
 git fetch --quiet --depth=200 origin main 2>/dev/null || true
 
-CHANGED=$(git diff --name-only "${BASE_REF}"...HEAD)
+CHANGED=$(git diff --name-only --diff-filter=ACMR "${BASE_REF}"...HEAD)
 if [ -z "$CHANGED" ]; then
     echo "[test-pair] no changes vs ${BASE_REF}"
     exit 0
@@ -23,18 +23,14 @@ MISSING_PAIRS=()
 while IFS= read -r f; do
     [ -z "$f" ] && continue
     case "$f" in
-        # Skip non-source paths
         scripts/*|migrations/*|stubs/*|conftest.py|.github/*|docs/*|inference/*) continue ;;
-        # Skip generated
         app/services/neon/rows.py) continue ;;
-        # Skip tests themselves
         */test_*.py|app/test_*.py) continue ;;
         *.py) ;;
         *) continue ;;
     esac
 
     base=$(basename "$f" .py)
-    # Underscore-prefixed module (e.g. _data.py) — convention is no test; skip.
     case "$base" in
         __*|_*) continue ;;
     esac
@@ -42,9 +38,11 @@ while IFS= read -r f; do
     dir=$(dirname "$f")
     pair="${dir}/test_${base}.py"
 
-    if ! printf '%s\n' "$CHANGED" | grep -qx "$pair"; then
+    # Accept either the strict per-file pair OR any other test_*.py in the same directory that was also changed in this PR. Routers in this repo tend to group multiple routes under `<dir>/test_<feature>_router.py`; treating sibling-test changes as covering the same dir keeps the existing convention working.
+    if ! printf '%s\n' "$CHANGED" | grep -qx "$pair" \
+        && ! printf '%s\n' "$CHANGED" | grep -qE "^${dir}/test_[^/]+\.py$"; then
         if [ -f "$pair" ]; then
-            MISSING_PAIRS+=("  ${f}  (modified)  →  ${pair}  (unchanged in PR)")
+            MISSING_PAIRS+=("  ${f}  (modified)  →  ${pair}  (exists but unchanged in PR)")
         else
             MISSING_PAIRS+=("  ${f}  (modified)  →  ${pair}  (does not exist; create it)")
         fi

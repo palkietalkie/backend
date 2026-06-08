@@ -43,8 +43,22 @@ async def record_event(
         body.props,
     )
 
-    # Best-effort Slack ping for every event so we can watch user activity in real time at low user count. The post_message helper skips silently when SLACK_BOT_TOKEN / SLACK_CHANNEL_GTM aren't set, so dev environments without Slack wired aren't affected.
-    text = (
-        f":iphone: *{body.event_type}* — {format_user_label(user)} {format_event_props(body.props)}"
-    ).rstrip()
-    await post_message(get_settings().slack_channel_gtm, text)
+    # Slack only the small set of human-meaningful events from production. Telemetry like `pitch_range` and `cold_start_complete` belongs in a metrics dashboard, not a channel — Slacking them creates pure noise at low user counts. And dev events share the same Slack creds, so unfiltered we'd spam the GTM channel with every connected-device session.
+    settings = get_settings()
+    if settings.app_env == "production" and body.event_type in _SLACK_WORTHY_EVENT_TYPES:
+        text = (
+            f":iphone: *{body.event_type}* — {format_user_label(user)} {format_event_props(body.props)}"
+        ).rstrip()
+        await post_message(settings.slack_channel_gtm, text)
+
+
+# Curated list of events that ARE useful to see in Slack in real time. Telemetry (pitch_range, cold_start_complete, transcripts) explicitly excluded — those go to the events table for dashboards instead. Add an event here only when a human watching #gtm-prd would react to it.
+_SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "user_signed_up",
+        "subscription_purchased",
+        "subscription_canceled",
+        "premium_upgrade",
+        "feedback_submitted",
+    }
+)
