@@ -1,32 +1,23 @@
-from pydantic import BaseModel, ValidationError
+import stripe
 
 
-class _Metadata(BaseModel):
-    clerk_user_id: str | None = None
+def extract_clerk_user_id(obj: stripe.StripeObject) -> str | None:
+    """Pull `clerk_user_id` off a Stripe event's `data.object`.
 
+    Reads from the subscription's `metadata.clerk_user_id` first (the path the iOS subscription-create flow uses), then falls back to the customer's `metadata.clerk_user_id` when `customer` is an expanded object. Real webhook payloads typically deliver `customer` as the string id `"cus_..."`; that's harmless — the second try-block trips `TypeError` when string-subscripting `"cus_..."["metadata"]` and we fall through to None.
 
-class _Customer(BaseModel):
-    metadata: _Metadata | None = None
-
-
-class _SubscriptionData(BaseModel):
-    """Subset of a Stripe `data.object` we read for clerk_user_id resolution.
-
-    Strict-typed alternative to `Mapping[str, object]` — pyright narrows isinstance(dict) to `Mapping[Unknown, Unknown]` which loses element type info, so we validate into this BaseModel instead.
+    `stripe.StripeObject` is the typed payload Stripe's SDK returns from `Webhook.construct_event`. It supports `__getitem__` but NOT `.get()` (it doesn't subclass dict — has its own `_data` backing). Subscript + try/except is the idiomatic access pattern.
     """
-
-    metadata: _Metadata | None = None
-    customer: _Customer | None = None
-
-
-def extract_clerk_user_id(data: dict[str, object]) -> str | None:
-    # iOS / subscription-create flow sets metadata.clerk_user_id on either the subscription or the customer. Check the subscription first, fall back to the customer.
     try:
-        parsed = _SubscriptionData.model_validate(data)
-    except ValidationError:
-        return None
-    if parsed.metadata and parsed.metadata.clerk_user_id:
-        return parsed.metadata.clerk_user_id
-    if parsed.customer and parsed.customer.metadata and parsed.customer.metadata.clerk_user_id:
-        return parsed.customer.metadata.clerk_user_id
+        sub_id = obj["metadata"]["clerk_user_id"]
+        if isinstance(sub_id, str) and sub_id:
+            return sub_id
+    except KeyError, TypeError:
+        pass
+    try:
+        cust_id = obj["customer"]["metadata"]["clerk_user_id"]
+        if isinstance(cust_id, str) and cust_id:
+            return cust_id
+    except KeyError, TypeError:
+        pass
     return None

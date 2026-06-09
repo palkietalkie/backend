@@ -25,7 +25,7 @@ async def test_complete_text_happy_path(settings: Settings) -> None:
     route = respx.post(GEMMA_URL).mock(
         return_value=httpx.Response(200, json=_gemma_response("hi from gemma"))
     )
-    out = await complete_text("Say hi", system="You are a tutor.", max_tokens=64)
+    out = await complete_text("Say hi", system="You are a tutor.")
     assert out == "hi from gemma"
     assert route.called
     # Body shape: contents[0].parts[0].text is the prompt + system. CallList isn't parameterized so use .last (typed as Call).

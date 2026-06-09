@@ -1,0 +1,13 @@
+from typing import Final
+
+APPLICATION_AUDIO: Final[int]
+APPLICATION_VOIP: Final[int]
+APPLICATION_RESTRICTED_LOWDELAY: Final[int]
+
+class Encoder:
+    def __init__(self, fs: int, channels: int, application: int) -> None: ...
+    def encode(self, pcm_data: bytes, frame_size: int) -> bytes: ...
+
+class Decoder:
+    def __init__(self, fs: int, channels: int) -> None: ...
+    def decode(self, opus_data: bytes, frame_size: int, decode_fec: bool = ...) -> bytes: ...

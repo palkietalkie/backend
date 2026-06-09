@@ -3,8 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from app.personas.prompt_assembler.persona_prompt_fields import PersonaPromptFields
-from app.routers.conversation.assemble_prompt import assemble_prompt
+from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
 from app.services.neon.rows import UserRow
 
 
@@ -19,8 +18,11 @@ def _user(**overrides: object) -> UserRow:
         updated_at=datetime.now(UTC),
         display_name="Yuki",
         name_pronunciation=None,
-        native_language="ja",
-        target_accent=None,
+        native_languages=["Japanese"],
+        target_accents=[],
+        target_language="English",
+        proficiency="intermediate",
+        tutor_speaking_speed="normal",
         goals="job interview prep",
         location_city="Tokyo",
         timezone="Asia/Tokyo",
@@ -69,7 +71,7 @@ def test_assemble_prompt_emits_name_pronunciation_block_only_when_set() -> None:
     without = assemble_prompt(
         PERSONA, _user(), kg_entities=[], weather_label="x", today_events_titles=[]
     )
-    assert "Pronounce their name" not in without
+    assert "## Name pronunciation" not in without
     with_pron = assemble_prompt(
         PERSONA,
         _user(name_pronunciation="yoo-key"),
@@ -104,19 +106,6 @@ def test_assemble_prompt_caps_calendar_at_5() -> None:
     assert "M5" not in out
 
 
-def test_assemble_prompt_returning_user_drops_first_meeting_line() -> None:
-    out = assemble_prompt(
-        PERSONA,
-        _user(),
-        kg_entities=[],
-        weather_label=None,
-        today_events_titles=[],
-        is_first_meeting=False,
-    )
-    assert "first time you're talking" not in out
-    assert "callbacks" in out
-
-
 def test_assemble_prompt_recent_recall_lands_in_memory_section() -> None:
     out = assemble_prompt(
         PERSONA,
@@ -138,16 +127,16 @@ def test_assemble_prompt_topic_override_appended() -> None:
         today_events_titles=[],
         topic_override="public speaking",
     )
-    assert "Today's topic" in out
+    assert "## Today's topic" in out
     assert "public speaking" in out
 
 
 def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     out = assemble_prompt(
         PERSONA,
-        _user(native_language=None, goals=None),
+        _user(native_languages=[], goals=None),
         kg_entities=[],
         weather_label=None,
         today_events_titles=[],
     )
-    assert "What you remember about them" not in out
+    assert "## What you remember about them" not in out

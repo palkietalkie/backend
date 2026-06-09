@@ -32,13 +32,52 @@ from app.services.neon.rows import UserRow
 if TYPE_CHECKING:
     from app.config import Settings
 
+
+def _load_backend_dotenv() -> None:
+    # Auto-load backend/.env so sandbox tests can read real credentials without manual `set -a; source .env`. setdefault keeps shell/CI env winning if already exported. Single-line values only — anything PEM-shaped lives as a file under backend/secrets/ and is loaded separately below.
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+    for raw in env_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if value.startswith(('"', "'")) and value.endswith(value[0]) and len(value) >= 2:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+def _load_pem_secrets() -> None:
+    # PEM-formatted credentials live as files under backend/secrets/ rather than in .env (env vars are conventionally single-line). Map each known filename to the env var the test code reads. CI sets the env var directly via GH Secrets and skips this loader.
+    secrets_dir = Path(__file__).parent / "secrets"
+    if not secrets_dir.exists():
+        return
+    pem_files = {
+        "apple_storekit_api.p8": "APPLE_STOREKIT_PRIVATE_KEY",
+        "apple_asc_api.p8": "APPLE_ASC_PRIVATE_KEY",
+    }
+    for filename, env_var in pem_files.items():
+        path = secrets_dir / filename
+        if path.exists():
+            os.environ.setdefault(env_var, path.read_text())
+
+
+_load_backend_dotenv()
+_load_pem_secrets()
+
+# Stash the real Neon URL (from .env / GH Secret) BEFORE the testcontainer fixture overwrites NEON_DATABASE_URL with a local Postgres container. Sandbox tests read this so they hit dev Neon (where the deployed dev backend writes) instead of the per-session container (which the backend can't see).
+os.environ.setdefault("DEV_NEON_DATABASE_URL", os.environ.get("NEON_DATABASE_URL", ""))
+
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("CLERK_JWKS_URL", "https://test.clerk.test/.well-known/jwks.json")
 os.environ.setdefault("CLERK_ISSUER", "https://test.clerk.test")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
 os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_dummy")
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
-os.environ.setdefault("APPLE_BUNDLE_ID", "ai.palkietalkie.test")
+os.environ.setdefault("APPLE_BUNDLE_ID", "com.palkietalkie.app")
 os.environ.setdefault("PERSONAPLEX_HOST", "personaplex.test")
 os.environ.setdefault("PERSONAPLEX_PORT", "443")
 os.environ.setdefault("PERSONAPLEX_SCHEME", "wss")
@@ -209,18 +248,19 @@ async def fake_user(db: DBConn) -> UserRow:
     user_id = uuid.uuid4()
     now = datetime.now(UTC)
     row = await db.fetchrow(
-        """INSERT INTO users (id, clerk_user_id, email, display_name, native_language,
+        """INSERT INTO users (id, clerk_user_id, email, display_name, native_languages,
                               location_city, timezone, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                     display_name, name_pronunciation, native_language, target_accent, goals,
+                     display_name, name_pronunciation, native_languages, target_language, target_accents,
+                     proficiency, tutor_speaking_speed, goals,
                      location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at""",
         user_id,
         f"user_{uuid.uuid4().hex[:12]}",
         "testuser@palkietalkie.test",
         "Test User",
-        "ja",
+        ["Japanese"],
         "Tokyo",
         "Asia/Tokyo",
         now,
@@ -238,8 +278,11 @@ async def fake_user(db: DBConn) -> UserRow:
         updated_at=row["updated_at"],
         display_name=row["display_name"],
         name_pronunciation=row["name_pronunciation"],
-        native_language=row["native_language"],
-        target_accent=row["target_accent"],
+        native_languages=list(row["native_languages"]),
+        target_language=row["target_language"],
+        target_accents=list(row["target_accents"] or []),
+        proficiency=row["proficiency"],
+        tutor_speaking_speed=row["tutor_speaking_speed"],
         goals=row["goals"],
         location_city=row["location_city"],
         timezone=row["timezone"],
@@ -272,7 +315,8 @@ async def app_with_overrides(
         """Re-read the fake user on the per-request connection so route mutations are visible."""
         row = await db.fetchrow(
             """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                      display_name, name_pronunciation, native_language, target_accent, goals,
+                      display_name, name_pronunciation, native_languages, target_language, target_accents,
+                      proficiency, tutor_speaking_speed, goals,
                       location_city, timezone,
                       personalization_consent, product_improvement_consent, consent_screen_seen_at
                FROM users
@@ -290,8 +334,11 @@ async def app_with_overrides(
             updated_at=row["updated_at"],
             display_name=row["display_name"],
             name_pronunciation=row["name_pronunciation"],
-            native_language=row["native_language"],
-            target_accent=row["target_accent"],
+            native_languages=list(row["native_languages"]),
+            target_language=row["target_language"],
+            target_accents=list(row["target_accents"] or []),
+            proficiency=row["proficiency"],
+            tutor_speaking_speed=row["tutor_speaking_speed"],
             goals=row["goals"],
             location_city=row["location_city"],
             timezone=row["timezone"],

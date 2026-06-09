@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.config import get_settings
 from app.services.apple_asn.apply_decision import apply_decision
 from app.services.apple_asn.decide_state import decide_state
 from app.services.apple_asn.exceptions import (
@@ -14,6 +15,7 @@ from app.services.apple_asn.parse_expires import parse_expires
 from app.services.apple_asn.verify_and_decode import verify_and_decode
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
+from app.services.slack.post_message import post_message
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -44,7 +46,7 @@ async def handle_apple_asn_webhook(
         return {"ok": "true", "reason": "no appAccountToken; cannot map to user"}
 
     decision = decide_state(raw_type)
-    if decision is None:
+    if decision is None or raw_type is None:
         return {"ok": "true", "reason": f"unhandled notification {raw_type}"}
 
     expires_at = parse_expires(txn, renewal)
@@ -55,5 +57,9 @@ async def handle_apple_asn_webhook(
         decision=decision,
         expires_at=expires_at,
         auto_renew=auto_renew if isinstance(auto_renew, int) else None,
+    )
+    await post_message(
+        get_settings().slack_channel_gtm,
+        f":apple: *apple_asn.{raw_type.lower()}* — user `{clerk_user_id}` decision=`{decision}`",
     )
     return {"ok": "true"}

@@ -8,6 +8,14 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
+# Refuse `git commit <pathspec>`. When git assembles a partial commit from a working-tree pathspec, it routes the hook through a temp index (e.g. `.git/next-index-12345`) instead of `.git/index`. That bypasses whatever was staged AND quietly picks up unstaged hunks in the named files — a footgun in multi-session workflows.
+if [ -n "$GIT_INDEX_FILE" ] && [ "$(basename "$GIT_INDEX_FILE")" != "index" ]; then
+    echo "pre-commit: REFUSED — 'git commit <pathspec>' detected (GIT_INDEX_FILE=$GIT_INDEX_FILE)." >&2
+    echo "  This snapshots the working tree of those paths and bypasses the staging boundary." >&2
+    echo "  Stage explicitly then commit:  git add <files> && git commit -m '...'" >&2
+    exit 1
+fi
+
 # Prefer the project venv binaries directly (git commit runs hooks with a minimal env that doesn't include any activated venv on PATH).
 VENV_BIN=".venv/bin"
 RUFF="$VENV_BIN/ruff"
@@ -25,7 +33,7 @@ fi
 echo "pre-commit: regenerate app/services/neon/rows.py from live Neon schema"
 ROWS_PY="app/services/neon/rows.py"
 ROWS_PY_BEFORE=$(cat "$ROWS_PY" 2>/dev/null || true)
-uv run scripts/generate_neon_types.py
+uv run scripts/neon/generate_neon_types.py
 # Format the generated file so the drift check compares apples to apples (committed file is already ruff-formatted).
 "$RUFF" format --quiet "$ROWS_PY"
 ROWS_PY_AFTER=$(cat "$ROWS_PY")
@@ -42,3 +50,23 @@ echo "pre-commit: ruff check"
 
 echo "pre-commit: pyright"
 "$PYRIGHT"
+
+echo "pre-commit: check env drift (.env/.env.production/fly.toml/fly.dev.toml vs .env.example)"
+uv run scripts/check_env_drift.py
+
+# Run the same coverage gate CI runs. Adds ~30-60s to commits because testcontainers boots a fresh Postgres for the DB-touching tests, but matches the CI floor exactly so we never push a PR that's about to fail there.
+echo "pre-commit: pytest + 90 percent coverage gate (testcontainers Postgres warmup is the slow part)"
+PYTEST_ADDOPTS="" "$VENV_BIN/pytest" \
+    -m "not sandbox" \
+    --cov=app \
+    --cov-branch \
+    --cov-report=term-missing \
+    --cov-fail-under=90
+
+# End-to-end: deploy backend + Modal voice to dev so the freshly-committed code goes live on the dev infra the phone hits.
+# Skip the iOS install since this is the backend repo; the iOS hook handles its own install.
+BOOT_SH="$(git rev-parse --show-toplevel)/../scripts/boot.sh"
+if [ -x "$BOOT_SH" ]; then
+    echo "pre-commit: boot.sh --no-ios (deploy backend + Modal dev)"
+    "$BOOT_SH" --no-ios
+fi

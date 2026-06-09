@@ -1,9 +1,6 @@
 """Multi-provider calendar fanout.
 
-Walks a user's ``calendar_tokens`` rows, refreshes Google tokens on expiry, fetches events from
-each connected provider, and returns the union. Provider-level failures are swallowed: calendar
-is best-effort context for the conversation-start prompt.
-"""
+Walks a user's ``calendar_tokens`` rows, refreshes Google tokens on expiry, fetches events from each connected provider, and returns the union. Provider-level failures are swallowed: calendar is best-effort context for the conversation-start prompt."""
 
 from __future__ import annotations
 

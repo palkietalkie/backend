@@ -1,11 +1,8 @@
 """PersonaPlex handshake assembly.
 
-Ties the WebSocket URL builder and decoding-hyperparameter defaults together. This is the only
-module in the package that touches ``app.config`` — keeping the URL/sampling submodules pure for
-easy testing.
+Ties the WebSocket URL builder and decoding-hyperparameter defaults together. This is the only module in the package that touches ``app.config`` — keeping the URL/sampling submodules pure for easy testing.
 
-The frame protocol on the resulting WebSocket is binary-prefixed (for reference only — the
-backend does not speak it; iOS does, and the server is NVIDIA's PersonaPlex):
+The frame protocol on the resulting WebSocket is binary-prefixed (for reference only — the backend does not speak it; iOS does, and the server is NVIDIA's PersonaPlex):
 
     0x00  handshake
     0x01  audio    (Opus, 24 kHz mono, 20 ms VoIP frames)
@@ -15,11 +12,7 @@ backend does not speak it; iOS does, and the server is NVIDIA's PersonaPlex):
     0x05  error
     0x06  ping
 
-JWT is passed in the URL query string (matches iOS networking and is the only WS-friendly auth
-method PersonaPlex supports out of the box). PersonaPlex validates the same Clerk JWT against
-Clerk's JWKS endpoint on every connection — same auth the user signed in with, propagated to
-the GPU server so only paying users can open audio streams.
-"""
+JWT is passed in the URL query string (matches iOS networking and is the only WS-friendly auth method PersonaPlex supports out of the box). PersonaPlex validates the same Clerk JWT against Clerk's JWKS endpoint on every connection — same auth the user signed in with, propagated to the GPU server so only paying users can open audio streams."""
 
 from dataclasses import dataclass
 

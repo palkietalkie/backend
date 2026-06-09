@@ -1,8 +1,6 @@
 """Stripe webhook signature verification + dispatch tests.
 
-Signature verification uses a real Stripe-style HMAC, computed inline to avoid mocking the
-Stripe SDK's verification routine. Dispatch is exercised against the postgres test container.
-"""
+Signature verification uses a real Stripe-style HMAC, computed inline to avoid mocking the Stripe SDK's verification routine. Dispatch is exercised against the postgres test container."""
 
 import hashlib
 import hmac
@@ -13,10 +11,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+import stripe
 
 from app.services.neon.db_conn import DBConn
 from app.services.stripe_webhooks.dispatch_event import dispatch_event
-from app.services.stripe_webhooks.extract_clerk_user_id import extract_clerk_user_id
 from app.services.stripe_webhooks.invalid_signature_error import InvalidSignatureError
 from app.services.stripe_webhooks.verify_event import verify_event
 
@@ -30,7 +28,8 @@ def _stripe_sig(payload: bytes, secret: str, ts: int | None = None) -> tuple[str
     return f"t={ts},v1={sig}", ts
 
 
-def _event(etype: str, **data: Any) -> dict[str, Any]:
+def build_event_dict(etype: str, **data: Any) -> dict[str, Any]:
+    """Raw JSON-serializable event dict, for the HMAC-signing path in verify_event tests."""
     return {
         "id": f"evt_{uuid.uuid4().hex[:12]}",
         "object": "event",
@@ -41,8 +40,13 @@ def _event(etype: str, **data: Any) -> dict[str, Any]:
     }
 
 
+def build_stripe_event(etype: str, **data: Any) -> stripe.Event:
+    """Typed `stripe.Event` matching what `verify_event` returns, for dispatch_event tests."""
+    return stripe.Event.construct_from(build_event_dict(etype, **data), key="sk_test")  # pyright: ignore[reportUnknownMemberType]
+
+
 def test_verify_event_happy_path() -> None:
-    event = _event("customer.subscription.updated", id="sub_1")
+    event = build_event_dict("customer.subscription.updated", id="sub_1")
     payload = json.dumps(event).encode()
     sig, _ = _stripe_sig(payload, WEBHOOK_SECRET)
     out = verify_event(payload=payload, signature=sig, secret=WEBHOOK_SECRET)
@@ -55,7 +59,7 @@ def test_verify_event_missing_signature() -> None:
 
 
 def test_verify_event_tampered_payload() -> None:
-    event = _event("x")
+    event = build_event_dict("x")
     payload = json.dumps(event).encode()
     sig, _ = _stripe_sig(payload, WEBHOOK_SECRET)
     tampered = payload + b" "
@@ -70,17 +74,7 @@ def test_verify_event_wrong_secret() -> None:
         verify_event(payload=payload, signature=sig, secret=WEBHOOK_SECRET)
 
 
-def test_extract_clerk_user_id_from_subscription_metadata() -> None:
-    assert extract_clerk_user_id({"metadata": {"clerk_user_id": "user_a"}}) == "user_a"
-
-
-def test_extract_clerk_user_id_from_customer_metadata() -> None:
-    data: dict[str, object] = {"customer": {"metadata": {"clerk_user_id": "user_b"}}}
-    assert extract_clerk_user_id(data) == "user_b"
-
-
-def test_extract_clerk_user_id_missing() -> None:
-    assert extract_clerk_user_id({"customer": "cus_123"}) is None
+# extract_clerk_user_id has its own dedicated test file (test_extract_clerk_user_id.py) — kept there to colocate with the function and to cover the realistic Stripe-webhook shape (customer-as-string) the previous Pydantic shim broke.
 
 
 @pytest.fixture
@@ -101,7 +95,7 @@ async def test_dispatch_subscription_updated_active(
     db: DBConn, stripe_user: dict[str, Any]
 ) -> None:
     period_end = int((datetime.now(UTC) + timedelta(days=30)).timestamp())
-    event = _event(
+    event = build_stripe_event(
         "customer.subscription.updated",
         id="sub_1",
         status="active",
@@ -123,7 +117,7 @@ async def test_dispatch_subscription_cancel_at_period_end(
     db: DBConn, stripe_user: dict[str, Any]
 ) -> None:
     period_end_ts = int((datetime.now(UTC) + timedelta(days=10)).timestamp())
-    event = _event(
+    event = build_stripe_event(
         "customer.subscription.updated",
         id="sub_1",
         status="active",
@@ -142,7 +136,7 @@ async def test_dispatch_subscription_cancel_at_period_end(
 
 async def test_dispatch_subscription_deleted(db: DBConn, stripe_user: dict[str, Any]) -> None:
     period_end_ts = int((datetime.now(UTC) + timedelta(days=5)).timestamp())
-    event = _event(
+    event = build_stripe_event(
         "customer.subscription.deleted",
         id="sub_1",
         current_period_end=period_end_ts,
@@ -161,7 +155,7 @@ async def test_dispatch_charge_refunded_revokes_immediately(
     db: DBConn, stripe_user: dict[str, Any]
 ) -> None:
     await db.execute("UPDATE users SET premium = TRUE WHERE id = $1", stripe_user["id"])
-    event = _event(
+    event = build_stripe_event(
         "charge.refunded",
         id="ch_1",
         metadata={"clerk_user_id": stripe_user["clerk_user_id"]},
@@ -175,10 +169,8 @@ async def test_dispatch_charge_refunded_revokes_immediately(
     assert row["premium_ends_at"] is not None
 
 
-async def test_dispatch_logs_entitlement_change_event(
-    db: DBConn, stripe_user: dict[str, Any]
-) -> None:
-    event = _event(
+async def test_dispatch_logs_entitlement_change(db: DBConn, stripe_user: dict[str, Any]) -> None:
+    event = build_stripe_event(
         "charge.refunded",
         id="ch_1",
         metadata={"clerk_user_id": stripe_user["clerk_user_id"]},
@@ -189,13 +181,13 @@ async def test_dispatch_logs_entitlement_change_event(
 
 
 async def test_dispatch_no_clerk_user_id(db: DBConn) -> None:
-    event = _event("customer.subscription.updated", id="sub_1")
+    event = build_stripe_event("customer.subscription.updated", id="sub_1")
     out = await dispatch_event(db, event)
     assert out == "no clerk_user_id in metadata"
 
 
 async def test_dispatch_unhandled_event_type(db: DBConn, stripe_user: dict[str, Any]) -> None:
-    event = _event(
+    event = build_stripe_event(
         "invoice.payment_failed",
         id="inv_1",
         metadata={"clerk_user_id": stripe_user["clerk_user_id"]},

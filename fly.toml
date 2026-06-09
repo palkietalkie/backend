@@ -1,14 +1,31 @@
-# Palkie Talkie backend on Fly.io.
+# Palkie Talkie backend on Fly.io — PRD config.
 # Region sjc co-locates with Lambda Labs us-west-1 (where PersonaPlex runs) for low RTT.
+# Dev deploys with `--config fly.dev.toml`.
 app = "palkietalkie-api"
 primary_region = "sjc"
 
 [build]
   dockerfile = "Dockerfile"
 
+# Non-secret runtime config. Keep CREDENTIALS in `flyctl secrets`; URLs / hostnames / public IDs / model names live here.
 [env]
   APP_ENV = "production"
   LOG_LEVEL = "INFO"
+  CORS_ORIGINS = "https://palkietalkie.com"
+  PINECONE_INDEX = "palkietalkie"
+  CLERK_JWKS_URL = "https://clerk.palkietalkie.com/.well-known/jwks.json"
+  CLERK_ISSUER = "https://clerk.palkietalkie.com"
+  APPLE_BUNDLE_ID = "com.palkietalkie.app"
+  INFERENCE_PROVIDER = "openai"
+  APNS_USE_SANDBOX = "false"
+  PERSONAPLEX_HOST = "palkietalkie--api.modal.run"
+  PERSONAPLEX_PORT = "443"
+  PERSONAPLEX_SCHEME = "wss"
+  GOOGLE_OAUTH_REDIRECT_URI = "https://palkietalkie-api.fly.dev/integrations/google-calendar/callback"
+  NEO4J_URI = "neo4j+s://d4388227.databases.neo4j.io"
+  NEO4J_USER = "neo4j"
+  NEO4J_DATABASE = "neo4j"
+  SLACK_CHANNEL_GTM = "C0B8R2H1E8H"
 
 [http_service]
   internal_port = 8080

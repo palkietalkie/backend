@@ -1,0 +1,2 @@
+ALTER TABLE personas
+    ADD COLUMN IF NOT EXISTS target_language VARCHAR(64) NOT NULL DEFAULT 'English';

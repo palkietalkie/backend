@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
-from typing import Any
+
+import stripe
 
 from app.services.neon.apply_subscription_state import apply_subscription_state
 from app.services.neon.db_conn import DBConn
@@ -8,7 +9,7 @@ from app.services.stripe_webhooks.extract_clerk_user_id import extract_clerk_use
 from app.services.stripe_webhooks.extract_period_end import extract_period_end
 
 
-async def dispatch_event(db: DBConn, event: dict[str, Any]) -> str:
+async def dispatch_event(db: DBConn, event: stripe.Event) -> str:
     etype = event["type"]
     data = event["data"]["object"]
     clerk_user_id = extract_clerk_user_id(data)
@@ -16,14 +17,22 @@ async def dispatch_event(db: DBConn, event: dict[str, Any]) -> str:
         return "no clerk_user_id in metadata"
 
     if etype in {"customer.subscription.created", "customer.subscription.updated"}:
-        status_str = data.get("status")
+        # StripeObject lacks `.get()`; subscript with try/except is the SDK-idiomatic access pattern.
+        try:
+            status_str = data["status"]
+        except KeyError:
+            status_str = None
         is_active = status_str in ACTIVE_STATUSES
+        try:
+            cancel_at_period_end = bool(data["cancel_at_period_end"])
+        except KeyError:
+            cancel_at_period_end = False
         await apply_subscription_state(
             db,
             clerk_user_id,
             is_active=is_active,
             current_period_end=extract_period_end(data),
-            cancel_at_period_end=bool(data.get("cancel_at_period_end")),
+            cancel_at_period_end=cancel_at_period_end,
             source=SOURCE,
         )
         return "applied"

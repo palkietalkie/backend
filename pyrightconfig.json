@@ -1,12 +1,10 @@
 {
-  "include": ["app", "conftest.py", "migrations/run.py"],
+  "include": ["app", "conftest.py", "migrations/run.py", "scripts"],
   "exclude": [
     ".venv",
     "**/__pycache__",
     "**/inference/**",
-    "modal_apps",
-    "app/scripts/**",
-    "scripts/**"
+    "modal_apps"
   ],
   "extraPaths": ["."],
   "stubPath": "stubs",

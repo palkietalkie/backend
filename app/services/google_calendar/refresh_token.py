@@ -1,8 +1,6 @@
 """Google OAuth token refresh.
 
-Single responsibility: given a stored ``CalendarTokenRow`` whose access token has expired (or is
-about to), call Google's token endpoint to refresh and persist the new access token + expiry.
-"""
+Single responsibility: given a stored ``CalendarTokenRow`` whose access token has expired (or is about to), call Google's token endpoint to refresh and persist the new access token + expiry."""
 
 from datetime import UTC, datetime, timedelta
 

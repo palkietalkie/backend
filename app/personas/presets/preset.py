@@ -16,6 +16,8 @@ class Preset:
     vocabulary_register: str
     conversational_style: str
     topical_preferences: str
+    # Lower runs first in the Recommended sort. Bare/neutral personas (Tom, Emily) get 0 so they're the default for new users; everything else stays at 100.
+    sort_weight: int = 100
 
     @property
     def id(self) -> uuid.UUID:

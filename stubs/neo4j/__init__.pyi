@@ -5,7 +5,7 @@ The upstream lib's ``AsyncDriver.session`` and ``AsyncGraphDatabase.driver`` use
 Only the surface this codebase touches is modeled — extend when new calls land.
 """
 
-from collections.abc import AsyncIterator, Awaitable
+from collections.abc import AsyncIterator
 from types import TracebackType
 from typing import Any
 

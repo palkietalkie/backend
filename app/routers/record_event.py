@@ -1,10 +1,6 @@
 """Client-side telemetry endpoint.
 
-iOS posts events here so we can compute aggregate stats (e.g., cold-start
-percentiles) without paying for an external analytics vendor. Events land in
-the same `events` table backend pipelines write to, so dashboards can mix
-client and server signals.
-"""
+iOS posts events here so we can compute aggregate stats (e.g., cold-start percentiles) without paying for an external analytics vendor. Events land in the same `events` table backend pipelines write to, so dashboards can mix client and server signals."""
 
 from datetime import UTC, datetime
 from typing import Any
@@ -13,9 +9,13 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from app.auth.resolve_current_user import resolve_current_user
+from app.config import get_settings
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_db import get_db
 from app.services.neon.rows import UserRow
+from app.services.slack.format_event_props import format_event_props
+from app.services.slack.format_user_label import format_user_label
+from app.services.slack.post_message import post_message
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -42,3 +42,23 @@ async def record_event(
         body.client_ts or datetime.now(UTC),
         body.props,
     )
+
+    # Slack only the small set of human-meaningful events from production. Telemetry like `pitch_range` and `cold_start_complete` belongs in a metrics dashboard, not a channel — Slacking them creates pure noise at low user counts. And dev events share the same Slack creds, so unfiltered we'd spam the GTM channel with every connected-device session.
+    settings = get_settings()
+    if settings.app_env == "production" and body.event_type in _SLACK_WORTHY_EVENT_TYPES:
+        text = (
+            f":iphone: *{body.event_type}* — {format_user_label(user)} {format_event_props(body.props)}"
+        ).rstrip()
+        await post_message(settings.slack_channel_gtm, text)
+
+
+# Curated list of events that ARE useful to see in Slack in real time. Telemetry (pitch_range, cold_start_complete, transcripts) explicitly excluded — those go to the events table for dashboards instead. Add an event here only when a human watching #gtm-prd would react to it.
+_SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "user_signed_up",
+        "subscription_purchased",
+        "subscription_canceled",
+        "premium_upgrade",
+        "feedback_submitted",
+    }
+)

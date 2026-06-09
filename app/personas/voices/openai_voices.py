@@ -1,8 +1,6 @@
 """OpenAI Realtime voices.
 
-Live catalog, validated by /v1/realtime/sessions itself — see SUPPORTED_OPENAI_VOICES in
-services/openai/constants.py.
-"""
+Live catalog, validated by /v1/realtime/sessions itself — see SUPPORTED_OPENAI_VOICES in services/openai/constants.py."""
 
 from app.personas.voices.voice import Voice
 

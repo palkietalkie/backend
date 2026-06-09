@@ -1,9 +1,6 @@
 """OpenAI Realtime session minter tests.
 
-Mocks ``httpx.AsyncClient.post`` so no real OpenAI calls are made. Focused on the
-contract we depend on: GA endpoint URL, payload shape, voice-id validation, and
-top-level ``value`` extraction.
-"""
+Mocks ``httpx.AsyncClient.post`` so no real OpenAI calls are made. Focused on the contract we depend on: GA endpoint URL, payload shape, voice-id validation, and top-level ``value`` extraction."""
 
 from typing import Any
 
@@ -12,8 +9,9 @@ import pytest
 
 from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
-    OPENAI_REALTIME_MODEL,
-    OPENAI_REALTIME_WS_URL,
+    OPENAI_REALTIME_MODEL_FREE,
+    OPENAI_REALTIME_MODEL_PAID,
+    OPENAI_REALTIME_WS_URL_TEMPLATE,
     OpenAIVoiceId,
 )
 from app.services.openai.mint_session import mint_openai_session
@@ -38,6 +36,35 @@ def test_voice_enum_includes_known_ids() -> None:
 def test_endpoint_url_is_ga_client_secrets_not_beta_sessions() -> None:
     # Regression: the Beta endpoint /v1/realtime/sessions returns 400 beta_api_shape_disabled. GA endpoint is /v1/realtime/client_secrets.
     assert OPENAI_CLIENT_SECRETS_URL == "https://api.openai.com/v1/realtime/client_secrets"
+
+
+@pytest.mark.asyncio
+async def test_paid_users_get_full_realtime_and_transcription_models() -> None:
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    await mint_openai_session(
+        text_prompt="x",
+        voice_id=OpenAIVoiceId.ASH,
+        is_premium=True,
+        http_client=fake,
+    )
+    _url, body, _headers = fake.calls[0]
+    assert body["session"]["model"] == OPENAI_REALTIME_MODEL_PAID
+    assert body["session"]["audio"]["input"]["transcription"]["model"] == "gpt-4o-transcribe"
+
+
+@pytest.mark.asyncio
+async def test_free_users_get_mini_realtime_and_transcription_models() -> None:
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    session = await mint_openai_session(
+        text_prompt="x",
+        voice_id=OpenAIVoiceId.ASH,
+        is_premium=False,
+        http_client=fake,
+    )
+    _url, body, _headers = fake.calls[0]
+    assert body["session"]["model"] == OPENAI_REALTIME_MODEL_FREE
+    assert body["session"]["audio"]["input"]["transcription"]["model"] == "gpt-4o-mini-transcribe"
+    assert session.ws_url.endswith(f"model={OPENAI_REALTIME_MODEL_FREE}")
 
 
 class _FakeClient:
@@ -71,7 +98,9 @@ async def test_mint_extracts_token_from_top_level_value() -> None:
         voice_id=OpenAIVoiceId.ASH,
         http_client=fake,
     )
-    assert session.ws_url == OPENAI_REALTIME_WS_URL
+    assert session.ws_url == OPENAI_REALTIME_WS_URL_TEMPLATE.format(
+        model=OPENAI_REALTIME_MODEL_FREE
+    )
     assert session.ephemeral_token == "ek_abc123"
     assert session.voice_id == OpenAIVoiceId.ASH
 
@@ -90,7 +119,7 @@ async def test_mint_sends_ga_payload_shape() -> None:
     assert url == OPENAI_CLIENT_SECRETS_URL
     session = body["session"]
     assert session["type"] == "realtime"
-    assert session["model"] == OPENAI_REALTIME_MODEL
+    assert session["model"] == OPENAI_REALTIME_MODEL_FREE
     assert session["instructions"] == "hello prompt"
     assert session["output_modalities"] == ["audio"]
     assert session["audio"]["input"]["format"] == {"type": "audio/pcm", "rate": 24000}

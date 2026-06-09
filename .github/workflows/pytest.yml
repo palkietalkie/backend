@@ -42,6 +42,17 @@ permissions:
   statuses: write
 
 jobs:
+  test-pair:
+    name: Refuse source changes without paired test changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 200
+
+      - run: bash scripts/ci/check_test_pair.sh "origin/${{ github.base_ref }}"
+
   ruff:
     name: Lint (ruff)
     runs-on: ubuntu-latest
@@ -104,14 +115,24 @@ jobs:
 
       - name: Run pytest with coverage gate
         env:
-          # conftest.py spins up Postgres via testcontainers and overrides NEON_DATABASE_URL; the rest of these are read by Settings at import time.
           APP_ENV: test
           CLERK_JWKS_URL: "https://test.clerk.test/.well-known/jwks.json"
           CLERK_ISSUER: "https://test.clerk.test"
           STRIPE_WEBHOOK_SECRET: whsec_test_secret
-          STRIPE_SECRET_KEY: sk_test_dummy
+          # Sandbox creds for the webhook tests in app/routers/webhooks/. backend/.env values are dev/sandbox; GH Secret names match .env names exactly so there's no translation layer.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_INDIVIDUAL_MONTHLY: ${{ secrets.STRIPE_PRICE_INDIVIDUAL_MONTHLY }}
+          # The sandbox webhook test points at dev Neon (where the deployed dev backend writes). Conftest's testcontainer fixture overwrites `NEON_DATABASE_URL` mid-session, so we set the dev URL on a separate var that conftest stashes BEFORE the override.
+          DEV_NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GEMINI_API_KEY: test-gemini-key
-          APPLE_BUNDLE_ID: ai.palkietalkie.test
+          APPLE_BUNDLE_ID: com.palkietalkie.app # public iOS bundle id (App Store visible, ios/project.yml). Not a secret.
+          # Public identifiers (not secrets): Key ID is shown in App Store Connect's API Keys page; Issuer ID is your Apple Developer team UUID. Both appear in JWT iss/kid claims that anyone with the signed token can see. Useless without the matching APPLE_STOREKIT_PRIVATE_KEY (the .p8).
+          APPLE_STOREKIT_ISSUER_ID: 129df326-897e-414d-acda-0e89b6b4f653
+          APPLE_STOREKIT_KEY_ID: BVB84H5GUG
+          APPLE_STOREKIT_PRIVATE_KEY: ${{ secrets.APPLE_STOREKIT_PRIVATE_KEY }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_PRIVATE_KEY: ${{ secrets.APPLE_ASC_PRIVATE_KEY }}
           PERSONAPLEX_HOST: personaplex.test
           PERSONAPLEX_PORT: "443"
           PERSONAPLEX_SCHEME: wss
@@ -124,7 +145,7 @@ jobs:
             --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=70
+            --cov-fail-under=90
 
       - name: Upload coverage XML artifact
         if: always()

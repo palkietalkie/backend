@@ -1,31 +1,10 @@
-from dataclasses import dataclass, field
-from datetime import date
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class NewsStory:
+class TalkItem:
+    # Flat shape across all topics. News items populate source + image_url for attribution and visual; quiz items leave both empty.
     title: str
-    description: str
-    url: str
+    summary: str
     source: str
-
-
-@dataclass(frozen=True)
-class Quiz:
-    question: str
-    answer: str
-
-
-def _empty_news() -> list[NewsStory]:
-    return []
-
-
-def _empty_quizzes() -> list[Quiz]:
-    return []
-
-
-@dataclass
-class DailyContent:
-    day: date
-    news: list[NewsStory] = field(default_factory=_empty_news)
-    quizzes: list[Quiz] = field(default_factory=_empty_quizzes)
+    image_url: str
