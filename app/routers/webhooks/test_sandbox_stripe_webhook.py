@@ -2,7 +2,7 @@
 
 Skipped automatically unless every required env var is set, so normal ``pytest`` runs stay hermetic. Marked ``live`` so CI can opt in via ``pytest -m live`` (e.g. nightly job against ``palkietalkie-api-dev``).
 
-Reads the same env the backend itself uses (loaded from ``backend/.env``): STRIPE_SECRET_KEY                  sandbox sk_test_... STRIPE_PRICE_INDIVIDUAL_MONTHLY    sandbox price_... NEON_DATABASE_URL                  dev DB connection string
+Reads the same env the backend itself uses (loaded from ``backend/.env``): STRIPE_SECRET_KEY                  sandbox sk_test_... STRIPE_PRICE_INDIVIDUAL_MONTHLY    sandbox price_... DEV_NEON_DATABASE_URL              dev Neon connection string. Conftest's testcontainer fixture overwrites ``NEON_DATABASE_URL`` mid-session, so this test reads the preserved original from ``DEV_NEON_DATABASE_URL`` (stashed before the override).
 
 Stripe Sandbox's dashboard already has the webhook destination set to ``palkietalkie-api-dev.fly.dev``, so the test doesn't configure it.
 
@@ -19,7 +19,7 @@ pytestmark = [pytest.mark.sandbox, pytest.mark.asyncio]
 
 REQUIRED_ENV = (
     "STRIPE_SECRET_KEY",
-    "NEON_DATABASE_URL",
+    "DEV_NEON_DATABASE_URL",
 )
 
 
@@ -56,16 +56,7 @@ async def test_real_stripe_sandbox_subscription_flips_premium() -> None:
         for s in SUBSCRIPTIONS
         if s.tier == "Individual" and s.cycle == "Monthly"
     )
-    db_url = os.environ["NEON_DATABASE_URL"]
-
-    import hashlib
-    import urllib.parse
-
-    parsed = urllib.parse.urlparse(db_url)
-    url_sha = hashlib.sha256(db_url.encode()).hexdigest()[:16]
-    print(
-        f"\n[TEST DEBUG] NEON host={parsed.hostname} db={parsed.path} user={parsed.username} sha={url_sha}"
-    )
+    db_url = os.environ["DEV_NEON_DATABASE_URL"]
 
     user_id = uuid.uuid4()
     clerk_user_id = f"user_live_stripe_{user_id.hex[:8]}"

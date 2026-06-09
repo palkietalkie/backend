@@ -122,7 +122,8 @@ jobs:
           # Sandbox creds for the webhook tests in app/routers/webhooks/. backend/.env values are dev/sandbox; GH Secret names match .env names exactly so there's no translation layer.
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_PRICE_INDIVIDUAL_MONTHLY: ${{ secrets.STRIPE_PRICE_INDIVIDUAL_MONTHLY }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          # The sandbox webhook test points at dev Neon (where the deployed dev backend writes). Conftest's testcontainer fixture overwrites `NEON_DATABASE_URL` mid-session, so we set the dev URL on a separate var that conftest stashes BEFORE the override.
+          DEV_NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           GEMINI_API_KEY: test-gemini-key
           APPLE_BUNDLE_ID: com.palkietalkie.app # public iOS bundle id (App Store visible, ios/project.yml). Not a secret.
           # Public identifiers (not secrets): Key ID is shown in App Store Connect's API Keys page; Issuer ID is your Apple Developer team UUID. Both appear in JWT iss/kid claims that anyone with the signed token can see. Useless without the matching APPLE_STOREKIT_PRIVATE_KEY (the .p8).

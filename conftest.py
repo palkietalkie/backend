@@ -68,6 +68,9 @@ def _load_pem_secrets() -> None:
 _load_backend_dotenv()
 _load_pem_secrets()
 
+# Stash the real Neon URL (from .env / GH Secret) BEFORE the testcontainer fixture overwrites NEON_DATABASE_URL with a local Postgres container. Sandbox tests read this so they hit dev Neon (where the deployed dev backend writes) instead of the per-session container (which the backend can't see).
+os.environ.setdefault("DEV_NEON_DATABASE_URL", os.environ.get("NEON_DATABASE_URL", ""))
+
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("CLERK_JWKS_URL", "https://test.clerk.test/.well-known/jwks.json")
 os.environ.setdefault("CLERK_ISSUER", "https://test.clerk.test")
