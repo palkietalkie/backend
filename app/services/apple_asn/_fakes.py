@@ -17,7 +17,7 @@ class FakeVerifier:
     def __init__(
         self,
         *,
-        notification: Any,
+        notification: object,
         transaction: dict[str, Any] | None = None,
         renewal: dict[str, Any] | None = None,
         outer_fail: bool = False,
@@ -29,7 +29,7 @@ class FakeVerifier:
         self._outer_fail = outer_fail
         self._inner_fail = inner_fail
 
-    def verify_and_decode_notification(self, _payload: str) -> Any:
+    def verify_and_decode_notification(self, _payload: str) -> object:
         if self._outer_fail:
             raise make_verification_error("bad outer sig")
         return self._notification
@@ -45,7 +45,7 @@ class FakeVerifier:
         return self._renewal
 
 
-def notification_dict(
+def build_notification_dict(
     *,
     raw_type: str,
     signed_txn: str | None = "signed-txn",

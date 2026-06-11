@@ -8,7 +8,7 @@ from app.routers.personas.build_persona_out_from_preset import PersonaOut
 from app.routers.personas.build_persona_out_from_row import build_persona_out_from_row
 from app.routers.personas.validate_voice import validate_voice
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
 
@@ -32,7 +32,7 @@ class PersonaCreate(BaseModel):
 async def create_persona(
     body: PersonaCreate,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> PersonaOut:
     validate_voice(body.voice_id)
     row = await db.fetchrow(

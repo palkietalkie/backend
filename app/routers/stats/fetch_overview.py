@@ -8,7 +8,7 @@ from app.services.cefr_vocab.constants import LEVELS as CEFR_LEVELS
 from app.services.cefr_vocab.count_by_level import count_by_level
 from app.services.cefr_vocab.count_used_by_level import count_used_by_level
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.list_user_lemmas import list_user_lemmas
 from app.services.neon.rows import UserRow
 
@@ -41,7 +41,7 @@ class StatsOverview(BaseModel):
 @router.get("", response_model=StatsOverview)
 async def fetch_overview(
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> StatsOverview:
     total_seconds = await db.fetchval(
         """SELECT COALESCE(SUM(duration_seconds), 0)::bigint

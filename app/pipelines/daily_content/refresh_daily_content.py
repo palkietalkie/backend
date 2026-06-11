@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from app.pipelines.daily_content.fetch_news_by_category import fetch_news_by_category
 from app.pipelines.daily_content.generate_quizzes import generate_quizzes
 from app.services.daily_content.save_topic_items import save_topic_items
-from app.services.neon.get_pool import get_pool
+from app.services.neon.get_neon_pool import get_neon_pool
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ async def refresh_daily_content() -> None:
     seed_titles = [item.title for item in (politics + business + sports)[:5]]
     quizzes = await generate_quizzes(seed_titles)
 
-    pool = await get_pool()
+    pool = await get_neon_pool()
     async with pool.acquire() as conn:
         await save_topic_items(today, "politics", politics, conn)
         await save_topic_items(today, "business", business, conn)

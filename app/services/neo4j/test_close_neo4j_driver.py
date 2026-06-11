@@ -2,10 +2,10 @@ from typing import Any
 
 import pytest
 
-from app.services.neo4j import get_driver as get_driver_mod
-from app.services.neo4j.close_driver import close_driver
-from app.services.neo4j.driver_state import driver_state
-from app.services.neo4j.get_driver import get_driver
+from app.services.neo4j import get_neo4j_driver as get_neo4j_driver_mod
+from app.services.neo4j._driver_state import driver_state
+from app.services.neo4j.close_neo4j_driver import close_neo4j_driver
+from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 
 
 async def test_close_driver_resets(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -18,9 +18,9 @@ async def test_close_driver_resets(monkeypatch: pytest.MonkeyPatch) -> None:
     def _factory(*_a: Any, **_k: Any) -> _FakeDriver:
         return _FakeDriver()
 
-    monkeypatch.setattr(get_driver_mod.AsyncGraphDatabase, "driver", _factory)
+    monkeypatch.setattr(get_neo4j_driver_mod.AsyncGraphDatabase, "driver", _factory)
     driver_state.driver = None
-    get_driver()
-    await close_driver()
+    get_neo4j_driver()
+    await close_neo4j_driver()
     assert closed == [True]
     assert driver_state.driver is None

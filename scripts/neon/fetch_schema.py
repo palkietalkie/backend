@@ -3,7 +3,7 @@ import sys
 
 import asyncpg
 
-from app.services.neon.normalize_url import normalize_url
+from app.services.neon.normalize_neon_url import normalize_neon_url
 
 SKIP_TABLES: frozenset[str] = frozenset({"schema_version"})
 
@@ -22,7 +22,7 @@ async def fetch_schema() -> dict[str, list[tuple[str, str, str, bool]]]:
             file=sys.stderr,
         )
         sys.exit(0)
-    conn = await asyncpg.connect(normalize_url(url))
+    conn = await asyncpg.connect(normalize_neon_url(url))
     try:
         rows = await conn.fetch(
             """

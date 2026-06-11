@@ -16,7 +16,7 @@ from app.pipelines.daily_content.models import TalkItem
 from app.services.daily_content.load_today_topics import load_today_topics
 from app.services.daily_content.load_topic_pool import load_topic_pool
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/content", tags=["content"])
@@ -50,7 +50,7 @@ def _sample_pool(pool: list[TalkItem], seed: str, k: int) -> list[TalkItem]:
 @router.get("/today", response_model=DailyContentResponse)
 async def fetch_today_content(
     _user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> DailyContentResponse:
     today = datetime.now(UTC).date()
     today_topics = await load_today_topics(db)

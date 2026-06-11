@@ -13,8 +13,8 @@ from neo4j.exceptions import GqlError
 from app.config import get_settings
 from app.pipelines.daily_content.run_daily_content_scheduler import run_daily_content_scheduler
 from app.pipelines.session_audio.prune_expired_audio import run_prune_expired_audio_scheduler
-from app.services.neo4j.close_driver import close_driver
-from app.services.neo4j.get_driver import get_driver
+from app.services.neo4j.close_neo4j_driver import close_neo4j_driver
+from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 
 
 @asynccontextmanager
@@ -28,7 +28,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Warm Neo4j driver if config looks real (not the bolt://localhost default)
     if settings.neo4j_uri and "localhost" not in settings.neo4j_uri:
         try:
-            get_driver()
+            get_neo4j_driver()
         except GqlError:
             logging.exception("neo4j driver init failed; continuing without it")
 
@@ -43,4 +43,4 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         for task in (daily_content_task, audio_prune_task):
             with contextlib.suppress(asyncio.CancelledError):
                 await task
-        await close_driver()
+        await close_neo4j_driver()

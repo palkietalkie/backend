@@ -14,24 +14,33 @@ _logger = logging.getLogger(__name__)
 _CHAT_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 
 
-async def post_message(channel: str, text: str) -> None:
+async def post_message(channel: str, text: str, thread_ts: str | None = None) -> str | None:
+    """Returns the posted message's `ts` (for threading replies under it), or None when skipped/failed."""
     settings = get_settings()
     # Only prd posts to Slack. Dev/test/local backends would spam the same channels with throwaway signups + sandbox webhook noise, drowning out real prd events.
     if settings.app_env != "production":
-        return
+        return None
     if not settings.slack_bot_token or not channel:
-        return
+        return None
+    payload: dict[str, str] = {"channel": channel, "text": text}
+    if thread_ts is not None:
+        payload["thread_ts"] = thread_ts
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
                 _CHAT_POST_MESSAGE_URL,
                 headers={"Authorization": f"Bearer {settings.slack_bot_token}"},
-                json={"channel": channel, "text": text},
+                json=payload,
             )
         body = response.json()
         if not body.get("ok"):
             _logger.error("slack chat.postMessage rejected: %s", body.get("error", "unknown"))
+            return None
+        ts = body.get("ts")
+        return ts if isinstance(ts, str) else None
     except httpx.HTTPError:
         _logger.exception("slack chat.postMessage failed (http)")
+        return None
     except ValueError:
         _logger.exception("slack chat.postMessage failed (bad payload)")
+        return None

@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.routers.webhooks import handle_apple_asn_webhook as mod
-from app.services.apple_asn._fakes import FakeVerifier, notification_dict
+from app.services.apple_asn._fakes import FakeVerifier, build_notification_dict
 from app.services.apple_asn.exceptions import (
     AppleLibraryMissingError,
     InvalidSignatureError,
@@ -58,7 +58,7 @@ async def test_400_when_signature_invalid(
 async def test_no_app_account_token_returns_ok_with_reason(
     app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    notif = notification_dict(raw_type="SUBSCRIBED")
+    notif = build_notification_dict(raw_type="SUBSCRIBED")
     verifier = FakeVerifier(notification=notif, transaction={}, renewal={})
 
     async def _get_verifier() -> Any:
@@ -74,7 +74,7 @@ async def test_no_app_account_token_returns_ok_with_reason(
 async def test_unhandled_notification_type_returns_ok_with_reason(
     app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    notif = notification_dict(raw_type="UNKNOWN_TYPE_XYZ")
+    notif = build_notification_dict(raw_type="UNKNOWN_TYPE_XYZ")
     verifier = FakeVerifier(
         notification=notif,
         transaction={"appAccountToken": "user_x"},
@@ -106,7 +106,7 @@ async def test_applies_decision_on_known_notification(
     )
     assert user_id is not None
 
-    notif = notification_dict(raw_type="SUBSCRIBED")
+    notif = build_notification_dict(raw_type="SUBSCRIBED")
     verifier = FakeVerifier(
         notification=notif,
         transaction={"appAccountToken": clerk_id, "expiresDate": 1_900_000_000_000},

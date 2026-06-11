@@ -14,6 +14,6 @@ async def test_fetch_entities_summary_formats_descriptors(
     fake.fake_session.enqueue(
         [{"name": "Alice", "type": "person"}, {"name": "Tokyo", "type": "place"}]
     )
-    monkeypatch.setattr(fetch_entities_summary_mod, "get_driver", lambda: fake)
+    monkeypatch.setattr(fetch_entities_summary_mod, "get_neo4j_driver", lambda: fake)
     descriptors = await fetch_entities_summary(uuid.uuid4(), limit=5)
     assert descriptors == ["Alice (person)", "Tokyo (place)"]

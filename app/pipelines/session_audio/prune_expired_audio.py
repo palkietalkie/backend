@@ -10,7 +10,7 @@ import logging
 from datetime import UTC, datetime, time, timedelta
 
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_pool import get_pool
+from app.services.neon.get_neon_pool import get_neon_pool
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def prune_expired_audio_once(conn: DBConn | None = None) -> int:
     if conn is not None:
         result = await conn.execute("DELETE FROM session_audio WHERE expires_at < NOW()")
     else:
-        pool = await get_pool()
+        pool = await get_neon_pool()
         async with pool.acquire() as acquired:
             result = await acquired.execute("DELETE FROM session_audio WHERE expires_at < NOW()")
     # asyncpg returns the command tag, e.g. "DELETE 7" — pull the count.

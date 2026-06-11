@@ -1,19 +1,17 @@
-from typing import Self, cast
+from typing import Self
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.auth.resolve_current_user import resolve_current_user
-from app.profile.languages import (
-    AccentName,
-    LanguageName,
-    accent_belongs_to_language,
-)
+from app.profile.is_accent_in_language import is_accent_in_language
+from app.profile.is_language_name import is_language_name
+from app.profile.languages import AccentName, LanguageName
 from app.profile.proficiency import Proficiency
 from app.profile.tutor_speaking_speed import TutorSpeakingSpeed
 from app.routers.profile.build_profile_out import ProfileOut, build_profile_out
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_user_row
 from app.services.neon.rows import UserRow
 
@@ -38,7 +36,7 @@ class ProfileUpdate(BaseModel):
         if self.target_language is None or self.target_accents is None:
             return self
         for accent in self.target_accents:
-            if not accent_belongs_to_language(self.target_language, accent):
+            if not is_accent_in_language(self.target_language, accent):
                 raise ValueError(
                     f"accent {accent!r} is not valid for language {self.target_language!r}"
                 )
@@ -49,12 +47,17 @@ class ProfileUpdate(BaseModel):
 async def update_profile(
     body: ProfileUpdate,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> ProfileOut:
     if body.target_accents is not None and body.target_language is None:
-        effective_language = cast(LanguageName, user["target_language"])
+        effective_language = user["target_language"]
+        if not is_language_name(effective_language):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"stored target language {effective_language!r} is not a recognized language",
+            )
         for accent in body.target_accents:
-            if not accent_belongs_to_language(effective_language, accent):
+            if not is_accent_in_language(effective_language, accent):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"accent {accent!r} is not valid for current language {effective_language!r}",

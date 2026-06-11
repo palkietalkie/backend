@@ -14,7 +14,7 @@ from app.services.apple_asn.get_verifier import get_verifier
 from app.services.apple_asn.parse_expires import parse_expires
 from app.services.apple_asn.verify_and_decode import verify_and_decode
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.slack.post_message import post_message
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 @router.post("/apple/asn", status_code=status.HTTP_200_OK)
 async def handle_apple_asn_webhook(
     request: Request,
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> dict[str, str]:
     payload = await request.json()
     signed_payload = payload.get("signedPayload")

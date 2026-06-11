@@ -1,9 +1,12 @@
 """Lazy spaCy model load. Falls back to None if model unavailable so CI can run without the 12MB en_core_web_sm download."""
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from spacy.language import Language
 
 
-def _load() -> Any:
+def _load() -> Language | None:
     try:
         import spacy
 
@@ -13,4 +16,4 @@ def _load() -> Any:
         return None
 
 
-nlp: Any = _load()
+nlp: Language | None = _load()

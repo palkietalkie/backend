@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.auth.resolve_current_user import resolve_current_user
 from app.routers.consent.fetch_consent import ConsentOut
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/consent", tags=["consent"])
@@ -21,7 +21,7 @@ class ConsentUpdate(BaseModel):
 async def update_consent(
     body: ConsentUpdate,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> ConsentOut:
     now = datetime.now(UTC)
     await db.execute(

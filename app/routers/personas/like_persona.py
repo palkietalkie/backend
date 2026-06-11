@@ -6,7 +6,7 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.personas.presets.find_preset_by_id import find_preset_by_id
 from app.services.neon.db_conn import DBConn
 from app.services.neon.fetch_persona_by_id import fetch_persona_by_id
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import PersonaRow, UserRow
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/personas", tags=["personas"])
 async def like_persona(
     persona_id: uuid.UUID,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> Response:
     is_preset = find_preset_by_id(persona_id) is not None
     db_persona: PersonaRow | None = None

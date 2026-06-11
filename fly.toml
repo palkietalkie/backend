@@ -22,9 +22,9 @@ primary_region = "sjc"
   PERSONAPLEX_PORT = "443"
   PERSONAPLEX_SCHEME = "wss"
   GOOGLE_OAUTH_REDIRECT_URI = "https://palkietalkie-api.fly.dev/integrations/google-calendar/callback"
-  NEO4J_URI = "neo4j+s://d4388227.databases.neo4j.io"
-  NEO4J_USER = "neo4j"
-  NEO4J_DATABASE = "neo4j"
+  NEO4J_URI = "neo4j+s://799b72e4.databases.neo4j.io"
+  NEO4J_USER = "799b72e4"
+  NEO4J_DATABASE = "799b72e4"
   SLACK_CHANNEL_GTM = "C0B8R2H1E8H"
 
 [http_service]

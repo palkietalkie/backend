@@ -5,7 +5,7 @@ from app.services.neon.db_conn import DBConn
 
 
 async def save_topic_items(day: date, topic: str, items: list[TalkItem], db: DBConn) -> None:
-    # Plain list of dicts: asyncpg's jsonb codec (init_connection.py) calls json.dumps on the value, so pre-serializing would double-encode and store as a JSON-string scalar instead of a JSONB array.
+    # Plain list of dicts: asyncpg's jsonb codec (register_json_codecs.py) calls json.dumps on the value, so pre-serializing would double-encode and store as a JSON-string scalar instead of a JSONB array.
     await db.execute(
         """INSERT INTO daily_content (day, topic, items)
            VALUES ($1, $2, $3)

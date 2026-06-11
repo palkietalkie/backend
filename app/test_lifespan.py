@@ -29,7 +29,7 @@ async def test_lifespan_starts_and_cancels_scheduler_tasks(
 
     monkeypatch.setattr(lifespan_mod, "run_daily_content_scheduler", _daily)
     monkeypatch.setattr(lifespan_mod, "run_prune_expired_audio_scheduler", _audio)
-    monkeypatch.setattr(lifespan_mod, "close_driver", _close_driver)
+    monkeypatch.setattr(lifespan_mod, "close_neo4j_driver", _close_driver)
 
     async with lifespan_mod.lifespan(FastAPI()):
         await asyncio.sleep(0)
@@ -43,10 +43,10 @@ async def test_lifespan_warms_neo4j_driver_when_uri_remote(
     from app.config import get_settings
 
     get_settings.cache_clear()
-    called = {"get_driver": 0}
+    called = {"get_neo4j_driver": 0}
 
-    def _get_driver() -> Any:
-        called["get_driver"] += 1
+    def _get_neo4j_driver() -> Any:
+        called["get_neo4j_driver"] += 1
         return object()
 
     async def _close_driver() -> None:
@@ -58,14 +58,14 @@ async def test_lifespan_warms_neo4j_driver_when_uri_remote(
     async def _audio() -> None:
         await asyncio.sleep(3600)
 
-    monkeypatch.setattr(lifespan_mod, "get_driver", _get_driver)
-    monkeypatch.setattr(lifespan_mod, "close_driver", _close_driver)
+    monkeypatch.setattr(lifespan_mod, "get_neo4j_driver", _get_neo4j_driver)
+    monkeypatch.setattr(lifespan_mod, "close_neo4j_driver", _close_driver)
     monkeypatch.setattr(lifespan_mod, "run_daily_content_scheduler", _daily)
     monkeypatch.setattr(lifespan_mod, "run_prune_expired_audio_scheduler", _audio)
     try:
         async with lifespan_mod.lifespan(FastAPI()):
             await asyncio.sleep(0)
-        assert called["get_driver"] == 1
+        assert called["get_neo4j_driver"] == 1
     finally:
         get_settings.cache_clear()
 
@@ -73,10 +73,10 @@ async def test_lifespan_warms_neo4j_driver_when_uri_remote(
 async def test_lifespan_does_not_warm_driver_for_localhost(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    called = {"get_driver": 0}
+    called = {"get_neo4j_driver": 0}
 
-    def _get_driver() -> Any:
-        called["get_driver"] += 1
+    def _get_neo4j_driver() -> Any:
+        called["get_neo4j_driver"] += 1
         return object()
 
     async def _close_driver() -> None:
@@ -88,10 +88,10 @@ async def test_lifespan_does_not_warm_driver_for_localhost(
     async def _audio() -> None:
         await asyncio.sleep(3600)
 
-    monkeypatch.setattr(lifespan_mod, "get_driver", _get_driver)
-    monkeypatch.setattr(lifespan_mod, "close_driver", _close_driver)
+    monkeypatch.setattr(lifespan_mod, "get_neo4j_driver", _get_neo4j_driver)
+    monkeypatch.setattr(lifespan_mod, "close_neo4j_driver", _close_driver)
     monkeypatch.setattr(lifespan_mod, "run_daily_content_scheduler", _daily)
     monkeypatch.setattr(lifespan_mod, "run_prune_expired_audio_scheduler", _audio)
     async with lifespan_mod.lifespan(FastAPI()):
         await asyncio.sleep(0)
-    assert called["get_driver"] == 0
+    assert called["get_neo4j_driver"] == 0

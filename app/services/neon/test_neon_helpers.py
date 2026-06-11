@@ -1,6 +1,6 @@
 """Tests for the small neon helper functions that aren't covered yet.
 
-Covers normalize_url + the upsert/fetch helpers via the real test container.
+Covers normalize_neon_url + the upsert/fetch helpers via the real test container.
 """
 
 import uuid
@@ -10,7 +10,7 @@ from app.services.neon.db_conn import DBConn
 from app.services.neon.fetch_persona_by_id import fetch_persona_by_id
 from app.services.neon.fetch_session_user_turns import fetch_session_user_turns
 from app.services.neon.list_user_lemmas import list_user_lemmas
-from app.services.neon.normalize_url import normalize_url
+from app.services.neon.normalize_neon_url import normalize_neon_url
 from app.services.neon.rows import UserRow
 from app.services.neon.sum_seconds_used_today import sum_seconds_used_today
 from app.services.neon.upsert_mistakes import upsert_mistakes
@@ -18,19 +18,19 @@ from app.services.neon.upsert_phrase_freq import upsert_phrase_freq
 from app.services.neon.upsert_word_freq import upsert_word_freq
 
 
-def test_normalize_url_strips_asyncpg_prefix() -> None:
-    assert normalize_url("postgresql+asyncpg://u:p@h/db") == "postgresql://u:p@h/db"
+def test_normalize_neon_url_strips_asyncpg_prefix() -> None:
+    assert normalize_neon_url("postgresql+asyncpg://u:p@h/db") == "postgresql://u:p@h/db"
 
 
-def test_normalize_url_drops_sslmode_and_channel_binding() -> None:
-    out = normalize_url("postgresql://u:p@h/db?sslmode=require&channel_binding=disable&app=x")
+def test_normalize_neon_url_drops_sslmode_and_channel_binding() -> None:
+    out = normalize_neon_url("postgresql://u:p@h/db?sslmode=require&channel_binding=disable&app=x")
     assert "sslmode" not in out
     assert "channel_binding" not in out
     assert "app=x" in out
 
 
-def test_normalize_url_keeps_url_unchanged_when_no_query() -> None:
-    assert normalize_url("postgresql://u:p@h/db") == "postgresql://u:p@h/db"
+def test_normalize_neon_url_keeps_url_unchanged_when_no_query() -> None:
+    assert normalize_neon_url("postgresql://u:p@h/db") == "postgresql://u:p@h/db"
 
 
 async def _seed_user_and_session(db: DBConn) -> tuple[uuid.UUID, uuid.UUID]:

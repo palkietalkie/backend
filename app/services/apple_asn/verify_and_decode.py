@@ -1,11 +1,10 @@
-from typing import Any
-
 from app.services.apple_asn._sdk import VerificationException
+from app.services.apple_asn._verifier_protocol import VerifierProtocol
 from app.services.apple_asn.coerce_to_dict import coerce_to_dict
 from app.services.apple_asn.exceptions import InvalidSignatureError
 
 
-def verify_and_decode(verifier: Any, signed_payload: str) -> tuple[Any, str | None]:
+def verify_and_decode(verifier: VerifierProtocol, signed_payload: str) -> tuple[object, str | None]:
     try:
         notification_obj = verifier.verify_and_decode_notification(signed_payload)
     except VerificationException as e:

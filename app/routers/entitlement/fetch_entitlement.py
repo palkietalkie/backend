@@ -7,7 +7,7 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.routers.entitlement.check_is_premium_now import check_is_premium_now
 from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 from app.services.neon.sum_seconds_used_this_week import sum_seconds_used_this_week
 from app.services.neon.sum_seconds_used_today import sum_seconds_used_today
@@ -28,7 +28,7 @@ class EntitlementResponse(BaseModel):
 @router.get("", response_model=EntitlementResponse)
 async def fetch_entitlement(
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> EntitlementResponse:
     if check_is_premium_now(user):
         return EntitlementResponse(

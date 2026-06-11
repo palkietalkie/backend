@@ -37,7 +37,7 @@ async def test_scheduler_skips_refresh_when_all_topics_present(
         def acquire(self) -> _Acquired:
             return _Acquired()
 
-    async def _get_pool() -> _Pool:
+    async def _get_neon_pool() -> _Pool:
         return _Pool()
 
     async def _short_sleep(_s: float) -> None:
@@ -45,7 +45,7 @@ async def test_scheduler_skips_refresh_when_all_topics_present(
 
     monkeypatch.setattr(mod, "load_today_topics", _load)
     monkeypatch.setattr(mod, "refresh_daily_content", _refresh)
-    monkeypatch.setattr(mod, "get_pool", _get_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _get_neon_pool)
     monkeypatch.setattr(mod.asyncio, "sleep", _short_sleep)
 
     with pytest.raises(asyncio.CancelledError):
@@ -77,7 +77,7 @@ async def test_scheduler_refreshes_when_some_topics_missing(
         def acquire(self) -> _Acquired:
             return _Acquired()
 
-    async def _get_pool() -> _Pool:
+    async def _get_neon_pool() -> _Pool:
         return _Pool()
 
     async def _short_sleep(_s: float) -> None:
@@ -85,7 +85,7 @@ async def test_scheduler_refreshes_when_some_topics_missing(
 
     monkeypatch.setattr(mod, "load_today_topics", _load)
     monkeypatch.setattr(mod, "refresh_daily_content", _refresh)
-    monkeypatch.setattr(mod, "get_pool", _get_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _get_neon_pool)
     monkeypatch.setattr(mod.asyncio, "sleep", _short_sleep)
 
     with pytest.raises(asyncio.CancelledError):
@@ -114,7 +114,7 @@ async def test_scheduler_swallows_startup_failure(
         def acquire(self) -> _Acquired:
             return _Acquired()
 
-    async def _get_pool() -> _Pool:
+    async def _get_neon_pool() -> _Pool:
         return _Pool()
 
     async def _short_sleep(_s: float) -> None:
@@ -122,7 +122,7 @@ async def test_scheduler_swallows_startup_failure(
 
     monkeypatch.setattr(mod, "load_today_topics", _load_fails)
     monkeypatch.setattr(mod, "refresh_daily_content", _refresh)
-    monkeypatch.setattr(mod, "get_pool", _get_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _get_neon_pool)
     monkeypatch.setattr(mod.asyncio, "sleep", _short_sleep)
 
     with pytest.raises(asyncio.CancelledError):

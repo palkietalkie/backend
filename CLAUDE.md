@@ -37,7 +37,7 @@ Conventions, not a file tree (filesystem is the source of truth). What lives whe
 - `app/services/` — non-HTTP work. One purpose per file; verb-prefixed file name matches the function (`verb_noun.py` → `def verb_noun(...)`). Each external integration lives in its own subdirectory: `openai/`, `gemma/`, `personaplex/`, `weather/`, `google_calendar/`, `calendar/` (cross-provider abstraction), `stripe_webhooks/`, `apple_asn/`, `apple_push/`, `cefr_vocab/`, `neon/` (Postgres — pool + types + queries), `neo4j/` (AuraDB — driver + KG models + queries).
 - `app/pipelines/` — post-session NLP. Each split into a pure `extract(...)` + async `persist(...)` pair so the LLM-touching half stays unit-testable.
 - `app/auth/` — JWKS-cached Clerk JWT verify + FastAPI `resolve_current_user` dependency that JIT-creates the `users` row on first request.
-- Neon-specific: `app/services/neon/` holds the asyncpg pool, `DBConn` type alias (`Connection | PoolConnectionProxy`), TypedDicts mirroring schema (`rows.py`), pool lifecycle (`get_pool`, `get_db`, `reset_pool`, `init_connection`, `normalize_url`), and query helpers (`find_user_by_clerk_id`, `apply_subscription_state`). NO ORM, NO Alembic. SQL is inline at the call site as triple-quoted Python strings.
+- Neon-specific: `app/services/neon/` holds the asyncpg pool, `DBConn` type alias (`Connection | PoolConnectionProxy`), TypedDicts mirroring schema (`rows.py`), pool lifecycle (`get_neon_pool` → the `asyncpg.Pool`, `get_neon_connection` → one borrowed connection (FastAPI dependency), `reset_pool`, `init_connection`, `normalize_url`), and query helpers (`find_user_by_clerk_id`, `apply_subscription_state`). NO ORM, NO Alembic. SQL is inline at the call site as triple-quoted Python strings.
 - `app/personas/` — code-defined preset personas + voice library + character-to-prompt assembler. Presets NEVER live in the DB; user-customs go in the `personas` table.
 - `app/scripts/` — one-shot scripts (currently just `regenerate_cefr_vocab.py`, PEP 723 inline-deps). No seed scripts; reference data is in-memory CSV or code constants.
 - `inference/` — speech-to-speech inference plane. Today targets Modal (`voice_server.py` is `modal.App("voice")` on A100 with NVMe-backed Volume). `moshi/` is the vendored NVIDIA PersonaPlex Moshi fork (only the inner Python package; our diffs are normal git, see `inference/moshi/SOURCE.md`). Auth uses HMAC tickets — no Clerk in the WS path.
@@ -49,7 +49,7 @@ Conventions, not a file tree (filesystem is the source of truth). What lives whe
 - Backend prd → Fly `palkietalkie-api`. Auto-deploys on push to `main` via `.github/workflows/deploy-api.yml` (`FLY_API_TOKEN` GH secret).
 - Backend dev → Fly `palkietalkie-api-dev`. Manual deploy (`flyctl deploy -a palkietalkie-api-dev` or via `boot.sh`).
 - Inference `voice` (both Modal envs) → manual `modal deploy inference/voice_server.py` or via `.github/workflows/deploy-inference.yml` (`MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` GH secrets, triggers on changes under `inference/`).
-- CI: `.github/workflows/pytest.yml` runs ruff + mypy + pytest with coverage on every PR + push to main.
+- CI: `.github/workflows/pytest.yml` runs ruff + pyright + pytest with coverage on every PR + push to main.
 
 ## Setup (once per clone)
 
@@ -72,7 +72,7 @@ CRITICAL: NEVER start without explicit user request. PR must be clean, don't ign
 
 1. `git fetch origin main && git merge origin/main`
 2. `git commit -m "<one-liner subject>"`, user has already run `git add` before saying "lgtm"
-   - Pre-commit hook runs `ruff format --check`, `ruff check`, `mypy app/`. Pytest runs in CI, not pre-commit (too slow + needs Docker).
+   - Pre-commit hook runs `ruff format --check`, `ruff check`, `python -m pyright app/`. Pytest runs in CI, not pre-commit (too slow + needs Docker).
    - One-liner subject only. No body paragraphs. PR body carries long-form context.
    - NO co-author lines, NO `[skip ci]`
    - If hook fails: fix, re-stage, commit again. Don't stage other sessions' files.

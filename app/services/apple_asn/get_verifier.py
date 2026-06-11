@@ -1,5 +1,3 @@
-from typing import Any
-
 from app.config import get_settings
 from app.services.apple_asn import _state
 from app.services.apple_asn._sdk import (
@@ -11,7 +9,7 @@ from app.services.apple_asn.exceptions import AppleLibraryMissingError
 from app.services.apple_asn.load_apple_root_certs import load_apple_root_certs
 
 
-async def get_verifier() -> Any:
+async def get_verifier() -> SignedDataVerifier:
     # Construction is cheap but the root-cert fetch is not — so lock and cache.
     if not APPLE_LIB_AVAILABLE:
         raise AppleLibraryMissingError(

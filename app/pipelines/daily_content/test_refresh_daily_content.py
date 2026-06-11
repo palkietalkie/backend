@@ -38,7 +38,7 @@ async def test_refresh_daily_content_writes_all_topics(monkeypatch: pytest.Monke
     monkeypatch.setattr(mod, "fetch_news_by_category", _fake_news)
     monkeypatch.setattr(mod, "generate_quizzes", _fake_quizzes)
     monkeypatch.setattr(mod, "save_topic_items", _fake_save)
-    monkeypatch.setattr(mod, "get_pool", _fake_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _fake_pool)
 
     await mod.refresh_daily_content()
 

@@ -5,7 +5,7 @@ from datetime import UTC, datetime, time, timedelta
 from app.pipelines.daily_content.constants import TOPICS
 from app.pipelines.daily_content.refresh_daily_content import refresh_daily_content
 from app.services.daily_content.load_today_topics import load_today_topics
-from app.services.neon.get_pool import get_pool
+from app.services.neon.get_neon_pool import get_neon_pool
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ REFRESH_HOUR_UTC = 6
 
 async def run_daily_content_scheduler() -> None:
     try:
-        pool = await get_pool()
+        pool = await get_neon_pool()
         async with pool.acquire() as conn:
             existing = await load_today_topics(conn)
         missing = [t for t in TOPICS if not existing.get(t)]

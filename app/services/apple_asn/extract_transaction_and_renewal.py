@@ -1,12 +1,13 @@
 from typing import Any
 
 from app.services.apple_asn._sdk import VerificationException
+from app.services.apple_asn._verifier_protocol import VerifierProtocol
 from app.services.apple_asn.coerce_to_dict import coerce_to_dict
 from app.services.apple_asn.exceptions import InvalidSignatureError
 
 
 def extract_transaction_and_renewal(
-    verifier: Any, notification_obj: Any
+    verifier: VerifierProtocol, notification_obj: object
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     notification = coerce_to_dict(notification_obj)
     data_obj = getattr(notification_obj, "data", None) or notification.get("data")
