@@ -2,14 +2,23 @@
 
 The router-shape test_entitlement_router.py already covers most cases; this file pins the cap fields and the week-window remaining-minutes math separately so a future split keeps both anchors."""
 
+import inspect
 import uuid
 from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
 
 from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
+from app.routers.entitlement.fetch_entitlement import fetch_entitlement
 from app.services.neon.db_conn import DBConn
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
+
+
+def test_db_dependency_is_canonical_pooled_connection() -> None:
+    # The endpoint's db arg must resolve via the canonical pooled-connection dependency. The old get_db helper was renamed/removed; the conftest override keys on get_neon_connection, so a stale import here would also silently bypass the test transaction.
+    default = inspect.signature(fetch_entitlement).parameters["db"].default
+    assert default.dependency is get_neon_connection
 
 
 async def test_entitlement_returns_both_caps_inline(

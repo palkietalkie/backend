@@ -41,12 +41,18 @@ async def test_save_stores_jsonb_arrays_not_string_scalars(db: DBConn) -> None:
     # Regression: asyncpg's jsonb codec already calls json.dumps; pre-stringifying the value here double-encodes and stores a JSON-string scalar instead of a JSONB array. iOS would then get unreadable content. This asserts the stored shape directly so the round-trip can't hide a wrong-shape save.
     await save_topic_items(datetime.now(UTC).date(), "politics", [_item("x", "y")], db)
     row = await db.fetchrow(
-        "SELECT jsonb_typeof(items) AS t FROM daily_content WHERE day = $1 AND topic = $2",
+        """SELECT jsonb_typeof(items) AS t,
+                  jsonb_typeof(items -> 0) AS elem_t,
+                  items -> 0 ->> 'title' AS first_title
+           FROM daily_content WHERE day = $1 AND topic = $2""",
         datetime.now(UTC).date(),
         "politics",
     )
     assert row is not None
     assert row["t"] == "array"
+    # Each element must be a real JSONB object reachable by key — double-encoding (the register_json_codecs.py double-dumps footgun) would make items a JSON-string scalar with no addressable inner objects.
+    assert row["elem_t"] == "object"
+    assert row["first_title"] == "x"
 
 
 async def test_load_tolerates_rows_missing_source_or_image_url(db: DBConn) -> None:

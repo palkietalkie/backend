@@ -2,6 +2,7 @@
 
 verify_clerk_jwt is monkeypatched so the test doesn't need a real JWKS; the focus here is the DB upsert behavior of the dependency itself."""
 
+import inspect
 import uuid
 from typing import Any
 
@@ -10,6 +11,13 @@ from fastapi import HTTPException
 
 from app.auth import resolve_current_user as mod
 from app.services.neon.db_conn import DBConn
+from app.services.neon.get_neon_connection import get_neon_connection
+
+
+def test_db_dependency_is_canonical_pooled_connection() -> None:
+    # The db arg must default to the canonical pooled-connection dependency. The old get_db helper was renamed/removed; wiring anything else (or a stale import) would silently break connection lifecycle in prod.
+    default = inspect.signature(mod.resolve_current_user).parameters["db"].default
+    assert default.dependency is get_neon_connection
 
 
 async def test_resolve_creates_user_when_missing(

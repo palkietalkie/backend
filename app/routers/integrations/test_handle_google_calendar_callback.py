@@ -109,3 +109,30 @@ async def test_callback_expires_at_null_when_no_expires_in(
         "SELECT expires_at FROM calendar_tokens WHERE user_id = $1", user["id"]
     )
     assert expires_at is None
+
+
+@respx.mock
+async def test_callback_writes_through_overridden_neon_connection(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
+    # Regression guard for the get_db -> get_neon_connection dependency swap: the route's INSERT must land on the SAME transaction-bound connection the test holds.
+    # If the route opened its own pool connection instead of honoring the override, this row would be invisible here (it lives only inside the test's rolled-back transaction).
+    respx.post("https://oauth2.googleapis.com/token").mock(
+        return_value=httpx.Response(200, json={"access_token": "at-wired", "expires_in": 600})
+    )
+    client, user = app_with_overrides
+    before = await db.fetchval(
+        "SELECT COUNT(*) FROM calendar_tokens WHERE user_id = $1", user["id"]
+    )
+    assert before == 0
+    resp = await client.get(
+        "/integrations/google-calendar/callback",
+        params={"code": "code", "state": user["clerk_user_id"]},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 307
+    after = await db.fetchval(
+        "SELECT COUNT(*) FROM calendar_tokens WHERE user_id = $1 AND access_token = 'at-wired'",
+        user["id"],
+    )
+    assert after == 1
