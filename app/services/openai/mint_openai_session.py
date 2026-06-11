@@ -20,6 +20,7 @@ from app.services.openai.constants import (
     OPENAI_TRANSCRIPTION_MODEL_PAID,
     OpenAIVoiceId,
 )
+from app.services.openai.recall_tools import RECALL_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,8 @@ async def mint_openai_session(
             "instructions": text_prompt,
             # GA does not accept ["audio", "text"]; per the schema, ["audio"] already produces audio + a text transcript.
             "output_modalities": ["audio"],
+            "tools": RECALL_TOOLS,
+            "tool_choice": "auto",
             "audio": {
                 "input": {
                     "format": {"type": "audio/pcm", "rate": 24000},

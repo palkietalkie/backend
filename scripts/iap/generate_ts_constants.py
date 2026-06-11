@@ -62,13 +62,8 @@ export const SUBSCRIPTIONS: readonly Subscription[] = [
 ] as const;
 
 /** Returns the right Stripe price id for the active deploy. APP_ENV / Vercel `NODE_ENV` decides. */
-export function stripePriceFor(
-  tier: SubscriptionTier,
-  cycle: SubscriptionCycle,
-): string {{
-  const p = SUBSCRIPTIONS.find(
-    (x) => x.tier === tier && x.cycle === cycle,
-  );
+export function stripePriceFor(tier: SubscriptionTier, cycle: SubscriptionCycle): string {{
+  const p = SUBSCRIPTIONS.find((x) => x.tier === tier && x.cycle === cycle);
   if (!p) throw new Error(`Unknown subscription: ${{tier}} ${{cycle}}`);
   const env = process.env.APP_ENV ?? process.env.NODE_ENV ?? "development";
   return env === "production" ? p.stripePriceLive : p.stripePriceSandbox;

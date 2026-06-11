@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app.config import get_settings
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.slack.post_message import post_message
 from app.services.stripe_webhooks.dispatch_event import dispatch_event
 from app.services.stripe_webhooks.invalid_signature_error import InvalidSignatureError
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 async def handle_stripe_webhook(
     request: Request,
     stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> dict[str, str]:
     settings = get_settings()
     body = await request.body()

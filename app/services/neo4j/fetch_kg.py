@@ -1,12 +1,12 @@
 import uuid
 from typing import Any
 
-from app.services.neo4j.get_driver import get_driver
+from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 from app.services.neo4j.open_session import open_session
 
 
 async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
-    driver = get_driver()
+    driver = get_neo4j_driver()
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     async with open_session(driver) as session:
@@ -16,11 +16,16 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
             uid=str(user_id),
         )
         async for record in result:
+            # Wire contract shared with iOS `KGEntityDTO` (id/type/name/attrs). Entities are unique per (user_id, name) via the MERGE in upsert_kg, so `name` is a stable id. attrs are stringified — Neo4j props can be int/float/bool and the iOS DTO decodes `attrs` as [String: String], so anything non-string there would silently break the decode. Keep this shape in sync with ios/.../BackendDTOs.swift KGEntityDTO and its decode test.
+            props = dict(record["props"] or {})
             nodes.append(
                 {
-                    "name": record["name"],
+                    "id": record["name"],
                     "type": record["type"],
-                    "props": dict(record["props"] or {}),
+                    "name": record["name"],
+                    "attrs": {
+                        k: str(v) for k, v in props.items() if k not in ("user_id", "name", "type")
+                    },
                 }
             )
 

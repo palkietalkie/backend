@@ -1,12 +1,11 @@
 from os import PathLike
-from typing import IO, Any, overload
+from typing import IO, Any
 
 from numpy import floating, signedinteger
 from numpy.typing import NDArray
 
 class LibsndfileError(RuntimeError): ...
 
-@overload
 def read(
     file: str | bytes | PathLike[str] | IO[bytes],
     samplerate: int | None = ...,
@@ -14,7 +13,6 @@ def read(
     dtype: str = ...,
     always_2d: bool = ...,
 ) -> tuple[NDArray[floating[Any]], int]: ...
-
 def write(
     file: str | bytes | PathLike[str] | IO[bytes],
     data: NDArray[signedinteger[Any]] | NDArray[floating[Any]],

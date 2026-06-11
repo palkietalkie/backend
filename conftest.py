@@ -299,14 +299,14 @@ async def app_with_overrides(
     """Async test client with auth + DB dependency overrides applied.
 
     - ``current_user`` is replaced with a no-op that returns ``fake_user``.
-    - ``get_db`` yields the per-test transaction-bound connection so router writes and test
+    - ``get_neon_connection`` yields the per-test transaction-bound connection so router writes and test
       assertions share the same view.
     """
     from httpx import ASGITransport, AsyncClient
 
     from app.auth.resolve_current_user import resolve_current_user
     from app.main import create_app
-    from app.services.neon.get_db import get_db
+    from app.services.neon.get_neon_connection import get_neon_connection
 
     async def _override_get_db() -> AsyncIterator[DBConn]:
         yield db
@@ -349,7 +349,7 @@ async def app_with_overrides(
 
     fastapi_app = create_app()
     fastapi_app.dependency_overrides[resolve_current_user] = _override_current_user
-    fastapi_app.dependency_overrides[get_db] = _override_get_db
+    fastapi_app.dependency_overrides[get_neon_connection] = _override_get_db
     transport = ASGITransport(app=fastapi_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac, fake_user

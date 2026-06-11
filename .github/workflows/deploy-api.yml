@@ -22,14 +22,12 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           REQUIRED=(
-            CLERK_ISSUER CLERK_JWKS_URL CLERK_SECRET_KEY
             NEON_DATABASE_URL
             STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET
             GEMINI_API_KEY OPENAI_API_KEY
             WS_TICKET_SECRET
-            NEO4J_URI NEO4J_USER NEO4J_PASSWORD
+            NEO4J_PASSWORD
             PINECONE_API_KEY
-            MODAL_TOKEN_ID MODAL_TOKEN_SECRET
           )
           PRESENT=$(flyctl secrets list -a palkietalkie-api --json | jq -r '.[].name // .[].Name')
           MISSING=()

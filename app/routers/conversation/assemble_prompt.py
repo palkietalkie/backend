@@ -65,24 +65,35 @@ def assemble_prompt(
 
     stuck_clause = f"If a word doesn't land, drop one quick {native_languages_phrase} word into your next sentence and move on without commentary. Don't announce a pace change."
 
-    persona_sentences = [
-        f"You are {persona_fields.name}, a real, fluent native {target_lang} speaker, not an AI assistant."
-    ]
-    if persona_fields.role:
-        persona_sentences.append(persona_fields.role.strip())
-    if persona_fields.age:
-        persona_sentences.append(f"You're {persona_fields.age.strip()}.")
-    if persona_fields.background:
-        persona_sentences.append(persona_fields.background.strip())
-    if persona_fields.conversational_style:
-        persona_sentences.append(persona_fields.conversational_style.strip())
-    if persona_fields.vocabulary_register:
-        persona_sentences.append(
-            f"Your {target_lang} register: {persona_fields.vocabulary_register.strip()}"
+    # Topic mode: the user explicitly tapped a fresh subject on the Today screen. Strip the carried-over persona character AND the previous-conversation recall so the session opens clean on the new topic instead of drifting back into the last persona's world (a badminton coach reopening badminton). The static teaching frame below still applies — that's tutor mechanics, not character.
+    topic_mode = topic_override is not None
+    if topic_mode:
+        recent_recall = None
+        persona_intro = (
+            f"You are a real, fluent native {target_lang} speaker having a genuine conversation with {name} — "
+            "no fixed character, just a real person, not an AI assistant."
         )
-    if persona_fields.topical_preferences:
-        persona_sentences.append(f"You gravitate to: {persona_fields.topical_preferences.strip()}")
-    persona_intro = " ".join(persona_sentences)
+    else:
+        persona_sentences = [
+            f"You are {persona_fields.name}, a real, fluent native {target_lang} speaker, not an AI assistant."
+        ]
+        if persona_fields.role:
+            persona_sentences.append(persona_fields.role.strip())
+        if persona_fields.age:
+            persona_sentences.append(f"You're {persona_fields.age.strip()}.")
+        if persona_fields.background:
+            persona_sentences.append(persona_fields.background.strip())
+        if persona_fields.conversational_style:
+            persona_sentences.append(persona_fields.conversational_style.strip())
+        if persona_fields.vocabulary_register:
+            persona_sentences.append(
+                f"Your {target_lang} register: {persona_fields.vocabulary_register.strip()}"
+            )
+        if persona_fields.topical_preferences:
+            persona_sentences.append(
+                f"You gravitate to: {persona_fields.topical_preferences.strip()}"
+            )
+        persona_intro = " ".join(persona_sentences)
 
     parts: list[str] = [
         f"""## How you talk (read this first, follow it every turn)
@@ -111,11 +122,11 @@ This is a {target_lang} learning conversation. On every turn where {name} said A
 
 When you echo back, give the CORRECTED word(s) a slight vocal stress — the way a human teacher would tap lightly on the right version so the learner registers it without it feeling like a callout. The stress is gentle: lean on the corrected word a beat longer or louder, then move on. No exaggeration, no "I said _____", no "actually" — just a small natural emphasis on the fix.
 
-Examples (real things {name} has said in past sessions; CAPS mark the corrected words you give a slight vocal stress to — not perspective shifts like "I" → "you"):
-- They say: "I'm wondering the backhand grip" → you: "You're wondering ABOUT the backhand grip. Which part?"
+Examples (CAPS mark the corrected words you give a slight vocal stress to — not perspective shifts like "I" → "you"):
+- They say: "I'm wondering the meeting time" → you: "You're wondering ABOUT the meeting time. Which part?"
 - They say: "tell me how to call them" → you: "Tell you WHAT to call them."
 - They say: "Then why I didn't do that?" → you: "Why DIDN'T you do that?"
-- They say: "No one hit high backhand with thumb push grip" → you: "Right — no one HITS A high backhand with A thumb push grip."
+- They say: "No one go to the gym yesterday" → you: "Right — no one WENT to the gym yesterday."
 
 If they had multiple awkward things in one turn, echo back the natural version of EACH ONE — string them naturally into your reply. Don't cap yourself at one correction. Forgetting to correct when something was off is a bug. Topic engagement is great, but correction comes WITH it, not instead of it. Never say "your English is fine" if it wasn't.
 

@@ -131,6 +131,48 @@ def test_assemble_prompt_topic_override_appended() -> None:
     assert "public speaking" in out
 
 
+def test_assemble_prompt_topic_mode_drops_persona_character() -> None:
+    # A Today-screen topic must NOT carry the previous persona's character (the badminton-coach bleed). The persona's role/name should be absent; a neutral conversation-partner intro replaces it.
+    out = assemble_prompt(
+        PERSONA,
+        _user(),
+        kg_entities=[],
+        weather_label=None,
+        today_events_titles=[],
+        topic_override="the James Webb telescope's latest images",
+    )
+    assert "Aiden" not in out
+    assert "dry-comedian" not in out
+    assert "James Webb" in out
+    assert "no fixed character" in out
+
+
+def test_assemble_prompt_topic_mode_drops_recall() -> None:
+    # Even if recall is passed, topic mode must suppress it so the session doesn't drift back into the last conversation's subject.
+    out = assemble_prompt(
+        PERSONA,
+        _user(),
+        kg_entities=[],
+        weather_label=None,
+        today_events_titles=[],
+        recent_recall="user: I love badminton | persona: backhand grip tips",
+        topic_override="cooking pasta",
+    )
+    assert "badminton" not in out
+    assert "backhand" not in out
+    assert "## What you remember about them" not in out
+    assert "cooking pasta" in out
+
+
+def test_assemble_prompt_correction_examples_are_topic_neutral() -> None:
+    # The static correction examples must not be sport-specific — badminton examples in the frame biased every session toward badminton regardless of persona/recall.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label=None, today_events_titles=[]
+    )
+    assert "badminton" not in out
+    assert "backhand" not in out
+
+
 def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     out = assemble_prompt(
         PERSONA,

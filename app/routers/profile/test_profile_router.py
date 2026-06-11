@@ -63,20 +63,41 @@ async def test_update_profile_rejects_invalid_language_accent_pair(
     app_with_overrides: tuple[AsyncClient, UserRow],
 ) -> None:
     client, _ = app_with_overrides
-    # English doesn't have "Tokyo standard" accent.
+    # "Kansai" is a real accent (Japanese) so Pydantic accepts it — the rejection must come from our cross-field validator, not from Literal parsing (a malformed string would 422 too early).
     resp = await client.patch(
         "/profile",
-        json={"target_language": "English", "target_accents": ["Tokyo standard"]},
+        json={"target_language": "English", "target_accents": ["Kansai"]},
     )
     assert resp.status_code == 422
 
 
-async def test_update_profile_accent_only_validated_against_current_language(
+async def test_update_profile_accent_only_validated_against_stored_language(
     app_with_overrides: tuple[AsyncClient, UserRow],
 ) -> None:
+    # Stored target_language defaults to English; a valid-but-foreign accent (Kansai is Japanese) is rejected against it → 422. Exercises the handler's accent loop, not the Pydantic layer.
     client, _ = app_with_overrides
-    # Sending only an accent that's invalid for the user's current target_language → 422.
-    resp = await client.patch("/profile", json={"target_accents": ["Tokyo standard"]})
+    resp = await client.patch("/profile", json={"target_accents": ["Kansai"]})
+    assert resp.status_code == 422
+
+
+async def test_update_profile_accepts_accent_only_valid_for_stored_language(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+) -> None:
+    # Accent-only PATCH whose accents are all valid for the stored language (English) succeeds and persists — the loop completes without rejecting.
+    client, _ = app_with_overrides
+    resp = await client.patch("/profile", json={"target_accents": ["American", "British"]})
+    assert resp.status_code == 200
+    assert resp.json()["target_accents"] == ["American", "British"]
+
+
+async def test_update_profile_rejects_when_stored_language_unrecognized(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+) -> None:
+    # Defensive guard that replaced an unsafe type-narrowing shortcut: a corrupt/legacy stored language returns a clean 422, not the 500 a blind narrow would have produced when get_language raised KeyError.
+    client, user = app_with_overrides
+    await db.execute("UPDATE users SET target_language = 'Wakandan' WHERE id = $1", user["id"])
+    resp = await client.patch("/profile", json={"target_accents": ["Kansai"]})
     assert resp.status_code == 422
 
 

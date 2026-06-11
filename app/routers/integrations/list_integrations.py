@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app.auth.resolve_current_user import resolve_current_user
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -20,7 +20,7 @@ class ProviderStatus(BaseModel):
 @router.get("", response_model=list[ProviderStatus])
 async def list_integrations(
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> list[ProviderStatus]:
     rows = await db.fetch(
         """SELECT id, user_id, provider, access_token, refresh_token, expires_at, created_at, updated_at

@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 
 from app.config import get_settings
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 async def handle_google_calendar_callback(
     code: str = Query(),
     state: str = Query(),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> RedirectResponse:
     settings = get_settings()
     async with httpx.AsyncClient(timeout=10.0) as client:

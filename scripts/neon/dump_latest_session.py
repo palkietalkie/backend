@@ -13,13 +13,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from app.services.neon.get_pool import get_pool  # noqa: E402
+from app.services.neon.get_neon_pool import get_neon_pool  # noqa: E402
 from scripts.neon.fetch_latest_session import fetch_latest_session  # noqa: E402
 from scripts.neon.fetch_session_transcripts import fetch_session_transcripts  # noqa: E402
 
 
 async def main() -> None:
-    pool = await get_pool()
+    pool = await get_neon_pool()
     async with pool.acquire() as db:
         session = await fetch_latest_session(db)
         if session is None:

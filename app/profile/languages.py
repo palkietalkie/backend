@@ -521,14 +521,3 @@ assert {lang.name for lang in LANGUAGES} == LANGUAGE_NAMES, (
 assert {a for lang in LANGUAGES for a in lang.accents} == ALL_ACCENT_NAMES, (
     "AccentName Literal disagrees with LANGUAGES tuple accents"
 )
-
-
-def get_language(name: LanguageName) -> Language:
-    for lang in LANGUAGES:
-        if lang.name == name:
-            return lang
-    raise KeyError(name)
-
-
-def accent_belongs_to_language(language_name: LanguageName, accent_name: AccentName) -> bool:
-    return accent_name in get_language(language_name).accents

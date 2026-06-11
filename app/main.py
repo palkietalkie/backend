@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.lifespan import lifespan
+from app.routers.announce_auth import router as announce_auth_router
 from app.routers.consent.fetch_consent import router as consent_fetch_router
 from app.routers.consent.update_consent import router as consent_update_router
 from app.routers.conversation.append_transcript import router as conversation_transcript_router
@@ -43,6 +44,9 @@ from app.routers.plan_limits import router as plan_limits_router
 from app.routers.profile.fetch_profile import router as profile_fetch_router
 from app.routers.profile.list_practice_options import router as profile_practice_options_router
 from app.routers.profile.update_profile import router as profile_update_router
+from app.routers.recall.recall_conversations import router as recall_conversations_router
+from app.routers.recall.recall_facts import router as recall_facts_router
+from app.routers.recall.recall_transcripts import router as recall_transcripts_router
 from app.routers.record_event import router as events_router
 from app.routers.register_apns_token import router as devices_router
 from app.routers.stats.fetch_overview import router as stats_overview_router
@@ -104,9 +108,13 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(profile_update_router)
     fastapi_app.include_router(profile_practice_options_router)
     fastapi_app.include_router(kg_router)
+    fastapi_app.include_router(recall_facts_router)
+    fastapi_app.include_router(recall_conversations_router)
+    fastapi_app.include_router(recall_transcripts_router)
     fastapi_app.include_router(content_router)
     fastapi_app.include_router(devices_router)
     fastapi_app.include_router(events_router)
+    fastapi_app.include_router(announce_auth_router)
     fastapi_app.include_router(voices_router)
     fastapi_app.include_router(languages_router)
     fastapi_app.include_router(consent_fetch_router)

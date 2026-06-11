@@ -14,7 +14,7 @@ dependencies = [
     "httpx>=0.28.1",
     "neo4j>=6.2.0",
     "openai>=2.38.0",
-    "pinecone-client>=6.0.0",
+    "pinecone>=9.1.0",
     # `[email]` pulls email-validator, required for `pydantic.EmailStr` (used by the waitlist endpoint). Without it the FastAPI app fails to start with "email-validator is not installed".
     "pydantic[email]>=2.13.4",
     "pydantic-settings>=2.14.1",
@@ -69,6 +69,7 @@ ignore = ["S101", "B008", "E501"]
 "app/routers/personas/build_patch_sql.py" = ["S608"]  # PATCH SQL built from a fixed allow-list, all user data flows via $N parameters
 "app/services/apple_asn/_sdk.py" = ["N818"]  # VerificationException name matches the Apple SDK's exception class
 "app/services/google_calendar/refresh_token.py" = ["S105"]  # false positive: TOKEN_URL is a URL
+"stubs/**" = ["N801", "N802"]  # stubs mirror third-party APIs verbatim (e.g. pyloudnorm's lowercase `normalize` class) — naming-convention lints don't apply
 "**/test_*.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230"]
 "conftest.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230", "E402"]
 "inference/moshi/**" = [

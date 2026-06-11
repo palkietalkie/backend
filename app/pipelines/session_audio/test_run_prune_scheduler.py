@@ -67,10 +67,10 @@ async def test_prune_expired_audio_once_pool_path(monkeypatch: pytest.MonkeyPatc
         def acquire(self) -> _Acquired:
             return _Acquired()
 
-    async def _get_pool() -> _Pool:
+    async def _get_neon_pool() -> _Pool:
         return _Pool()
 
-    monkeypatch.setattr(mod, "get_pool", _get_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _get_neon_pool)
     deleted = await mod.prune_expired_audio_once()
     assert deleted == 3
 

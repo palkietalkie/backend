@@ -1,0 +1,52 @@
+# Keeps the free Neo4j Aura instances alive. Free Aura pauses after 3 days idle and is DELETED after 30 days idle; any query resets that timer, so a daily read-only ping prevents both. Same idea as the Supabase keep-alive cron in GitAuto.
+#
+# Read-only (RETURN 1) — never writes. Dependency-free: hits Aura's HTTP Query API with curl, no neo4j driver.
+#
+# Instances (Aura free, GCP):
+#   prd  799b72e4  — account admin@palkietalkie.com
+#   dev  a2e098ec  — account wesnishio@gmail.com
+#
+# Required repo secrets (palkietalkie/backend -> Settings -> Secrets and variables -> Actions):
+#   NEO4J_PASSWORD_PRD, NEO4J_PASSWORD_DEV
+# URI/user/db are non-secret (already in fly.toml / fly.dev.toml) so they live inline below.
+
+name: neo4j-keepalive
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily 06:17 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: prd # admin@palkietalkie.com
+            host: 799b72e4.databases.neo4j.io
+            db: "799b72e4"
+            user: "799b72e4"
+            secret_name: NEO4J_PASSWORD_PRD
+          - env: dev # wesnishio@gmail.com
+            host: a2e098ec.databases.neo4j.io
+            db: "a2e098ec"
+            user: "a2e098ec"
+            secret_name: NEO4J_PASSWORD_DEV
+    steps:
+      - name: Ping ${{ matrix.env }} Aura (read-only keep-alive)
+        env:
+          PW: ${{ secrets[matrix.secret_name] }}
+        run: |
+          if [ -z "$PW" ]; then
+            echo "::warning::no ${{ matrix.secret_name }} secret set — skipping ${{ matrix.env }}"
+            exit 0
+          fi
+          code=$(curl -s -o /tmp/out -w "%{http_code}" \
+            -u "${{ matrix.user }}:$PW" \
+            -H "Content-Type: application/json" \
+            -X POST "https://${{ matrix.host }}/db/${{ matrix.db }}/query/v2" \
+            -d '{"statement":"RETURN 1"}' --max-time 30)
+          echo "HTTP $code"; cat /tmp/out; echo
+          [ "$code" = "200" ] || { echo "::error::keep-alive ping failed for ${{ matrix.env }}"; exit 1; }

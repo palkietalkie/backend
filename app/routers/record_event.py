@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.auth.resolve_current_user import resolve_current_user
 from app.config import get_settings
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 from app.services.slack.format_event_props import format_event_props
 from app.services.slack.format_user_label import format_user_label
@@ -32,7 +32,7 @@ class EventIn(BaseModel):
 async def record_event(
     body: EventIn,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> None:
     await db.execute(
         """INSERT INTO events (user_id, event_type, ts, props)

@@ -148,7 +148,7 @@ async def test_start_openai_path_returns_ephemeral_token(
     await _stub_externals(monkeypatch)
 
     from app.services.openai.constants import OpenAIVoiceId
-    from app.services.openai.mint_session import OpenAISession
+    from app.services.openai.mint_openai_session import OpenAISession
 
     async def _fake_mint(
         *, text_prompt: str, voice_id: OpenAIVoiceId, is_premium: bool = False
@@ -217,6 +217,66 @@ async def test_start_with_topic_override_threads_into_prompt(
     )
     assert resp.status_code == 200
     assert "Today: tennis" in resp.json()["text_prompt"]
+
+
+async def test_start_topic_mode_uses_random_catalog_voice_personaplex(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    personaplex_provider: None,
+) -> None:
+    # Topic sessions drop the persona, so the voice must come from the provider's catalog, not the persona row.
+    from app.personas.voices.personaplex_voices import PERSONAPLEX_VOICES
+
+    await _stub_externals(monkeypatch)
+    client, _ = app_with_overrides
+    preset = PRESETS[0]
+    resp = await client.post(
+        "/conversation/start",
+        json={"persona_id": str(preset.id), "topic_override": "Today: the Mars rover"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["voice_id"] in {v.id for v in PERSONAPLEX_VOICES}
+
+
+async def test_start_topic_mode_swaps_in_valid_openai_voice(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+    openai_provider: None,
+) -> None:
+    # A persona carrying a personaplex voice ('NATM1') normally 400s on the OpenAI path (see the rejects test). In topic mode we discard the persona voice and pick a random OpenAI-catalog voice, so the same request now succeeds.
+    from app.personas.voices.openai_voices import OPENAI_VOICES
+    from app.services.openai.constants import OpenAIVoiceId
+    from app.services.openai.mint_openai_session import OpenAISession
+
+    async def _fake_mint(
+        *, text_prompt: str, voice_id: OpenAIVoiceId, is_premium: bool = False
+    ) -> OpenAISession:
+        return OpenAISession(
+            ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
+            ephemeral_token="ek_test_token",
+            voice_id=voice_id,
+        )
+
+    monkeypatch.setattr(start_mod, "mint_openai_session", _fake_mint)
+    await _stub_externals(monkeypatch)
+    client, user = app_with_overrides
+    persona_id = uuid.uuid4()
+    await db.execute(
+        """INSERT INTO personas (
+               id, name, description, voice_id, role, age, background,
+               vocabulary_register, conversational_style, topical_preferences,
+               is_public, user_id
+           ) VALUES ($1, 'WrongVoice', '', 'NATM1', NULL, NULL, NULL, NULL, NULL, NULL, FALSE, $2)""",
+        persona_id,
+        user["id"],
+    )
+    resp = await client.post(
+        "/conversation/start",
+        json={"persona_id": str(persona_id), "topic_override": "Today: jazz history"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["voice_id"] in {v.id for v in OPENAI_VOICES}
 
 
 async def test_start_with_weather_lat_lon_uses_stub(

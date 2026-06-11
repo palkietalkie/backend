@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app.auth.resolve_current_user import resolve_current_user
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -22,7 +22,7 @@ class AppleCalendarEventIn(BaseModel):
 async def push_apple_calendar_events(
     events: list[AppleCalendarEventIn],
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> None:
     # iOS pushes today's EventKit events here. We cache them implicitly via the Event analytics table so the conversation-start prompt can read them back. Full EventKit storage is TODO.
     now = datetime.now(UTC)

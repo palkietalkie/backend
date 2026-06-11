@@ -3,7 +3,7 @@ import json
 import asyncpg
 
 
-async def init_connection(conn: asyncpg.Connection) -> None:
+async def register_json_codecs(conn: asyncpg.Connection) -> None:
     # Register JSONB / JSON codecs so dict[str, Any] roundtrips without surprises.
     await conn.set_type_codec(
         "jsonb",

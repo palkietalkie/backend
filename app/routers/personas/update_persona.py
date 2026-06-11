@@ -11,7 +11,7 @@ from app.routers.personas.list_personas import LIKED_BY_USER_SQL
 from app.routers.personas.validate_voice import validate_voice
 from app.services.neon.db_conn import DBConn
 from app.services.neon.fetch_persona_by_id import fetch_persona_by_id
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -22,7 +22,7 @@ async def update_persona(
     persona_id: uuid.UUID,
     body: PersonaUpdate,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> PersonaOut:
     if find_preset_by_id(persona_id) is not None:
         raise HTTPException(

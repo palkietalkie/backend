@@ -38,10 +38,10 @@ async def test_failing_pipeline_logs_but_keeps_going(
         def acquire(self) -> _FakePoolCtx:
             return _FakePoolCtx()
 
-    async def _get_pool() -> _FakePool:
+    async def _get_neon_pool() -> _FakePool:
         return _FakePool()
 
-    monkeypatch.setattr(mod, "get_pool", _get_pool)
+    monkeypatch.setattr(mod, "get_neon_pool", _get_neon_pool)
     with caplog.at_level(logging.ERROR):
         await mod.run_post_session_pipelines(uuid.uuid4(), uuid.uuid4())
 

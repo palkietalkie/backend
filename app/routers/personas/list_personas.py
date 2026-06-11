@@ -11,7 +11,7 @@ from app.routers.personas.build_persona_out_from_preset import (
 )
 from app.routers.personas.build_persona_out_from_row import build_persona_out_from_row
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
 
@@ -25,7 +25,7 @@ SortOrder = Literal["popular", "recent", "recommended"]
 @router.get("", response_model=list[PersonaOut])
 async def list_personas(
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
     q_param: str | None = Query(
         default=None, alias="q", description="Search term — matches name + description."
     ),

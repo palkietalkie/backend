@@ -8,7 +8,7 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.routers.conversation.constants import INSERT_EVENT_SQL, SESSION_BY_USER_SQL
 from app.routers.conversation.run_post_session_pipelines import run_post_session_pipelines
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
@@ -24,7 +24,7 @@ async def end_conversation(
     session_id: uuid.UUID,
     background: BackgroundTasks,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> EndResponse:
     session_row = await db.fetchrow(SESSION_BY_USER_SQL, session_id, user["id"])
     if session_row is None:

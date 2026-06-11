@@ -7,14 +7,14 @@ from fastapi import Depends, Header, HTTPException, status
 from app.auth.extract_bearer import extract_bearer
 from app.auth.verify_clerk_jwt import verify_clerk_jwt
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_user_row
 from app.services.neon.rows import UserRow
 
 
 async def resolve_current_user(
     authorization: str | None = Header(default=None),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> UserRow:
     token = extract_bearer(authorization)
     claims = await verify_clerk_jwt(token)

@@ -14,7 +14,7 @@ from app.services.openai.constants import (
     OPENAI_REALTIME_WS_URL_TEMPLATE,
     OpenAIVoiceId,
 )
-from app.services.openai.mint_session import mint_openai_session
+from app.services.openai.mint_openai_session import mint_openai_session
 
 
 def test_voice_enum_includes_known_ids() -> None:
@@ -36,6 +36,21 @@ def test_voice_enum_includes_known_ids() -> None:
 def test_endpoint_url_is_ga_client_secrets_not_beta_sessions() -> None:
     # Regression: the Beta endpoint /v1/realtime/sessions returns 400 beta_api_shape_disabled. GA endpoint is /v1/realtime/client_secrets.
     assert OPENAI_CLIENT_SECRETS_URL == "https://api.openai.com/v1/realtime/client_secrets"
+
+
+@pytest.mark.asyncio
+async def test_session_registers_recall_tools() -> None:
+    # The realtime model can only call recall mid-conversation if the tools are in the minted session config.
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    await mint_openai_session(text_prompt="x", voice_id=OpenAIVoiceId.ASH, http_client=fake)
+    _url, body, _headers = fake.calls[0]
+    tools = body["session"]["tools"]
+    names = {t["name"] for t in tools}
+    assert names == {"recall_facts", "recall_past_conversations", "search_transcripts"}
+    assert body["session"]["tool_choice"] == "auto"
+    for tool in tools:
+        assert tool["type"] == "function"
+        assert "query" in tool["parameters"]["properties"]
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,5 @@
 import logging
+import random
 import uuid
 from datetime import UTC, datetime
 
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.auth.resolve_current_user import resolve_current_user
 from app.config import get_settings
 from app.personas.presets.find_preset_by_id import find_preset_by_id
+from app.personas.voices.list_voices_for_provider import list_voices_for_provider
 from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
 from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
@@ -21,13 +23,13 @@ from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES
 from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
-from app.services.neon.get_db import get_db
+from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
 from app.services.neon.sum_seconds_used_this_week import sum_seconds_used_this_week
 from app.services.neon.sum_seconds_used_today import sum_seconds_used_today
 from app.services.openai.constants import OpenAIVoiceId
-from app.services.openai.mint_session import mint_openai_session
+from app.services.openai.mint_openai_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
 from app.services.weather.fetch_weather import fetch_weather
 from app.services.ws_ticket.mint_ws_ticket import mint_ws_ticket
@@ -58,7 +60,7 @@ class StartResponse(BaseModel):
 async def start_conversation(
     body: StartRequest,
     user: UserRow = Depends(resolve_current_user),
-    db: DBConn = Depends(get_db),
+    db: DBConn = Depends(get_neon_connection),
 ) -> StartResponse:
     settings = get_settings()
     # Free-plan caps. Two windows apply — the daily one resets at user-local midnight, the weekly one at user-local Monday 00:00. Whichever the user hits first stops them; rejecting here (rather than mid-conversation) keeps the iOS UX simple: either you get a session or you get an "out of time" screen with an Upgrade CTA.
@@ -122,6 +124,11 @@ async def start_conversation(
             topical_preferences=persona_row["topical_preferences"],
         )
 
+    # Topic sessions drop the carried-over persona character (assemble_prompt neutralizes it) and so have no persona voice to ride on. Pick a fresh random voice from the active provider's catalog so each topic session still has an acoustic identity instead of defaulting to the last persona's voice.
+    topic_mode = body.topic_override is not None
+    if topic_mode:
+        persona_voice_id = random.choice(list_voices_for_provider(provider)).id  # noqa: S311
+
     weather = None
     if body.lat is not None and body.lon is not None:
         weather = await fetch_weather(body.lat, body.lon)
@@ -144,34 +151,36 @@ async def start_conversation(
     event_titles = [e.title for e in events]
 
     # Recall the user's last 3 conversations WITH THIS SAME PERSONA. Each persona has their own memory of the user — Aiden doesn't get fed Naoko's transcript tail. Pulling 3 not 1 so the persona has shared history beyond the very last chat; longer-term recall (per-session summaries + vector search) is the planned upgrade in /CLAUDE.md.
-    last_rows = await db.fetch(
-        """SELECT id, started_at, ended_at
-           FROM conversation_sessions
-           WHERE user_id = $1 AND persona_id = $2 AND ended_at IS NOT NULL
-           ORDER BY ended_at DESC
-           LIMIT 3""",
-        user["id"],
-        body.persona_id,
-    )
+    # Skipped entirely in topic mode: a Today-screen topic is a deliberate fresh start, so feeding the last conversation's tail would just pull the session back into the old subject (and we'd throw the rows away in assemble_prompt anyway).
     recent_recall: str | None = None
-    if last_rows:
-        session_tails: list[str] = []
-        for session_row in reversed(last_rows):
-            transcript_rows = await db.fetch(
-                """SELECT speaker, text
-                   FROM transcripts
-                   WHERE session_id = $1
-                   ORDER BY started_at DESC
-                   LIMIT 10""",
-                session_row["id"],
-            )
-            if not transcript_rows:
-                continue
-            ordered = list(reversed(transcript_rows))
-            joined = " | ".join(f"{t['speaker']}: {t['text'][:200]}" for t in ordered)
-            session_tails.append(joined)
-        if session_tails:
-            recent_recall = "\n---\n".join(session_tails)
+    if not topic_mode:
+        last_rows = await db.fetch(
+            """SELECT id, started_at, ended_at
+               FROM conversation_sessions
+               WHERE user_id = $1 AND persona_id = $2 AND ended_at IS NOT NULL
+               ORDER BY ended_at DESC
+               LIMIT 3""",
+            user["id"],
+            body.persona_id,
+        )
+        if last_rows:
+            session_tails: list[str] = []
+            for session_row in reversed(last_rows):
+                transcript_rows = await db.fetch(
+                    """SELECT speaker, text
+                       FROM transcripts
+                       WHERE session_id = $1
+                       ORDER BY started_at DESC
+                       LIMIT 10""",
+                    session_row["id"],
+                )
+                if not transcript_rows:
+                    continue
+                ordered = list(reversed(transcript_rows))
+                joined = " | ".join(f"{t['speaker']}: {t['text'][:200]}" for t in ordered)
+                session_tails.append(joined)
+            if session_tails:
+                recent_recall = "\n---\n".join(session_tails)
 
     text_prompt = assemble_prompt(
         persona_fields,

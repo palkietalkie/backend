@@ -12,7 +12,7 @@ async def test_upsert_kg_runs_one_query_per_entity_plus_relation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = FakeDriver()
-    monkeypatch.setattr(upsert_kg_mod, "get_driver", lambda: fake)
+    monkeypatch.setattr(upsert_kg_mod, "get_neo4j_driver", lambda: fake)
     user_id = uuid.uuid4()
     entities = [
         KGEntity(type="person", name="Alice", props={}),
@@ -29,7 +29,7 @@ async def test_upsert_kg_runs_one_query_per_entity_plus_relation(
 
 async def test_upsert_kg_sanitizes_empty_relation(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeDriver()
-    monkeypatch.setattr(upsert_kg_mod, "get_driver", lambda: fake)
+    monkeypatch.setattr(upsert_kg_mod, "get_neo4j_driver", lambda: fake)
     entities = [KGEntity(type="person", name="A", props={})]
     relations = [KGRelation(src_name="A", relation="", dst_name="A")]
     await upsert_kg(uuid.uuid4(), entities, relations)

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import numpy as np  # noqa: E402
 import soundfile as sf  # noqa: E402
 
-from app.services.neon.get_pool import get_pool  # noqa: E402
+from app.services.neon.get_neon_pool import get_neon_pool  # noqa: E402
 from scripts.neon.decode_audio_bytes import decode_audio_bytes  # noqa: E402
 from scripts.neon.fetch_latest_session import fetch_latest_session  # noqa: E402
 from scripts.neon.fetch_session_audio import fetch_session_audio  # noqa: E402
@@ -27,7 +27,7 @@ from scripts.neon.print_rms_track import print_rms_track  # noqa: E402
 async def main() -> None:
     args = [a for a in sys.argv[1:] if a not in ("--model",)]
     source = "model" if "--model" in sys.argv else "mic"
-    pool = await get_pool()
+    pool = await get_neon_pool()
     async with pool.acquire() as db:
         if args:
             session_id = uuid.UUID(args[0])
