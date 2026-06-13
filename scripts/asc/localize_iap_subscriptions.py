@@ -10,7 +10,7 @@ Display name limit: 30 chars. Description limit: 45 chars. Both surface in the A
 
 Idempotent upsert: POSTs a new localization if (subscription, locale) is missing; PATCHes the existing row if its name/description drifts from the canonical list; no-ops if both match.
 
-Run: `cd backend && APPLE_ASC_ISSUER_ID=… APPLE_ASC_KEY_ID=… uv run scripts/asc/localize_iap_subscriptions.py`
+Run: `cd backend && uv run scripts/asc/localize_iap_subscriptions.py`
 """
 
 from __future__ import annotations

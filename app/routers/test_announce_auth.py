@@ -146,6 +146,43 @@ async def test_failed_attempt_posts_warning_without_jwt(
     get_settings.cache_clear()
 
 
+async def test_rich_diagnostic_reason_is_accepted_but_abuse_is_bounded(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # The iOS `diagnoseAuthError` chain (underlying-error + Clerk fields) runs ~1-2k chars — far past the old 500 cap. If the cap 422s it, we lose the only window into a failure we can't reproduce. But the field is unauthenticated, so a hard bound must remain.
+    client, _ = app_with_overrides
+    _enable_prod_slack(monkeypatch)
+    rich = (
+        "com.apple.AuthenticationServices.AuthorizationError#1000: The operation couldn't be completed. "
+        "← AKAuthenticationError#-7026: iCloud account not available " + "x" * 1500
+    )
+    assert 500 < len(rich) <= 1800
+    with respx.mock(base_url="https://slack.com") as router:
+        route = router.post("/api/chat.postMessage").mock(
+            return_value=httpx.Response(200, json={"ok": True, "ts": "5"})
+        )
+        with caplog.at_level("WARNING"):
+            resp = await client.post(
+                "/auth/announce", json={"method": "Apple", "outcome": "failed", "reason": rich}
+            )
+    assert resp.status_code == 200, "a real diagnostic must not be rejected and lost"
+    assert "AKAuthenticationError#-7026" in route.calls.last.request.content.decode()
+    # The backend's own log — not just Slack — must carry the diagnostic, since Slack is an alert surface, not a queryable log store.
+    assert any(
+        "sign-in failed" in r.message and "AKAuthenticationError#-7026" in r.getMessage()
+        for r in caplog.records
+    )
+
+    # Past the bound, Pydantic rejects — the open endpoint can't be a megabyte sink.
+    resp = await client.post(
+        "/auth/announce", json={"method": "Apple", "outcome": "failed", "reason": "z" * 2001}
+    )
+    assert resp.status_code == 422
+    get_settings.cache_clear()
+
+
 async def test_failed_oauth_without_email_reads_someone(
     app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -1,24 +1,46 @@
 """Type/contract assertions on the Subscription dataclass shape — iOS Swift codegen + Stripe webhook handler + ASC scripts all consume this. Catches the case where a careless rename of an attribute silently breaks one of those consumers."""
 
-from app.iap.subscription import Localization, StripePriceIds, Subscription
+import dataclasses
+
+import pytest
+
+from app.iap.subscription import (
+    GroupLocalization,
+    Localization,
+    StripePriceIds,
+    Subscription,
+    SubscriptionGroup,
+)
+
+
+def _assert_frozen(instance: object, field: str) -> None:
+    # Field name passed as a variable: a literal setattr trips ruff B010, and a direct frozen-field assignment is an unsilenceable type error.
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        setattr(instance, field, "x")
 
 
 def test_localization_is_frozen() -> None:
-    loc = Localization(locale="en-US", name="N", description="D")
-    try:
-        loc.locale = "ja"  # type: ignore[misc]
-    except Exception:
-        return
-    raise AssertionError("Localization should be frozen")
+    _assert_frozen(Localization(locale="en-US", name="N", description="D"), "locale")
 
 
 def test_stripe_price_ids_is_frozen() -> None:
-    p = StripePriceIds(sandbox="s", live="l")
-    try:
-        p.sandbox = "x"  # type: ignore[misc]
-    except Exception:
-        return
-    raise AssertionError("StripePriceIds should be frozen")
+    _assert_frozen(StripePriceIds(sandbox="s", live="l"), "sandbox")
+
+
+def test_group_localization_is_frozen() -> None:
+    _assert_frozen(GroupLocalization(locale="en-US", name="N"), "name")
+
+
+def test_subscription_group_is_frozen() -> None:
+    _assert_frozen(SubscriptionGroup(group_reference="r", localizations=()), "group_reference")
+
+
+def test_subscription_group_attributes() -> None:
+    assert set(SubscriptionGroup.__dataclass_fields__.keys()) == {
+        "group_reference",
+        "localizations",
+    }
+    assert set(GroupLocalization.__dataclass_fields__.keys()) == {"locale", "name"}
 
 
 def test_subscription_attributes_ios_codegen_depends_on() -> None:

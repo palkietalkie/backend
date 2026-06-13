@@ -8,7 +8,7 @@ Each subscription has a `subscriptionAvailability` resource holding the list of 
 
 Pattern: POST /v1/subscriptionAvailabilities once per subscription, with the full list of territory IDs and `availableInNewTerritories=true` so any territory Apple later adds is auto-enabled.
 
-Run: `cd backend && APPLE_ASC_ISSUER_ID=… APPLE_ASC_KEY_ID=… uv run app/scripts/asc/set_iap_availability.py`
+Run: `cd backend && uv run scripts/asc/set_iap_availability.py`
 """
 
 from __future__ import annotations

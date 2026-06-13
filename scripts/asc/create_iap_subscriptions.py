@@ -8,7 +8,7 @@ Orchestrator only — the actual ASC API calls live in sibling files (`find_app_
 
 Idempotent: skips any group / product whose reference name / product id already exists. Does NOT delete or modify existing products.
 
-Run: `cd backend && APPLE_ASC_ISSUER_ID=… APPLE_ASC_KEY_ID=… uv run scripts/asc/create_iap_subscriptions.py`"""
+Run: `cd backend && uv run scripts/asc/create_iap_subscriptions.py`"""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from app.apple_identifiers import APPLE_BUNDLE_ID  # noqa: E402
 from app.iap.subscriptions_list import SUBSCRIPTIONS  # noqa: E402
-from scripts.asc.constants import BUNDLE_ID  # noqa: E402
 from scripts.asc.create_subscription import create_subscription  # noqa: E402
 from scripts.asc.create_subscription_group import create_subscription_group  # noqa: E402
 from scripts.asc.find_app_id import find_app_id  # noqa: E402
@@ -31,7 +31,7 @@ from scripts.asc.list_subscriptions import list_subscriptions  # noqa: E402
 def main() -> None:
     with get_asc_client() as client:
         app_id = find_app_id(client)
-        print(f"[asc] app id {app_id} for {BUNDLE_ID}")
+        print(f"[asc] app id {app_id} for {APPLE_BUNDLE_ID}")
 
         groups = list_subscription_groups(client, app_id)
         for ref in {s.group_reference for s in SUBSCRIPTIONS}:
