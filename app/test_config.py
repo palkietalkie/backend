@@ -38,6 +38,11 @@ def test_personaplex_ws_url_is_alias_for_ws_base() -> None:
     assert s.personaplex_ws_url == s.personaplex_ws_base
 
 
+def test_apple_bundle_id_is_not_a_settings_field() -> None:
+    # Bundle id is a non-secret constant (app/apple_identifiers.py), deliberately NOT env-loaded Settings.
+    assert "apple_bundle_id" not in Settings.model_fields
+
+
 def test_get_settings_is_cached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # lru_cache(maxsize=1) means two calls return the same instance.
     monkeypatch.chdir(tmp_path)
