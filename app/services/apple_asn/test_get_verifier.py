@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from app.apple_identifiers import APPLE_BUNDLE_ID
 from app.services.apple_asn import _state
 from app.services.apple_asn import get_verifier as mod
 from app.services.apple_asn.exceptions import AppleLibraryMissingError
@@ -45,3 +46,5 @@ async def test_get_verifier_caches_after_first_call(monkeypatch: pytest.MonkeyPa
     assert first is second
     assert len(constructed) == 1
     assert _state.VERIFIER_CACHE is first
+    # Verifier is built against the bundle-id constant, not a Settings field.
+    assert constructed[0]["bundle_id"] == APPLE_BUNDLE_ID

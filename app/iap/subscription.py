@@ -23,6 +23,22 @@ class StripePriceIds:
 
 
 @dataclass(frozen=True)
+class GroupLocalization:
+    locale: str
+    name: str
+    """Customer-facing group display name shown in the iOS Settings -> Subscriptions screen."""
+
+
+@dataclass(frozen=True)
+class SubscriptionGroup:
+    group_reference: str
+    """ASC `referenceName` of the group — the pusher discovers the ASC id by matching this."""
+
+    localizations: tuple[GroupLocalization, ...]
+    """At least one (en-US) is required or every subscription in the group stays MISSING_METADATA."""
+
+
+@dataclass(frozen=True)
 class Subscription:
     asc_id: str
     """Apple's ASC API resource id (numeric string). Used by `scripts/asc/*` only."""

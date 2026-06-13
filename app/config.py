@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
 
     # --- Apple ---
-    apple_bundle_id: str = "com.palkietalkie.app"
+    # Bundle id + key ids are non-secret constants (app/apple_identifiers.py), imported directly by consumers — not Settings fields. Only env-loaded secrets belong here.
     apple_verify_receipt_shared_secret: str = ""
 
     # --- LLMs ---

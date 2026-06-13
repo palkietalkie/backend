@@ -8,7 +8,7 @@ Endpoint: POST /v1/subscriptionSubmissions with just the subscription relationsh
 
 Idempotent: skips any subscription that isn't in the `READY_TO_SUBMIT` state.
 
-Run: `cd backend && APPLE_ASC_ISSUER_ID=… APPLE_ASC_KEY_ID=… uv run app/scripts/asc/submit_iap_subscriptions.py`
+Run: `cd backend && uv run scripts/asc/submit_iap_subscriptions.py`
 """
 
 from __future__ import annotations

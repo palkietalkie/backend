@@ -1,5 +1,6 @@
 from aioapns import APNs
 
+from app.apple_identifiers import APPLE_BUNDLE_ID
 from app.config import get_settings
 
 # Each ``APNs(...)`` opens a persistent HTTP/2 connection; reuse it across pushes for the process lifetime.
@@ -15,7 +16,7 @@ def get_client() -> APNs:
         key=settings.apns_auth_key_path,
         key_id=settings.apns_key_id,
         team_id=settings.apns_team_id,
-        topic=settings.apple_bundle_id,
+        topic=APPLE_BUNDLE_ID,
         use_sandbox=settings.apns_use_sandbox,
     )
     return _client

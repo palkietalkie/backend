@@ -4,7 +4,7 @@ Uses ``request-a-test-notification`` + ``Get Test Notification Status`` to verif
 
 Skipped automatically unless every required env var is set. Marked ``live`` so normal pytest stays hermetic and CI opts in via ``pytest -m live``.
 
-Reads env (loaded from ``backend/.env``): APPLE_STOREKIT_ISSUER_ID    issuer UUID from App Store Connect → Users and Access → Keys APPLE_STOREKIT_KEY_ID       key ID from the same screen APPLE_STOREKIT_PRIVATE_KEY  PEM-formatted contents of the downloaded ``.p8`` APPLE_BUNDLE_ID        com.palkietalkie.app APPLE_STOREKIT_ENVIRONMENT  ``Sandbox`` or ``Production`` (default ``Sandbox``)
+Non-secret ids (issuer = team id, key id, bundle id) come from `app/apple_identifiers.py`. The only secret is the App Store Server `.p8` private key: the file `secrets/apple_storekit_api.p8`, or `APPLE_STOREKIT_PRIVATE_KEY` env (set in CI). `APPLE_STOREKIT_ENVIRONMENT` (`Sandbox` default / `Production`) selects the API base.
 
 Apple's webhook endpoint URL is configured per-app in App Store Connect; the test does not set it."""
 
@@ -16,6 +16,8 @@ from pathlib import Path
 import jwt
 import pytest
 from pydantic import BaseModel, ValidationError
+
+from app.apple_identifiers import APPLE_BUNDLE_ID, APPLE_ISSUER_ID, STOREKIT_KEY_ID
 
 _P8_PATH = Path(__file__).resolve().parents[3] / "secrets" / "apple_storekit_api.p8"
 
@@ -39,20 +41,11 @@ class _TestNotificationStatus(BaseModel):
     sendAttempts: list[_SendAttempt] = []  # noqa: N815 — matches Apple's wire field
 
 
-REQUIRED_ENV = (
-    "APPLE_STOREKIT_ISSUER_ID",
-    "APPLE_STOREKIT_KEY_ID",
-    "APPLE_BUNDLE_ID",
-)
-
 SANDBOX_BASE = "https://api.storekit-sandbox.itunes.apple.com"
 PRODUCTION_BASE = "https://api.storekit.itunes.apple.com"
 
 
 def _require_env() -> None:
-    missing = [k for k in REQUIRED_ENV if not os.environ.get(k)]
-    if missing:
-        pytest.fail(f"live test requires env vars (set in backend/.env): {', '.join(missing)}")
     if not _P8_PATH.exists() and not os.environ.get("APPLE_STOREKIT_PRIVATE_KEY"):
         pytest.fail(
             f"live test requires {_P8_PATH} OR APPLE_STOREKIT_PRIVATE_KEY env var (set in backend/.env)"
@@ -60,23 +53,20 @@ def _require_env() -> None:
 
 
 def _mint_app_store_connect_jwt() -> str:
-    issuer = os.environ["APPLE_STOREKIT_ISSUER_ID"]
-    key_id = os.environ["APPLE_STOREKIT_KEY_ID"]
     private_key = _load_apple_storekit_pem()
-    bundle_id = os.environ["APPLE_BUNDLE_ID"]
     now = int(time.time())
     return jwt.encode(
         {
-            "iss": issuer,
+            "iss": APPLE_ISSUER_ID,
             "iat": now,
             # Apple caps lifetime at 60 min for App Store Server API. 20 min keeps us safely under.
             "exp": now + 20 * 60,
             "aud": "appstoreconnect-v1",
-            "bid": bundle_id,
+            "bid": APPLE_BUNDLE_ID,
         },
         private_key,
         algorithm="ES256",
-        headers={"alg": "ES256", "kid": key_id, "typ": "JWT"},
+        headers={"alg": "ES256", "kid": STOREKIT_KEY_ID, "typ": "JWT"},
     )
 
 

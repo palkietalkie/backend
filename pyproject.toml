@@ -46,6 +46,9 @@ dev = [
     "types-python-jose>=3.3.4.20240106",
     # Same pattern as pillow/pyjwt above: the runtime dep lives in `scripts/regenerate_cefr_vocab.py`'s PEP 723 inline block; mirrored here so pyright can resolve it against the dev .venv.
     "wordfreq>=3.1.1",
+    # Same pattern again: opuslib (scripts/probe_modal_voice.py) + pyloudnorm (scripts/openai/normalize_loudness.py) live in those scripts' PEP 723 blocks; listed here so pyright resolves their source, not just a stub (reportMissingModuleSource).
+    "opuslib>=3.0.1",
+    "pyloudnorm>=0.1.1",
 ]
 
 [build-system]
@@ -69,6 +72,7 @@ ignore = ["S101", "B008", "E501"]
 "app/routers/personas/build_patch_sql.py" = ["S608"]  # PATCH SQL built from a fixed allow-list, all user data flows via $N parameters
 "app/services/apple_asn/_sdk.py" = ["N818"]  # VerificationException name matches the Apple SDK's exception class
 "app/services/google_calendar/refresh_token.py" = ["S105"]  # false positive: TOKEN_URL is a URL
+"scripts/verify_prod_oauth.py" = ["S310"]  # fetches the hardcoded https Clerk FAPI + Clerk-returned https authorize URLs, no untrusted scheme
 "stubs/**" = ["N801", "N802"]  # stubs mirror third-party APIs verbatim (e.g. pyloudnorm's lowercase `normalize` class) — naming-convention lints don't apply
 "**/test_*.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230"]
 "conftest.py" = ["S101", "S106", "S105", "S107", "S311", "S608", "B017", "ASYNC230", "E402"]

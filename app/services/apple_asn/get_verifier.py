@@ -1,3 +1,4 @@
+from app.apple_identifiers import APPLE_BUNDLE_ID
 from app.config import get_settings
 from app.services.apple_asn import _state
 from app.services.apple_asn._sdk import (
@@ -29,6 +30,6 @@ async def get_verifier() -> SignedDataVerifier:
             root_certificates=roots,
             enable_online_checks=False,
             environment=env,
-            bundle_id=settings.apple_bundle_id,
+            bundle_id=APPLE_BUNDLE_ID,
         )
         return _state.VERIFIER_CACHE
