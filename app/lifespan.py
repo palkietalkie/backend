@@ -10,9 +10,9 @@ import stripe
 from fastapi import FastAPI
 from neo4j.exceptions import GqlError
 
+from app.audio_retention.prune_expired_audio import run_prune_expired_audio_scheduler
 from app.config import get_settings
-from app.pipelines.daily_content.run_daily_content_scheduler import run_daily_content_scheduler
-from app.pipelines.session_audio.prune_expired_audio import run_prune_expired_audio_scheduler
+from app.daily_content.run_daily_content_scheduler import run_daily_content_scheduler
 from app.services.neo4j.close_neo4j_driver import close_neo4j_driver
 from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 

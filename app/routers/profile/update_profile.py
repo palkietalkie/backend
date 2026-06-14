@@ -19,7 +19,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 
 
 class ProfileUpdate(BaseModel):
-    display_name: str | None = Field(default=None, max_length=120)
+    preferred_name: str | None = Field(default=None, max_length=120)
     name_pronunciation: str | None = Field(default=None, max_length=120)
     native_languages: list[LanguageName] | None = Field(default=None, min_length=1)
     target_language: LanguageName | None = None
@@ -65,7 +65,7 @@ async def update_profile(
 
     row = await db.fetchrow(
         """UPDATE users
-           SET display_name         = COALESCE($2, display_name),
+           SET preferred_name   = COALESCE($2, preferred_name),
                name_pronunciation   = COALESCE($3, name_pronunciation),
                native_languages     = COALESCE($4, native_languages),
                target_language      = COALESCE($5, target_language),
@@ -78,13 +78,13 @@ async def update_profile(
                updated_at           = NOW()
            WHERE id = $1
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                     display_name, name_pronunciation,
+                     preferred_name, name_pronunciation,
                      native_languages, target_language, target_accents,
                      proficiency, tutor_speaking_speed,
                      goals, location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at""",
         user["id"],
-        body.display_name,
+        body.preferred_name,
         body.name_pronunciation,
         body.native_languages,
         body.target_language,

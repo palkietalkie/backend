@@ -1,7 +1,7 @@
 import logging
 from typing import Any, cast
 
-from app.pipelines.daily_content.models import TalkItem
+from app.daily_content.models import TalkItem
 from app.services.neon.db_conn import DBConn
 
 logger = logging.getLogger(__name__)

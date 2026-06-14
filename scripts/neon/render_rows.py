@@ -93,7 +93,8 @@ def render_rows(schema: dict[str, list[tuple[str, str, str, bool]]]) -> str:
     if needs_time:
         datetime_imports.append("time")
     if datetime_imports:
-        lines.append(f"from datetime import {', '.join(datetime_imports)}")
+        # Sort so the emitted import matches ruff's isort ordering — otherwise the generated file fails `ruff check` and drifts from the committed copy on every run.
+        lines.append(f"from datetime import {', '.join(sorted(datetime_imports))}")
     typing_imports = ["TypedDict"]
     if needs_any:
         typing_imports.insert(0, "Any")

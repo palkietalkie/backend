@@ -16,7 +16,7 @@ async def test_fetch_profile_returns_user_fields(
     resp = await client.get("/profile")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["display_name"] == user["display_name"]
+    assert body["preferred_name"] == user["preferred_name"]
     assert body["native_languages"] == user["native_languages"]
 
 
@@ -37,11 +37,11 @@ async def test_update_profile_patches_fields(
     client, _ = app_with_overrides
     resp = await client.patch(
         "/profile",
-        json={"display_name": "Wes", "location_city": "San Francisco"},
+        json={"preferred_name": "Wes", "location_city": "San Francisco"},
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["display_name"] == "Wes"
+    assert body["preferred_name"] == "Wes"
     assert body["location_city"] == "San Francisco"
 
 
@@ -52,7 +52,7 @@ async def test_update_profile_does_not_auto_fill_pronunciation_on_save(
     """PATCH must leave `name_pronunciation` exactly as the user sent it. Pronunciation suggestions live behind GET /profile (as a placeholder), not behind PATCH."""
     client, user = app_with_overrides
     await db.execute("UPDATE users SET name_pronunciation = NULL WHERE id = $1", user["id"])
-    resp = await client.patch("/profile", json={"display_name": "Wey"})
+    resp = await client.patch("/profile", json={"preferred_name": "Wey"})
     assert resp.status_code == 200
     assert resp.json()["name_pronunciation"] in (None, "")
     persisted = await db.fetchval("SELECT name_pronunciation FROM users WHERE id = $1", user["id"])
@@ -143,8 +143,8 @@ async def test_fetch_profile_returns_suggestion_when_pronunciation_empty(
     """When `name_pronunciation` is empty, GET /profile returns a Gemma-generated `name_pronunciation_suggestion` as a placeholder hint without persisting it. Stored field stays empty so user-driven clears are respected."""
     from app.routers.profile import fetch_profile as fetch_profile_mod
 
-    async def _guess(display_name: str, _target_language: str) -> str:
-        return f"{display_name.upper()}-suggested"
+    async def _guess(preferred_name: str, _target_language: str) -> str:
+        return f"{preferred_name.upper()}-suggested"
 
     monkeypatch.setattr(fetch_profile_mod, "guess_name_pronunciation", _guess)
     client, user = app_with_overrides
@@ -153,8 +153,8 @@ async def test_fetch_profile_returns_suggestion_when_pronunciation_empty(
     assert resp.status_code == 200
     body = resp.json()
     assert body["name_pronunciation"] in (None, "")
-    display_name = user["display_name"] or ""
-    assert body["name_pronunciation_suggestion"] == f"{display_name.upper()}-suggested"
+    preferred_name = user["preferred_name"] or ""
+    assert body["name_pronunciation_suggestion"] == f"{preferred_name.upper()}-suggested"
     persisted = await db.fetchval("SELECT name_pronunciation FROM users WHERE id = $1", user["id"])
     assert persisted is None
 

@@ -25,14 +25,14 @@ async def test_returns_stripped_llm_output(stub_gemma: list[dict[str, str]]) -> 
     assert len(stub_gemma) == 1
 
 
-async def test_empty_display_name_short_circuits_without_calling_gemma(
+async def test_empty_preferred_name_short_circuits_without_calling_gemma(
     stub_gemma: list[dict[str, str]],
 ) -> None:
     assert await guess_name_pronunciation("", "English") == ""
     assert stub_gemma == []
 
 
-async def test_whitespace_only_display_name_short_circuits_without_calling_gemma(
+async def test_whitespace_only_preferred_name_short_circuits_without_calling_gemma(
     stub_gemma: list[dict[str, str]],
 ) -> None:
     assert await guess_name_pronunciation("    ", "English") == ""

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.pipelines.daily_content.models import TalkItem
+from app.daily_content.models import TalkItem
 from app.services.daily_content.load_topic_pool import load_topic_pool
 from app.services.daily_content.save_topic_items import save_topic_items
 from app.services.neon.db_conn import DBConn

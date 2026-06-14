@@ -57,7 +57,7 @@ async def test_only_own_tokens_count(
     other_user_id = uuid.uuid4()
     now = datetime.now(UTC)
     await db.execute(
-        """INSERT INTO users (id, clerk_user_id, email, display_name, native_languages,
+        """INSERT INTO users (id, clerk_user_id, email, preferred_name, native_languages,
                               location_city, timezone, created_at, updated_at)
            VALUES ($1, $2, $3, 'Other', $4, 'LA', 'America/Los_Angeles', $5, $5)""",
         other_user_id,

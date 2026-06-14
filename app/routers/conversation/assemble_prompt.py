@@ -30,7 +30,7 @@ def assemble_prompt(
     recent_recall: str | None = None,
     topic_override: str | None = None,
 ) -> str:
-    name = user["display_name"] or "the user"
+    name = user["preferred_name"] or "the user"
     city = user["location_city"] or "their city"
     when = format_local_time(user["timezone"])
     weather = weather_label or "weather unknown"

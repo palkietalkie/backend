@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.auth.resolve_current_user import resolve_current_user
-from app.pipelines.daily_content.constants import POOL_SAMPLE_SIZE, POOL_TOPICS, TOPICS
-from app.pipelines.daily_content.models import TalkItem
+from app.daily_content.constants import POOL_SAMPLE_SIZE, POOL_TOPICS, TOPICS
+from app.daily_content.models import TalkItem
 from app.services.daily_content.load_today_topics import load_today_topics
 from app.services.daily_content.load_topic_pool import load_topic_pool
 from app.services.neon.db_conn import DBConn

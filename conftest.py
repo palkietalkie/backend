@@ -247,11 +247,11 @@ async def fake_user(db: DBConn) -> UserRow:
     user_id = uuid.uuid4()
     now = datetime.now(UTC)
     row = await db.fetchrow(
-        """INSERT INTO users (id, clerk_user_id, email, display_name, native_languages,
+        """INSERT INTO users (id, clerk_user_id, email, preferred_name, native_languages,
                               location_city, timezone, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                     display_name, name_pronunciation, native_languages, target_language, target_accents,
+                     preferred_name, name_pronunciation, native_languages, target_language, target_accents,
                      proficiency, tutor_speaking_speed, goals,
                      location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at""",
@@ -275,11 +275,11 @@ async def fake_user(db: DBConn) -> UserRow:
         premium_ends_at=row["premium_ends_at"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
-        display_name=row["display_name"],
+        preferred_name=row["preferred_name"],
         name_pronunciation=row["name_pronunciation"],
         native_languages=list(row["native_languages"]),
         target_language=row["target_language"],
-        target_accents=list(row["target_accents"] or []),
+        target_accents=list(row["target_accents"]),
         proficiency=row["proficiency"],
         tutor_speaking_speed=row["tutor_speaking_speed"],
         goals=row["goals"],
@@ -314,7 +314,7 @@ async def app_with_overrides(
         """Re-read the fake user on the per-request connection so route mutations are visible."""
         row = await db.fetchrow(
             """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                      display_name, name_pronunciation, native_languages, target_language, target_accents,
+                      preferred_name, name_pronunciation, native_languages, target_language, target_accents,
                       proficiency, tutor_speaking_speed, goals,
                       location_city, timezone,
                       personalization_consent, product_improvement_consent, consent_screen_seen_at
@@ -331,11 +331,11 @@ async def app_with_overrides(
             premium_ends_at=row["premium_ends_at"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            display_name=row["display_name"],
+            preferred_name=row["preferred_name"],
             name_pronunciation=row["name_pronunciation"],
             native_languages=list(row["native_languages"]),
             target_language=row["target_language"],
-            target_accents=list(row["target_accents"] or []),
+            target_accents=list(row["target_accents"]),
             proficiency=row["proficiency"],
             tutor_speaking_speed=row["tutor_speaking_speed"],
             goals=row["goals"],
