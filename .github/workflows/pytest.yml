@@ -68,13 +68,13 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --frozen --extra dev
 
       - name: Ruff format check
-        run: ruff format --check app/ inference/ scripts/ migrations/ conftest.py
+        run: uv run ruff format --check app/ inference/ scripts/ migrations/ conftest.py
 
       - name: Ruff lint
-        run: ruff check app/ inference/ scripts/ migrations/ conftest.py
+        run: uv run ruff check app/ inference/ scripts/ migrations/ conftest.py
 
   pyright:
     name: Type check (pyright)
@@ -91,10 +91,10 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --frozen --extra dev
 
       - name: Pyright
-        run: pyright
+        run: uv run pyright
 
   pytest:
     name: Tests + coverage
@@ -111,7 +111,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --frozen --extra dev
 
       - name: Run pytest with coverage gate
         env:
@@ -133,7 +133,7 @@ jobs:
           GOOGLE_OAUTH_CLIENT_SECRET: test-google-client-secret
           NEO4J_URI: "bolt://localhost:7687"
         run: |
-          pytest \
+          uv run pytest \
             --cov=app \
             --cov-branch \
             --cov-report=term-missing \

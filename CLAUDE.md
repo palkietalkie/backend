@@ -6,7 +6,6 @@ Server-side. Shared product, business model, cost simulation, GTM, team/fundrais
 
 ## Stack
 
-- Language: Python 3.14. Dependency manager: `uv`. `uv pip install -e ".[dev]"` for dev.
 - DB driver: `asyncpg`. Raw SQL only — no ORM, no SQLAlchemy expression DSL. SQL is inline at the call site as Python triple-quoted strings (positional `$N` parameters required by asyncpg).
 - Migrations: flat `.sql` files in `migrations/`, applied in lexical order by `migrations/run.py` (tracked in a `schema_version` table). No Alembic. Container CMD runs `python -m migrations.run` then `uvicorn app.main:app --workers 1`.
 - API: FastAPI on Fly.io. Two apps: `palkietalkie-api` (prd) + `palkietalkie-api-dev` (dev). Region `sjc`. `shared-cpu-1x:1024MB` (512MB OOM'd with spaCy + SDKs; 1024MB with 1 uvicorn worker fits).
@@ -52,21 +51,6 @@ Conventions, not a file tree (filesystem is the source of truth). What lives whe
 - Backend dev → Fly `palkietalkie-api-dev`. Manual deploy (`flyctl deploy -a palkietalkie-api-dev` or via `boot.sh`).
 - Inference `voice` (both Modal envs) → manual `modal deploy inference/voice_server.py` or via `.github/workflows/deploy-inference.yml` (`MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` GH secrets, triggers on changes under `inference/`).
 - CI: `.github/workflows/pytest.yml` runs ruff + pyright + pytest with coverage on every PR + push to main.
-
-## Setup (once per clone)
-
-```bash
-cd backend
-uv venv && source .venv/bin/activate
-uv pip install -e ".[dev]"
-modal token new   # if not already authenticated
-# Run locally:
-uvicorn app.main:app --reload --port 8000
-# Run tests (unit tests work without Docker; testcontainers tests need a running Docker daemon):
-pytest --cov=app
-```
-
-`.env.example` documents required env vars: Clerk dev keys, Neon dev DB URL, Neo4j AuraDB URI / user / password, Pinecone API key + index host, Modal token id / secret, HF_TOKEN (PersonaPlex gated repo), Gemma + NewsAPI keys, Google OAuth client id / secret (dev redirect URI `http://localhost:5000/api/integrations/google-calendar/callback`), Stripe sandbox keys + price IDs (`STRIPE_PRICE_INDIVIDUAL_MONTHLY` / `_ANNUAL`, `STRIPE_PRICE_FAMILY_MONTHLY` / `_ANNUAL`), `OPENAI_API_KEY`, `INFERENCE_PROVIDER` (defaults to `openai`).
 
 ## LGTM Workflow
 
