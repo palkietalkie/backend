@@ -10,7 +10,8 @@ dependencies = [
     "aioapns>=4.0",
     "app-store-server-library>=3.1.1",
     "asyncpg>=0.31.0",
-    "fastapi>=0.136.3",
+    # Cap below 0.137: it changed route enumeration so router-included routes drop out of app.routes' isinstance(starlette Route) view, breaking the route-registration tests (endpoints still work). Revisit when upgrading. The unpinned >= let CI drift onto 0.137 and go red.
+    "fastapi>=0.136.3,<0.137",
     "httpx>=0.28.1",
     "neo4j>=6.2.0",
     "openai>=2.38.0",
@@ -106,8 +107,7 @@ ignore = ["S101", "B008", "E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["app"]
-# importlib import mode: the codebase has no __init__.py (namespace packages), and several modules share a basename (constants.py, models.py, build_prompt.py, …). Default "prepend" mode manipulates sys.path and can import the same module under two identities — so a router's route decorators register on one object while create_app() includes the other (empty). That surfaced as all-routers-missing on Linux CI but not macOS (collection order differs). importlib mode imports by full package path, no sys.path hacking — the supported mode for an __init__.py-free layout.
-addopts = "-ra --strict-markers --import-mode=importlib"
+addopts = "-ra --strict-markers"
 markers = [
     "sandbox: hits external sandbox APIs (Stripe Sandbox, Apple App Store Server Sandbox). Skip with `pytest -m 'not sandbox'`.",
 ]
