@@ -7,8 +7,15 @@ from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemb
 from app.services.neon.rows import UserRow
 
 
-def _user(**overrides: object) -> UserRow:
-    base: UserRow = UserRow(
+def _user(
+    *,
+    preferred_name: str | None = "Yuki",
+    name_pronunciation: str | None = None,
+    native_languages: list[str] | None = None,
+    goals: str | None = "job interview prep",
+    location_city: str | None = "Tokyo",
+) -> UserRow:
+    return UserRow(
         id=uuid.uuid4(),
         clerk_user_id="user_x",
         email=None,
@@ -16,22 +23,20 @@ def _user(**overrides: object) -> UserRow:
         premium_ends_at=None,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
-        display_name="Yuki",
-        name_pronunciation=None,
-        native_languages=["Japanese"],
+        preferred_name=preferred_name,
+        name_pronunciation=name_pronunciation,
+        native_languages=native_languages if native_languages is not None else ["Japanese"],
         target_accents=[],
         target_language="English",
         proficiency="intermediate",
         tutor_speaking_speed="normal",
-        goals="job interview prep",
-        location_city="Tokyo",
+        goals=goals,
+        location_city=location_city,
         timezone="Asia/Tokyo",
         personalization_consent=None,
         product_improvement_consent=None,
         consent_screen_seen_at=None,
     )
-    base.update(overrides)  # type: ignore[typeddict-item]
-    return base
 
 
 PERSONA = PersonaPromptFields(
@@ -57,7 +62,7 @@ def test_assemble_prompt_includes_name_city_weather() -> None:
 def test_assemble_prompt_defaults_when_user_blank() -> None:
     out = assemble_prompt(
         PERSONA,
-        _user(display_name=None, location_city=None),
+        _user(preferred_name=None, location_city=None),
         kg_entities=[],
         weather_label=None,
         today_events_titles=[],

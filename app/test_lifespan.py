@@ -9,6 +9,15 @@ from fastapi import FastAPI
 from app import lifespan as lifespan_mod
 
 
+def test_schedulers_resolve_from_reorganized_modules() -> None:
+    # After the pipelines → post_session_nlp / daily_content / audio_retention split, lifespan must import the schedulers from their new homes — not the deleted app.pipelines.* paths.
+    from app.audio_retention.prune_expired_audio import run_prune_expired_audio_scheduler
+    from app.daily_content.run_daily_content_scheduler import run_daily_content_scheduler
+
+    assert lifespan_mod.run_daily_content_scheduler is run_daily_content_scheduler
+    assert lifespan_mod.run_prune_expired_audio_scheduler is run_prune_expired_audio_scheduler
+
+
 async def test_lifespan_starts_and_cancels_scheduler_tasks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

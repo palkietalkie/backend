@@ -10,7 +10,8 @@ dependencies = [
     "aioapns>=4.0",
     "app-store-server-library>=3.1.1",
     "asyncpg>=0.31.0",
-    "fastapi>=0.136.3",
+    # Floor at 0.137: it refactored router inclusion into a route tree (app.routes is no longer flat). We follow that behavior, so require it everywhere — keeping a lower floor would let local run the old flat internals while CI runs the new tree.
+    "fastapi>=0.137.0",
     "httpx>=0.28.1",
     "neo4j>=6.2.0",
     "openai>=2.38.0",

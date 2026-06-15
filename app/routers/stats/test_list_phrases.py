@@ -85,7 +85,7 @@ async def test_only_returns_own_phrases(
     client, _ = app_with_overrides
     other_id = uuid.uuid4()
     await db.execute(
-        """INSERT INTO users (id, clerk_user_id, email, display_name, native_languages,
+        """INSERT INTO users (id, clerk_user_id, email, preferred_name, native_languages,
                               created_at, updated_at)
            VALUES ($1, $2, 'other@palkietalkie.test', 'Other', ARRAY['Japanese'], NOW(), NOW())""",
         other_id,

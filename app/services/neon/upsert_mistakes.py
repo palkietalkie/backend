@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from app.pipelines.mistake_detection.mistake_record import MistakeRecord
+from app.post_session_nlp.mistake_detection.mistake_record import MistakeRecord
 from app.services.neon.db_conn import DBConn
 
 

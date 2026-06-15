@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.pipelines.daily_content.models import TalkItem
+from app.daily_content.models import TalkItem
 from app.services.neon.db_conn import DBConn
 
 

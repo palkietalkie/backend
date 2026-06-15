@@ -42,8 +42,14 @@ if [ "$ROWS_PY_BEFORE" != "$ROWS_PY_AFTER" ]; then
     exit 1
 fi
 
-echo "pre-commit: ruff format --check"
-"$RUFF" format --check app/ inference/ scripts/ migrations/ conftest.py
+# Actually reformat (not just --check): a check-and-fail hook just makes the dev run the same command by hand. Rewrite in place, but DON'T stage — if anything changed, fail so the dev reviews and re-stages (auto-staging would silently fold unreviewed edits into the commit). Detect changes from ruff's own report (not `git diff`, which would also trip on unrelated unstaged edits).
+echo "pre-commit: ruff format"
+fmt_out="$("$RUFF" format app/ inference/ scripts/ migrations/ conftest.py)"
+echo "$fmt_out"
+if echo "$fmt_out" | grep -q "reformatted"; then
+    echo "pre-commit: ruff reformatted files above — review and 'git add' them, then re-commit" >&2
+    exit 1
+fi
 
 echo "pre-commit: ruff check"
 "$RUFF" check app/ inference/ scripts/ migrations/ conftest.py

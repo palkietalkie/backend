@@ -35,7 +35,7 @@ async def handle_google_calendar_callback(
 
     user_row = await db.fetchrow(
         """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                  display_name, name_pronunciation,
+                  preferred_name, name_pronunciation,
                   native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
                   location_city, timezone,
                   personalization_consent, product_improvement_consent, consent_screen_seen_at

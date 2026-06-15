@@ -118,7 +118,7 @@ async def test_upsert_phrase_freq_empty_returns_zero(db: DBConn) -> None:
 
 
 async def test_upsert_mistakes_inserts_then_increments(db: DBConn) -> None:
-    from app.pipelines.mistake_detection.mistake_record import MistakeRecord
+    from app.post_session_nlp.mistake_detection.mistake_record import MistakeRecord
 
     user_id, _ = await _seed_user_and_session(db)
     n = await upsert_mistakes(user_id, [MistakeRecord("I goed", "I went", "grammar")], db)
@@ -162,7 +162,7 @@ async def test_sum_seconds_used_today_counts_recent_sessions(db: DBConn) -> None
         premium_ends_at=None,
         created_at=now,
         updated_at=now,
-        display_name=None,
+        preferred_name=None,
         name_pronunciation=None,
         native_languages=["English"],
         target_accents=[],
@@ -202,7 +202,7 @@ async def test_sum_seconds_used_today_excludes_yesterday(db: DBConn) -> None:
         premium_ends_at=None,
         created_at=now,
         updated_at=now,
-        display_name=None,
+        preferred_name=None,
         name_pronunciation=None,
         native_languages=["English"],
         target_accents=[],

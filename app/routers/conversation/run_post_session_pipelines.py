@@ -1,11 +1,13 @@
 import logging
 import uuid
 
-from app.pipelines.kg_extraction.run_kg_extraction import run_kg_extraction
-from app.pipelines.mistake_detection.run_mistake_detection import run_mistake_detection
-from app.pipelines.phrase_extraction.run_phrase_extraction import run_phrase_extraction
-from app.pipelines.transcript_analysis.run_transcript_analysis import run_transcript_analysis
-from app.pipelines.transcript_embedding.run_transcript_embedding import run_transcript_embedding
+from app.post_session_nlp.kg_extraction.run_kg_extraction import run_kg_extraction
+from app.post_session_nlp.mistake_detection.run_mistake_detection import run_mistake_detection
+from app.post_session_nlp.phrase_extraction.run_phrase_extraction import run_phrase_extraction
+from app.post_session_nlp.transcript_analysis.run_transcript_analysis import run_transcript_analysis
+from app.post_session_nlp.transcript_embedding.run_transcript_embedding import (
+    run_transcript_embedding,
+)
 from app.services.neon.get_neon_pool import get_neon_pool
 
 _logger = logging.getLogger(__name__)

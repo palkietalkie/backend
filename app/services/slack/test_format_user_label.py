@@ -4,16 +4,18 @@ from datetime import UTC, datetime
 from app.services.neon.rows import UserRow
 
 
-def _user(**overrides: object) -> UserRow:
-    base = UserRow(
+def _user(
+    *, preferred_name: str | None = "Ayumi", email: str | None = "ayumi@example.com"
+) -> UserRow:
+    return UserRow(
         id=uuid.uuid4(),
         clerk_user_id="user_test",
-        email="ayumi@example.com",
+        email=email,
         premium=False,
         premium_ends_at=None,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
-        display_name="Ayumi",
+        preferred_name=preferred_name,
         name_pronunciation=None,
         native_languages=["Japanese"],
         target_language="English",
@@ -27,9 +29,6 @@ def _user(**overrides: object) -> UserRow:
         product_improvement_consent=None,
         consent_screen_seen_at=None,
     )
-    # Pyright sees UserRow as TypedDict; runtime dict update accepts the overrides.
-    base.update(overrides)  # type: ignore[typeddict-item]
-    return base
 
 
 def test_prefers_name_and_email_when_both_present() -> None:
@@ -41,7 +40,7 @@ def test_prefers_name_and_email_when_both_present() -> None:
 def test_falls_back_to_email_when_name_missing() -> None:
     from app.services.slack.format_user_label import format_user_label
 
-    user = _user(display_name=None)
+    user = _user(preferred_name=None)
     assert format_user_label(user) == "ayumi@example.com"
 
 
@@ -55,5 +54,5 @@ def test_falls_back_to_name_when_email_missing() -> None:
 def test_falls_back_to_uuid_when_name_and_email_missing() -> None:
     from app.services.slack.format_user_label import format_user_label
 
-    user = _user(display_name=None, email=None)
+    user = _user(preferred_name=None, email=None)
     assert format_user_label(user) == str(user["id"])

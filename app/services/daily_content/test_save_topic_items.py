@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.pipelines.daily_content.models import TalkItem
+from app.daily_content.models import TalkItem
 from app.services.daily_content.load_today_topics import load_today_topics
 from app.services.daily_content.save_topic_items import save_topic_items
 from app.services.neon.db_conn import DBConn

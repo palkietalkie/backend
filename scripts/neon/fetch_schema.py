@@ -1,9 +1,9 @@
-import os
 import sys
 
 import asyncpg
 
 from app.services.neon.normalize_neon_url import normalize_neon_url
+from scripts.read_env_value import read_env_value
 
 SKIP_TABLES: frozenset[str] = frozenset({"schema_version"})
 
@@ -11,14 +11,14 @@ SKIP_TABLES: frozenset[str] = frozenset({"schema_version"})
 async def fetch_schema() -> dict[str, list[tuple[str, str, str, bool]]]:
     """Return `{table_name: [(column, pg_type, udt_name, nullable), ...]}` from `information_schema`.
 
-    Reads `NEON_DATABASE_URL_DEV` (or `NEON_DATABASE_URL` as fallback). Exits 0 (not 1) when the env var is missing so pre-commit on a fresh machine doesn't fail before the dev has set it up.
+    Reads NEON_DATABASE_URL (shell env, then backend/.env via read_env_value). Exits 0 (not 1) when absent — a fresh machine with no .env can't reach the DB and shouldn't be blocked from committing before setup.
 
     Columns come back in `ordinal_position` order so the generated TypedDict matches the table's physical column order — keeps the emitted file diff-friendly.
     """
-    url = os.environ.get("NEON_DATABASE_URL_DEV") or os.environ.get("NEON_DATABASE_URL")
+    url = read_env_value("NEON_DATABASE_URL")
     if not url:
         print(
-            "generate_neon_types: NEON_DATABASE_URL_DEV (or NEON_DATABASE_URL) not set — skipping",
+            "generate_neon_types: NEON_DATABASE_URL not in env or backend/.env — skipping",
             file=sys.stderr,
         )
         sys.exit(0)

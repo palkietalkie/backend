@@ -4,7 +4,7 @@
 # ///
 """Generate `app/services/neon/rows.py` from the live Neon dev schema.
 
-Orchestrator only — fetches the schema via `fetch_schema`, renders via `render_rows`, writes the result. Reads `NEON_DATABASE_URL_DEV` (or `NEON_DATABASE_URL` as fallback). Run via pre-commit hook (see `scripts/git/pre-commit`) so any schema change forces a regen.
+Orchestrator only — fetches the schema via `fetch_schema`, renders via `render_rows`, writes the result. Reads `NEON_DATABASE_URL` (shell env, then backend/.env). Run via pre-commit hook (see `scripts/git/pre-commit`) so any schema change forces a regen.
 
 Manual usage:
 
