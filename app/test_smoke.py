@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
-from starlette.routing import Route
 
 
 def test_app_imports() -> None:
@@ -16,7 +15,8 @@ def test_app_imports() -> None:
 def test_routes_registered() -> None:
     from app.main import app
 
-    paths = {route.path for route in app.routes if isinstance(route, Route)}
+    # OpenAPI schema, not app.routes: since fastapi 0.137 app.routes is a nested tree (internal detail), flat iteration misses included routes.
+    paths = set(app.openapi()["paths"])
     expected = {
         "/health",
         "/conversation/start",

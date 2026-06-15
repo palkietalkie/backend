@@ -1,20 +1,17 @@
 """Tests for the FastAPI factory create_app() — guards against router-registration regressions."""
 
-from starlette.routing import Route
-
 from app.main import create_app
 
 
 def test_create_app_has_health_route() -> None:
-    app = create_app()
-    paths = {route.path for route in app.routes if isinstance(route, Route)}
+    # Enumerate via the OpenAPI schema: since fastapi 0.137 `app.routes` is a nested tree (internal detail), so flat iteration misses included routes.
+    paths = set(create_app().openapi()["paths"])
     assert "/health" in paths
 
 
 def test_create_app_registers_every_user_facing_router() -> None:
     """If a router import is accidentally removed from main.py, this trips."""
-    app = create_app()
-    paths = {route.path for route in app.routes if isinstance(route, Route)}
+    paths = set(create_app().openapi()["paths"])
     # A representative cross-section of the routers — every key product surface.
     expected = {
         "/conversation/start",
