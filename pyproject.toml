@@ -106,7 +106,8 @@ ignore = ["S101", "B008", "E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["app"]
-addopts = "-ra --strict-markers"
+# importlib import mode: the codebase has no __init__.py (namespace packages), and several modules share a basename (constants.py, models.py, build_prompt.py, …). Default "prepend" mode manipulates sys.path and can import the same module under two identities — so a router's route decorators register on one object while create_app() includes the other (empty). That surfaced as all-routers-missing on Linux CI but not macOS (collection order differs). importlib mode imports by full package path, no sys.path hacking — the supported mode for an __init__.py-free layout.
+addopts = "-ra --strict-markers --import-mode=importlib"
 markers = [
     "sandbox: hits external sandbox APIs (Stripe Sandbox, Apple App Store Server Sandbox). Skip with `pytest -m 'not sandbox'`.",
 ]
