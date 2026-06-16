@@ -22,7 +22,8 @@ async def test_fetch_overview_empty_returns_zeros(
     assert body["session_total_seconds"] == 0
     assert body["user_talk_pct"] is None
     assert body["speaking_rate_wpm"] is None
-    assert body["pitch_range_hz"] is None
+    assert body["pitch_min_hz"] is None
+    assert body["pitch_max_hz"] is None
     assert isinstance(body["cefr_coverage"], list)
     assert body["day_streak"] == 0
 
@@ -97,7 +98,8 @@ async def test_fetch_overview_pitch_range_from_events(
     )
     resp = await client.get("/stats")
     body = resp.json()
-    assert body["pitch_range_hz"] == 140.0
+    assert body["pitch_min_hz"] == 80.0
+    assert body["pitch_max_hz"] == 220.0
 
 
 async def test_list_mistakes_orders_by_count_desc(

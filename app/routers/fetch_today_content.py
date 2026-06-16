@@ -27,6 +27,9 @@ class ItemOut(BaseModel):
     summary: str
     source: str
     image_url: str
+    url: str = ""
+    # Full article body so the conversation prompt carries real depth, not just the one-line summary. Empty for quizzes.
+    details: str = ""
 
 
 class SectionOut(BaseModel):
@@ -71,6 +74,8 @@ async def fetch_today_content(
                         summary=i.summary,
                         source=i.source,
                         image_url=i.image_url,
+                        url=i.url,
+                        details=i.details,
                     )
                     for i in items
                 ],

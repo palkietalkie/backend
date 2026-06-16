@@ -12,6 +12,7 @@ class _Source(BaseModel):
 class _Article(BaseModel):
     title: str | None = None
     description: str | None = None
+    url: str | None = None
     urlToImage: str | None = None  # noqa: N815 — matches NewsAPI's camelCase field name verbatim
     source: _Source | None = None
 
@@ -50,6 +51,7 @@ async def fetch_news_by_category(category: str) -> list[TalkItem]:
                 summary=art.description or "",
                 source=art.source.name if art.source else "",
                 image_url=art.urlToImage or "",
+                url=art.url or "",
             )
         )
     return out

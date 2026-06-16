@@ -1,5 +1,3 @@
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
@@ -11,6 +9,10 @@ from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.list_user_lemmas import list_user_lemmas
 from app.services.neon.rows import UserRow
+from app.services.stats.compute_affinity import compute_affinity
+from app.services.stats.compute_day_streak import compute_day_streak
+from app.services.stats.compute_pitch_range import compute_pitch_range
+from app.services.stats.compute_talk_metrics import compute_talk_metrics
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -23,18 +25,18 @@ class CefrCoverage(BaseModel):
 
 
 class StatsOverview(BaseModel):
-    # Consecutive UTC-day streak ending today (or yesterday if no session today yet — the streak survives one "empty" day so it doesn't reset mid-afternoon before the user has practiced). 0 if no sessions in last 2 days.
     day_streak: int
     session_total_seconds: int
     sessions_count: int
     unique_words: int
     unique_phrases: int
-    # null when no transcript yet (no sessions).
     user_talk_pct: float | None
-    # null until at least 1s of user-talk time accumulates.
     speaking_rate_wpm: float | None
-    # null until on-device pitch detection ships.
-    pitch_range_hz: float | None
+    # The actual pitch endpoints (lowest and highest F0 across sessions), so the client shows a range like 90-230 Hz. Both null until on-device pitch detection has reported.
+    pitch_min_hz: float | None
+    pitch_max_hz: float | None
+    # Affinity, normalized -100 to 100 (0 neutral): the tutor's reactions (laugh / cheer / gasp earn it, sigh / groan penalize it), detected live on-device, combined as a favorability ratio. See compute_affinity.
+    affinity: int
     cefr_coverage: list[CefrCoverage]
 
 
@@ -43,69 +45,35 @@ async def fetch_overview(
     user: UserRow = Depends(resolve_current_user),
     db: DBConn = Depends(get_neon_connection),
 ) -> StatsOverview:
-    total_seconds = await db.fetchval(
-        """SELECT COALESCE(SUM(duration_seconds), 0)::bigint
-           FROM conversation_sessions
-           WHERE user_id = $1""",
-        user["id"],
+    user_id = user["id"]
+    total_seconds = int(
+        await db.fetchval(
+            """SELECT COALESCE(SUM(duration_seconds), 0)::bigint
+               FROM conversation_sessions
+               WHERE user_id = $1""",
+            user_id,
+        )
+        or 0
     )
-
-    session_days_rows = await db.fetch(
-        """SELECT DISTINCT (started_at AT TIME ZONE 'UTC')::date AS day
-           FROM conversation_sessions
-           WHERE user_id = $1""",
-        user["id"],
-    )
-    session_days = {row["day"] for row in session_days_rows}
-    today_utc = datetime.now(UTC).date()
-    cursor = today_utc if today_utc in session_days else today_utc - timedelta(days=1)
-    day_streak = 0
-    while cursor in session_days:
-        day_streak += 1
-        cursor -= timedelta(days=1)
     sessions_count = await db.fetchval(
         "SELECT COUNT(id)::bigint FROM conversation_sessions WHERE user_id = $1",
-        user["id"],
+        user_id,
     )
     unique_words = await db.fetchval(
         "SELECT COUNT(lemma)::bigint FROM word_freq WHERE user_id = $1",
-        user["id"],
+        user_id,
     )
     unique_phrases = await db.fetchval(
         "SELECT COUNT(phrase)::bigint FROM phrase_freq WHERE user_id = $1",
-        user["id"],
+        user_id,
     )
 
-    # Text-derived audio approximations. Real audio analysis (per-chunk timing, pitch FFT) lives in a separate pipeline (TODO); these proxies give the user useful numbers immediately from data we already have.
-    transcript_rows = await db.fetch(
-        """SELECT t.speaker, t.text
-           FROM transcripts t
-           JOIN conversation_sessions s ON s.id = t.session_id
-           WHERE s.user_id = $1""",
-        user["id"],
-    )
-    user_chars = sum(len(row["text"]) for row in transcript_rows if row["speaker"] == "user")
-    total_chars = sum(len(row["text"]) for row in transcript_rows)
-    user_talk_pct: float | None = round(user_chars / total_chars, 3) if total_chars else None
-    user_words = sum(
-        len(row["text"].split()) for row in transcript_rows if row["speaker"] == "user"
-    )
-    user_talk_seconds = int(total_seconds or 0) * user_talk_pct if user_talk_pct else 0.0
-    speaking_rate_wpm: float | None = (
-        round(user_words / (user_talk_seconds / 60.0), 1) if user_talk_seconds >= 1 else None
-    )
+    day_streak = await compute_day_streak(db, user_id)
+    talk = await compute_talk_metrics(db, user_id, total_seconds)
+    pitch = await compute_pitch_range(db, user_id)
+    affinity = await compute_affinity(db, user_id)
 
-    pitch_row = await db.fetchrow(
-        """SELECT MIN((props->>'min_hz')::float) AS pmin, MAX((props->>'max_hz')::float) AS pmax
-           FROM events
-           WHERE user_id = $1 AND event_type = 'pitch_range'""",
-        user["id"],
-    )
-    pitch_range_hz: float | None = None
-    if pitch_row is not None and pitch_row["pmin"] is not None and pitch_row["pmax"] is not None:
-        pitch_range_hz = round(float(pitch_row["pmax"]) - float(pitch_row["pmin"]), 1)
-
-    used_lemmas = await list_user_lemmas(db, user["id"])
+    used_lemmas = await list_user_lemmas(db, user_id)
     totals = count_by_level()
     used = count_used_by_level(used_lemmas)
     coverage = [
@@ -120,12 +88,14 @@ async def fetch_overview(
 
     return StatsOverview(
         day_streak=day_streak,
-        session_total_seconds=int(total_seconds or 0),
+        session_total_seconds=total_seconds,
         sessions_count=int(sessions_count or 0),
         unique_words=int(unique_words or 0),
         unique_phrases=int(unique_phrases or 0),
-        user_talk_pct=user_talk_pct,
-        speaking_rate_wpm=speaking_rate_wpm,
-        pitch_range_hz=pitch_range_hz,
+        user_talk_pct=talk.user_talk_pct,
+        speaking_rate_wpm=talk.speaking_rate_wpm,
+        pitch_min_hz=pitch.min_hz,
+        pitch_max_hz=pitch.max_hz,
+        affinity=affinity,
         cefr_coverage=coverage,
     )

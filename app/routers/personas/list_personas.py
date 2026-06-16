@@ -30,6 +30,10 @@ async def list_personas(
         default=None, alias="q", description="Search term — matches name + description."
     ),
     sort: SortOrder = Query(default="recommended"),
+    lang: str = Query(
+        default="en",
+        description="Client UI locale code (ja, zh-Hans, ...) for localizing preset content.",
+    ),
 ) -> list[PersonaOut]:
     db_rows = await db.fetch(
         """SELECT id, name, description, voice_id, role, age, background,
@@ -56,7 +60,9 @@ async def list_personas(
     liked_ids: set[uuid.UUID] = {row["persona_id"] for row in liked_rows}
 
     items: list[PersonaOut] = [
-        build_persona_out_from_preset(p, liked_ids=liked_ids, like_counts=preset_like_counts)
+        build_persona_out_from_preset(
+            p, liked_ids=liked_ids, like_counts=preset_like_counts, lang=lang
+        )
         for p in PRESETS
     ]
     items += [

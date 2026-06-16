@@ -42,7 +42,8 @@ class StartRequest(BaseModel):
     persona_id: uuid.UUID
     lat: float | None = Field(default=None, ge=-90, le=90)
     lon: float | None = Field(default=None, ge=-180, le=180)
-    topic_override: str | None = Field(default=None, max_length=500)
+    # Generous bound (was 500, which truncated news summaries): the topic hook should carry the full story, not a headline. Still capped so the prompt can't be ballooned arbitrarily.
+    topic_override: str | None = Field(default=None, max_length=8000)
 
 
 class StartResponse(BaseModel):

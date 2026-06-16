@@ -23,7 +23,9 @@ async def test_empty_user_returns_zeroed_overview(
     assert body["unique_phrases"] == 0
     assert body["user_talk_pct"] is None
     assert body["speaking_rate_wpm"] is None
-    assert body["pitch_range_hz"] is None
+    assert body["pitch_min_hz"] is None
+    assert body["pitch_max_hz"] is None
+    assert body["affinity"] == 0
     # CEFR coverage is always present (computed from the static reference list) even with no data.
     assert isinstance(body["cefr_coverage"], list)
     assert body["cefr_coverage"], "expected one coverage row per CEFR level"
@@ -163,8 +165,32 @@ async def test_pitch_range_from_events(
             {"min_hz": lo, "max_hz": hi},
         )
     resp = await client.get("/stats")
-    # Widest observed range: max(220) - min(80) = 140.0.
-    assert resp.json()["pitch_range_hz"] == 140.0
+    # The actual endpoints across sessions: lowest 80, highest 220.
+    body = resp.json()
+    assert body["pitch_min_hz"] == 80.0
+    assert body["pitch_max_hz"] == 220.0
+
+
+async def test_affinity_weights_combines_and_penalizes_reactions(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
+    client, user = app_with_overrides
+    # Session 1: 2 laughs + 1 cheer + 1 sigh. Session 2: 1 gasp + 1 groan.
+    # Weights: laugh=3, cheer=2, gasp=1, sigh=-2, groan=-2 (negatives penalize).
+    for props in (
+        {"session_id": str(uuid.uuid4()), "laugh": 2, "cheer": 1, "gasp": 0, "sigh": 1, "groan": 0},
+        {"session_id": str(uuid.uuid4()), "laugh": 0, "cheer": 0, "gasp": 1, "sigh": 0, "groan": 1},
+    ):
+        await db.execute(
+            """INSERT INTO events (user_id, event_type, ts, props)
+               VALUES ($1, 'ai_emotion', NOW(), $2)""",
+            user["id"],
+            props,
+        )
+    resp = await client.get("/stats")
+    # earned = 3*2 + 2*1 + 1*1 = 9; penalty = 2*1 (sigh) + 2*1 (groan) = 4.
+    # Normalized favorability ratio: round(100 * (9 - 4) / (9 + 4)) = round(38.46) = 38.
+    assert resp.json()["affinity"] == 38
 
 
 async def test_overview_is_scoped_to_the_user(

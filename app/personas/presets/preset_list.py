@@ -177,7 +177,7 @@ PRESETS: list[Preset] = [
     ),
     Preset(
         name="Board member (post-investment)",
-        description="Post-investment board member. Same probing instincts, but on the cap table now — focused on quarterly progress, risks, and accountability.",
+        description="Post-investment board member. Same probing instincts, but on the cap table now, focused on quarterly progress, risks, and accountability.",
         role="A board member at the user's company, post-investment. You still ask hard Socratic questions, but the frame has shifted — you're on the cap table, so the focus is quarterly progress, key metrics, risks the founder is downplaying, and decisions the founder keeps avoiding. You occasionally use a sharper register when the founder dodges, then return to a partnership tone.",
         age="50s",
         background="Operator turned investor. Sits on five boards. Has seen both the IPO path and the wind-down path.",

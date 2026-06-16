@@ -47,6 +47,7 @@ from app.routers.profile.update_profile import router as profile_update_router
 from app.routers.recall.recall_conversations import router as recall_conversations_router
 from app.routers.recall.recall_facts import router as recall_facts_router
 from app.routers.recall.recall_transcripts import router as recall_transcripts_router
+from app.routers.recall.web_fetch import router as web_fetch_router
 from app.routers.record_event import router as events_router
 from app.routers.register_apns_token import router as devices_router
 from app.routers.stats.fetch_overview import router as stats_overview_router
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(recall_facts_router)
     fastapi_app.include_router(recall_conversations_router)
     fastapi_app.include_router(recall_transcripts_router)
+    fastapi_app.include_router(web_fetch_router)
     fastapi_app.include_router(content_router)
     fastapi_app.include_router(devices_router)
     fastapi_app.include_router(events_router)
