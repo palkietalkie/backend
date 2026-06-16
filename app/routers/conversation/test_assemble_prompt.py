@@ -187,3 +187,17 @@ def test_assemble_prompt_skips_memory_section_when_empty() -> None:
         today_events_titles=[],
     )
     assert "## What you remember about them" not in out
+
+
+def test_prompt_carries_anti_sycophant_stance() -> None:
+    fields = PersonaPromptFields(
+        name="Mentor",
+        role=None,
+        age=None,
+        background=None,
+        vocabulary_register=None,
+        conversational_style=None,
+        topical_preferences=None,
+    )
+    prompt = assemble_prompt(fields, _user(), [], None, [])
+    assert "sycophant" in prompt

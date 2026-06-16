@@ -51,3 +51,22 @@ async def test_fetch_today_content_pool_samples_quizzes(
     quizzes_section = next(s for s in resp.json()["sections"] if s["topic"] == "quizzes")
     # POOL_SAMPLE_SIZE = 10, deterministically sampled.
     assert len(quizzes_section["items"]) == 10
+
+
+async def test_serves_full_article_details(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
+    client, _ = app_with_overrides
+    today = datetime.now(UTC).date()
+    item = TalkItem(
+        title="Big story",
+        summary="blurb",
+        source="AP",
+        image_url="",
+        url="https://news/x",
+        details="THE FULL ARTICLE BODY",
+    )
+    await save_topic_items(today, "politics", [item], db)
+    resp = await client.get("/content/today")
+    politics = next(s for s in resp.json()["sections"] if s["topic"] == "politics")
+    assert politics["items"][0]["details"] == "THE FULL ARTICLE BODY"

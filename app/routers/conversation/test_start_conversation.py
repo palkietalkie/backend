@@ -6,6 +6,7 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 
 from app.config import get_settings
 from app.personas.presets.preset_list import PRESETS
@@ -377,3 +378,11 @@ async def test_start_premium_user_bypasses_free_caps(
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
     assert resp.status_code == 200
+
+
+def test_topic_override_carries_full_story_but_caps_length() -> None:
+    pid = uuid.uuid4()
+    # Was capped at 500 (truncated news to a headline); now the full article body fits.
+    start_mod.StartRequest(persona_id=pid, topic_override="x" * 8000)
+    with pytest.raises(ValidationError):
+        start_mod.StartRequest(persona_id=pid, topic_override="x" * 8001)

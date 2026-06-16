@@ -7,3 +7,13 @@ set -e
 REPO="$(git rev-parse --show-toplevel)"
 echo "[pre-push] paired-test guard (same check CI runs)..."
 bash "$REPO/scripts/ci/check_test_pair.sh" origin/main
+
+# Branch-level coverage gate (CI parity). The testcontainers Postgres warmup makes it too slow for per-commit.
+echo "[pre-push] pytest + 90 percent coverage gate..."
+VENV_BIN="$REPO/.venv/bin"
+PYTEST_ADDOPTS="" "$VENV_BIN/pytest" \
+    -m "not sandbox" \
+    --cov=app \
+    --cov-branch \
+    --cov-report=term-missing \
+    --cov-fail-under=90

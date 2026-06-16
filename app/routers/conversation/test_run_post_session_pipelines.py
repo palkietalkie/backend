@@ -49,3 +49,8 @@ async def test_failing_pipeline_logs_but_keeps_going(
     assert any(
         "post-session pipeline mistake_detection failed" in rec.message for rec in caplog.records
     )
+
+
+def test_emotion_detection_pipeline_was_removed() -> None:
+    # Emotion is detected on-device from audio, never from the transcript, so no emotion pipeline is wired here.
+    assert not hasattr(mod, "run_emotion_detection")
