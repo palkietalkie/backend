@@ -1,5 +1,6 @@
 import logging
 import uuid
+from collections.abc import Awaitable
 
 from app.post_session_nlp.kg_extraction.run_kg_extraction import run_kg_extraction
 from app.post_session_nlp.mistake_detection.run_mistake_detection import run_mistake_detection
@@ -13,10 +14,10 @@ from app.services.neon.get_neon_pool import get_neon_pool
 _logger = logging.getLogger(__name__)
 
 
-async def _run_one(name: str, coro: object) -> None:
+async def _run_one(name: str, coro: Awaitable[object]) -> None:
     # One pipeline failing must not stop the rest, but silent swallow hides why word_freq / phrase_freq / mistakes / KG never populate. Log the exception with stack so Fly logs surface it.
     try:
-        await coro  # type: ignore[misc]
+        await coro
     except Exception:
         _logger.exception("post-session pipeline %s failed", name)
 

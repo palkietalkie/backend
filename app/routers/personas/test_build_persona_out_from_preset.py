@@ -22,7 +22,7 @@ def _make_preset(name: str = "Tester", sort_weight: int = 100) -> Preset:
 
 def test_marks_preset_public_and_not_owned() -> None:
     p = _make_preset()
-    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert out.is_preset is True
     assert out.is_public is True
     assert out.is_owner is False
@@ -30,7 +30,7 @@ def test_marks_preset_public_and_not_owned() -> None:
 
 def test_propagates_character_fields_verbatim() -> None:
     p = _make_preset()
-    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert out.name == p.name
     assert out.description == p.description
     assert out.role == p.role
@@ -43,35 +43,49 @@ def test_propagates_character_fields_verbatim() -> None:
 
 def test_like_count_reads_from_dict_with_zero_default() -> None:
     p = _make_preset()
-    out_zero = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out_zero = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert out_zero.like_count == 0
-    out_some = build_persona_out_from_preset(p, liked_ids=set(), like_counts={p.id: 7})
+    out_some = build_persona_out_from_preset(p, liked_ids=set(), like_counts={p.id: 7}, lang="en")
     assert out_some.like_count == 7
 
 
 def test_liked_by_me_reads_from_set() -> None:
     p = _make_preset()
-    out_unliked = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out_unliked = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert out_unliked.liked_by_me is False
-    out_liked = build_persona_out_from_preset(p, liked_ids={p.id}, like_counts={})
+    out_liked = build_persona_out_from_preset(p, liked_ids={p.id}, like_counts={}, lang="en")
     assert out_liked.liked_by_me is True
 
 
 def test_sort_weight_round_trips_into_output() -> None:
     out = build_persona_out_from_preset(
-        _make_preset(sort_weight=0), liked_ids=set(), like_counts={}
+        _make_preset(sort_weight=0), liked_ids=set(), like_counts={}, lang="en"
     )
     assert out.sort_weight == 0
 
 
+def test_localizes_preset_text_by_lang() -> None:
+    # Backend owns preset content + translations; the right language is served, English is the fallback.
+    real = _make_preset(name="British deadpan comedian")
+    ja = build_persona_out_from_preset(real, liked_ids=set(), like_counts={}, lang="ja")
+    assert ja.name == "イギリス流の無表情コメディアン"
+    en = build_persona_out_from_preset(real, liked_ids=set(), like_counts={}, lang="en")
+    assert en.name == "British deadpan comedian"
+    # A string with no translation entry (e.g. a user-style name) falls back to itself.
+    unknown = build_persona_out_from_preset(
+        _make_preset(name="Tester"), liked_ids=set(), like_counts={}, lang="ja"
+    )
+    assert unknown.name == "Tester"
+
+
 def test_id_matches_preset_id_uuid() -> None:
     p = _make_preset()
-    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert isinstance(out.id, uuid.UUID)
     assert out.id == p.id
 
 
 def test_voice_id_picked_from_provider_catalog() -> None:
     p = _make_preset()
-    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={})
+    out = build_persona_out_from_preset(p, liked_ids=set(), like_counts={}, lang="en")
     assert isinstance(out.voice_id, str) and out.voice_id

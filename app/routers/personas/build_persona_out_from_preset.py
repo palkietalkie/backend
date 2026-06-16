@@ -3,6 +3,7 @@ import uuid
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.personas.presets.localize_preset_text import localize_preset_text
 from app.personas.presets.preset import Preset
 
 
@@ -26,13 +27,13 @@ class PersonaOut(BaseModel):
 
 
 def build_persona_out_from_preset(
-    p: Preset, *, liked_ids: set[uuid.UUID], like_counts: dict[uuid.UUID, int]
+    p: Preset, *, liked_ids: set[uuid.UUID], like_counts: dict[uuid.UUID, int], lang: str
 ) -> PersonaOut:
     provider = get_settings().inference_provider.lower()
     return PersonaOut(
         id=p.id,
-        name=p.name,
-        description=p.description,
+        name=localize_preset_text(p.name, lang),
+        description=localize_preset_text(p.description, lang),
         voice_id=p.voice_for(provider),
         role=p.role,
         age=p.age,

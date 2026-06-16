@@ -59,14 +59,13 @@ async def test_load_topic_pool_skips_items_missing_title_or_summary(db: DBConn) 
 
 
 @pytest.mark.parametrize("bad_value", [None, 7, ["nested"]])
-async def test_load_topic_pool_treats_non_str_source_image_as_empty(
+async def test_load_topic_pool_skips_items_with_non_str_fields(
     db: DBConn, bad_value: object
 ) -> None:
+    # A non-string source/image_url is malformed jsonb (impossible from our writer); the item is skipped, not silently coerced. A missing field still defaults to "" (covered by the model defaults).
     await db.execute(
         "INSERT INTO daily_content (day, topic, items) VALUES (CURRENT_DATE, $1, $2)",
         "quizzes",
         [{"title": "t", "summary": "s", "source": bad_value, "image_url": bad_value}],
     )
-    pool = await load_topic_pool("quizzes", db)
-    assert pool[0].source == ""
-    assert pool[0].image_url == ""
+    assert await load_topic_pool("quizzes", db) == []

@@ -30,3 +30,9 @@ def test_every_preset_has_required_fields_non_empty() -> None:
 
 def test_catalog_not_empty() -> None:
     assert len(PRESETS) > 0
+
+
+def test_preset_descriptions_have_no_em_or_en_dashes() -> None:
+    # No em/en dashes in user-facing copy (the board-member description was de-dashed).
+    for p in PRESETS:
+        assert "—" not in p.description and "–" not in p.description, p.name

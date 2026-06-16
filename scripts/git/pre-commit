@@ -60,15 +60,6 @@ echo "pre-commit: pyright"
 echo "pre-commit: check env drift (.env/.env.production/fly.toml/fly.dev.toml vs .env.example)"
 uv run scripts/check_env_drift.py
 
-# Run the same coverage gate CI runs. Adds ~30-60s to commits because testcontainers boots a fresh Postgres for the DB-touching tests, but matches the CI floor exactly so we never push a PR that's about to fail there.
-echo "pre-commit: pytest + 90 percent coverage gate (testcontainers Postgres warmup is the slow part)"
-PYTEST_ADDOPTS="" "$VENV_BIN/pytest" \
-    -m "not sandbox" \
-    --cov=app \
-    --cov-branch \
-    --cov-report=term-missing \
-    --cov-fail-under=90
-
 # End-to-end: deploy backend + Modal voice to dev so the freshly-committed code goes live on the dev infra the phone hits.
 # Skip the iOS install since this is the backend repo; the iOS hook handles its own install.
 BOOT_SH="$(git rev-parse --show-toplevel)/../scripts/boot.sh"

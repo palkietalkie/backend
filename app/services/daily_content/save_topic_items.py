@@ -20,6 +20,8 @@ async def save_topic_items(day: date, topic: str, items: list[TalkItem], db: DBC
                 "summary": item.summary,
                 "source": item.source,
                 "image_url": item.image_url,
+                "url": item.url,
+                "details": item.details,
             }
             for item in items
         ],

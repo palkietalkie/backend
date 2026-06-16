@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from app.daily_content.enrich_news_details import enrich_news_details
 from app.daily_content.fetch_news_by_category import fetch_news_by_category
 from app.daily_content.generate_quizzes import generate_quizzes
 from app.services.daily_content.save_topic_items import save_topic_items
@@ -17,6 +18,12 @@ async def refresh_daily_content() -> None:
         fetch_news_by_category("politics"),
         fetch_news_by_category("business"),
         fetch_news_by_category("sports"),
+    )
+    # Pull each article's full body now, off the user's path, so the conversation prompt carries real depth rather than NewsAPI's one-line blurb.
+    politics, business, sports = await asyncio.gather(
+        enrich_news_details(politics),
+        enrich_news_details(business),
+        enrich_news_details(sports),
     )
     seed_titles = [item.title for item in (politics + business + sports)[:5]]
     quizzes = await generate_quizzes(seed_titles)

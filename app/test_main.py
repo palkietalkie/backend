@@ -52,3 +52,8 @@ def test_create_app_title_and_version() -> None:
     app = create_app()
     assert app.title == "Palkie Talkie API"
     assert app.version == "0.1.0"
+
+
+def test_web_fetch_route_is_registered() -> None:
+    # main.py wires the recall/web_fetch endpoint that backs the realtime web_fetch tool.
+    assert "/recall/web_fetch" in set(create_app().openapi()["paths"])

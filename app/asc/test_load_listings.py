@@ -12,7 +12,14 @@ def test_en_us_locale_loads() -> None:
 
 def test_all_fields_non_empty() -> None:
     for listing in load_listings():
-        for field in ("name", "subtitle", "description", "keywords", "promotional_text"):
+        for field in (
+            "name",
+            "subtitle",
+            "privacy_policy_url",
+            "description",
+            "keywords",
+            "promotional_text",
+        ):
             assert getattr(listing, field), f"{listing.locale} {field} is empty"
 
 
@@ -22,6 +29,7 @@ def test_no_trailing_newline() -> None:
         for field in (
             "name",
             "subtitle",
+            "privacy_policy_url",
             "description",
             "keywords",
             "promotional_text",
@@ -36,6 +44,7 @@ def test_urls_are_https() -> None:
     for listing in load_listings():
         assert listing.support_url.startswith("https://")
         assert listing.marketing_url.startswith("https://")
+        assert listing.privacy_policy_url.startswith("https://")
 
 
 def test_fields_within_apple_limits() -> None:

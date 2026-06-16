@@ -16,6 +16,7 @@ METADATA_DIR = Path(__file__).resolve().parent / "metadata"
 _FIELD_FILES = {
     "name": "name.txt",
     "subtitle": "subtitle.txt",
+    "privacy_policy_url": "privacy_url.txt",
     "description": "description.txt",
     "keywords": "keywords.txt",
     "promotional_text": "promotional_text.txt",

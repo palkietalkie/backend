@@ -46,11 +46,23 @@ async def test_session_registers_recall_tools() -> None:
     _url, body, _headers = fake.calls[0]
     tools = body["session"]["tools"]
     names = {t["name"] for t in tools}
-    assert names == {"recall_facts", "recall_past_conversations", "search_transcripts"}
+    assert names == {
+        "recall_facts",
+        "recall_past_conversations",
+        "search_transcripts",
+        "end_conversation",
+        "web_fetch",
+    }
     assert body["session"]["tool_choice"] == "auto"
     for tool in tools:
         assert tool["type"] == "function"
-        assert "query" in tool["parameters"]["properties"]
+        props = tool["parameters"]["properties"]
+        if tool["name"] == "end_conversation":
+            assert props == {}  # pure signal, no parameters
+        elif tool["name"] == "web_fetch":
+            assert "url" in props
+        else:
+            assert "query" in props  # recall tools
 
 
 @pytest.mark.asyncio
