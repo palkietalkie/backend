@@ -16,3 +16,6 @@ BASE_TERRITORY = "USA"
 
 # Git-TRACKED dir for the generated IAP review-screenshot PNGs — submission assets, so versioned and reviewable.
 IAP_SCREENSHOTS_DIR = Path(__file__).resolve().parent / "iap_screenshots"
+
+# Git-TRACKED parent for framed App Store screenshots; each capture run writes a `<timestamp>_<device>/` subdir so the submitted assets carry their provenance.
+APP_SCREENSHOTS_DIR = Path(__file__).resolve().parent / "app_screenshots"
