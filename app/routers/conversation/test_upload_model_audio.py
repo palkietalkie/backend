@@ -40,7 +40,7 @@ async def test_upload_model_audio_stores_row_with_model_source(
     assert row["source"] == "model"
     assert row["bytes"] == len(payload)
     assert row["format"] == CT
-    assert 13 < row["ttl"].days <= 14
+    assert 29 < row["ttl"].days <= 30
 
 
 async def test_upload_model_audio_does_not_clobber_mic_row(
