@@ -10,6 +10,7 @@ Generate the PNGs first: `ios/scripts/capture-screenshots.sh` then `frame_screen
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -31,19 +32,26 @@ from scripts.asc.upload_screenshot_bytes import upload_screenshot_bytes  # noqa:
 # Apple's required 6.9" iPhone slot; it also serves 6.7" and accepts 1320x2868.
 DISPLAY_TYPE = "APP_IPHONE_67"
 LOCALE = "en-US"
+# Filenames are "<NN-name>_<YYYYMMDD-HHMM>.png"; this pulls the capture date.
+_STAMP = re.compile(r"_(\d{8}-\d{4})\.png$")
+
+
+def _stamp_of(name: str) -> str:
+    match = _STAMP.search(name)
+    return match.group(1) if match else ""
 
 
 def upload_app_screenshots() -> None:
-    # Upload the newest capture run (subdirs are <timestamp>_<device>, so max name = latest).
-    runs = sorted((d for d in APP_SCREENSHOTS_DIR.glob("*") if d.is_dir()), reverse=True)
-    if not runs:
+    # Newest set = the files carrying the max date stamp (one device dir accumulates dated sets).
+    all_pngs = list(APP_SCREENSHOTS_DIR.rglob("*.png"))
+    stamps = [s for p in all_pngs if (s := _stamp_of(p.name))]
+    if not stamps:
         sys.exit(
-            f"no capture runs in {APP_SCREENSHOTS_DIR} — run capture-screenshots.sh + frame_app_screenshots.py first"
+            f"no dated screenshots in {APP_SCREENSHOTS_DIR} — run capture-screenshots.sh + frame_app_screenshots.py first"
         )
-    pngs = sorted(runs[0].glob("*.png"))
-    if not pngs:
-        sys.exit(f"no PNGs in {runs[0]}")
-    print(f"[asc] uploading from {runs[0].name}")
+    latest = max(stamps)
+    pngs = sorted(p for p in all_pngs if _stamp_of(p.name) == latest)
+    print(f"[asc] uploading set {latest}")
     with get_asc_client() as client:
         app_id = find_app_id(client)
         loc = find_editable_version_localization(client, app_id, LOCALE)

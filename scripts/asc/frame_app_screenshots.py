@@ -31,15 +31,16 @@ DEVICE = "iphone-17-pro-max-6.9"
 
 
 def frame_app_screenshots() -> None:
+    # Device is the dir; the capture date lives in each filename so one device dir holds successive dated sets.
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
-    out = APP_SCREENSHOTS_DIR / f"{stamp}_{DEVICE}"
+    out = APP_SCREENSHOTS_DIR / DEVICE
     out.mkdir(parents=True, exist_ok=True)
     for name, caption in CAPTIONS.items():
         raw = RAW_DIR / f"{name}.png"
         if not raw.exists():
             sys.exit(f"missing raw capture {raw} — run ios/scripts/capture-screenshots.sh first")
-        frame_screenshot(raw, caption, out / f"{name}.png")
-        print(f"[frame] {name} -> {out.name}/{name}.png")
+        frame_screenshot(raw, caption, out / f"{name}_{stamp}.png")
+        print(f"[frame] {DEVICE}/{name}_{stamp}.png")
     print(f"[frame] {len(CAPTIONS)} framed in {out}")
 
 
