@@ -13,7 +13,6 @@ import httpx
 from app.config import get_settings
 from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
-    OPENAI_REALTIME_MODEL_FREE,
     OPENAI_REALTIME_MODEL_PAID,
     OPENAI_REALTIME_WS_URL_TEMPLATE,
     OPENAI_TRANSCRIPTION_MODEL_FREE,
@@ -48,8 +47,8 @@ async def mint_openai_session(
     http_client: HTTPPoster | None = None,
 ) -> OpenAISession:
     settings = get_settings()
-    # Paid users get the full realtime model + full transcription. Free users stay on the mini-tier of both.
-    realtime_model = OPENAI_REALTIME_MODEL_PAID if is_premium else OPENAI_REALTIME_MODEL_FREE
+    # Always the full realtime model, regardless of tier. The mini tier ignores the prompt's explicit ban on patient-tutor filler and parrots "let's slow down" nearly every turn (confirmed in prod transcripts, even while acknowledging it overuses the phrase), which wrecks the conversation. Conversation quality IS the product, so the free-tier cost increase is accepted. Transcription stays tiered — it's STT for the live captions and doesn't affect what the persona says.
+    realtime_model = OPENAI_REALTIME_MODEL_PAID
     transcription_model = (
         OPENAI_TRANSCRIPTION_MODEL_PAID if is_premium else OPENAI_TRANSCRIPTION_MODEL_FREE
     )

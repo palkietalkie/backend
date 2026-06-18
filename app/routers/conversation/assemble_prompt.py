@@ -40,21 +40,23 @@ def assemble_prompt(
     proficiency = user["proficiency"]
     speed = user["tutor_speaking_speed"]
 
-    proficiency_hint = {
-        "beginner": "They're a beginner. Use short sentences, basic everyday vocabulary, no idioms. Slow down for grammar that's structurally different from their native language.",
+    proficiency_hints = {
+        "beginner": "They're a beginner. Use short sentences, basic everyday vocabulary, no idioms. Ease the pace on grammar that's structurally different from their native language (do this silently, never announce it).",
         "lower_intermediate": "They're lower-intermediate. Stick to everyday vocabulary; introduce common idioms sparingly when they fit.",
         "intermediate": "They're intermediate. Speak naturally; mix everyday and slightly elevated vocabulary; use common idioms.",
         "upper_intermediate": "They're upper-intermediate. Use natural vocabulary including idioms and colloquialisms. Don't oversimplify.",
         "advanced": "They're advanced. Speak as you would to another native — full vocabulary, idioms, cultural references.",
-    }.get(proficiency, "They're intermediate.")
+    }
+    proficiency_hint = proficiency_hints.get(proficiency, proficiency_hints["intermediate"])
 
-    speed_hint = {
+    speed_hints = {
         "very_slow": "Speak very slowly. Long pauses between phrases, distinct pronunciation, the cadence you'd use with a young child or someone half-asleep.",
         "slow": "Speak slowly and clearly with extra pauses, but still natural — think interviewer pace.",
         "normal": "Speak at natural conversational pace.",
         "fast": "Speak briskly — peer-to-peer fluent-speaker pace.",
         "very_fast": "Speak fast, the way you would with another native — full speed, don't slow down for them.",
-    }.get(speed, "Speak at natural conversational pace.")
+    }
+    speed_hint = speed_hints.get(speed, speed_hints["normal"])
 
     # Pick one accent at random from the user's selection so users with multiple targets get cycled exposure across sessions. Empty list = no accent steering; the LLM picks whatever its default voice is.
     target_accents = list(user["target_accents"])

@@ -190,6 +190,16 @@ def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     assert "## What you remember about them" not in out
 
 
+def test_unknown_proficiency_and_speed_fall_back_to_full_canonical_hint() -> None:
+    # Bug guard: an unrecognized proficiency/speed must get the FULL "intermediate"/"normal" hint, not a stripped default string that drifts from the real entry.
+    user = _user()
+    user["proficiency"] = "not-a-real-level"
+    user["tutor_speaking_speed"] = "not-a-real-speed"
+    out = assemble_prompt(PERSONA, user, kg_entities=[], weather_label=None, today_events_titles=[])
+    assert "mix everyday and slightly elevated vocabulary; use common idioms" in out
+    assert "Speak at natural conversational pace." in out
+
+
 def test_prompt_carries_anti_sycophant_stance() -> None:
     fields = PersonaPromptFields(
         name="Mentor",

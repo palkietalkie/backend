@@ -9,7 +9,6 @@ import pytest
 
 from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
-    OPENAI_REALTIME_MODEL_FREE,
     OPENAI_REALTIME_MODEL_PAID,
     OPENAI_REALTIME_WS_URL_TEMPLATE,
     OpenAIVoiceId,
@@ -80,7 +79,8 @@ async def test_paid_users_get_full_realtime_and_transcription_models() -> None:
 
 
 @pytest.mark.asyncio
-async def test_free_users_get_mini_realtime_and_transcription_models() -> None:
+async def test_free_users_get_full_realtime_but_mini_transcription() -> None:
+    # The realtime model is ALWAYS the full one (mini parrots "let's slow down" and ignores prompt prohibitions). Only transcription stays tiered to save cost on the free plan.
     fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
     session = await mint_openai_session(
         text_prompt="x",
@@ -89,9 +89,9 @@ async def test_free_users_get_mini_realtime_and_transcription_models() -> None:
         http_client=fake,
     )
     _url, body, _headers = fake.calls[0]
-    assert body["session"]["model"] == OPENAI_REALTIME_MODEL_FREE
+    assert body["session"]["model"] == OPENAI_REALTIME_MODEL_PAID
     assert body["session"]["audio"]["input"]["transcription"]["model"] == "gpt-4o-mini-transcribe"
-    assert session.ws_url.endswith(f"model={OPENAI_REALTIME_MODEL_FREE}")
+    assert session.ws_url.endswith(f"model={OPENAI_REALTIME_MODEL_PAID}")
 
 
 class _FakeClient:
@@ -126,7 +126,7 @@ async def test_mint_extracts_token_from_top_level_value() -> None:
         http_client=fake,
     )
     assert session.ws_url == OPENAI_REALTIME_WS_URL_TEMPLATE.format(
-        model=OPENAI_REALTIME_MODEL_FREE
+        model=OPENAI_REALTIME_MODEL_PAID
     )
     assert session.ephemeral_token == "ek_abc123"
     assert session.voice_id == OpenAIVoiceId.ASH
@@ -146,7 +146,7 @@ async def test_mint_sends_ga_payload_shape() -> None:
     assert url == OPENAI_CLIENT_SECRETS_URL
     session = body["session"]
     assert session["type"] == "realtime"
-    assert session["model"] == OPENAI_REALTIME_MODEL_FREE
+    assert session["model"] == OPENAI_REALTIME_MODEL_PAID
     assert session["instructions"] == "hello prompt"
     assert session["output_modalities"] == ["audio"]
     assert session["audio"]["input"]["format"] == {"type": "audio/pcm", "rate": 24000}
