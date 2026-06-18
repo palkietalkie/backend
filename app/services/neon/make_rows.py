@@ -38,6 +38,8 @@ def make_user_row(row: asyncpg.Record) -> UserRow:
         personalization_consent=row["personalization_consent"],
         product_improvement_consent=row["product_improvement_consent"],
         consent_screen_seen_at=row["consent_screen_seen_at"],
+        # .get, not [...]: only the auth path SELECTs deleted_at (it gates soft-deleted users); other callers' SELECTs omit it and don't read it, so default None keeps them working without each needing the column.
+        deleted_at=row.get("deleted_at"),
     )
 
 

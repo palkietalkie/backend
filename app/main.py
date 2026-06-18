@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.lifespan import lifespan
+from app.routers.account.delete_account import router as account_delete_router
 from app.routers.announce_auth import router as announce_auth_router
 from app.routers.consent.fetch_consent import router as consent_fetch_router
 from app.routers.consent.update_consent import router as consent_update_router
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
 
     _ = health  # keep pyright from flagging the closure-only handler as unused
 
+    fastapi_app.include_router(account_delete_router)
     fastapi_app.include_router(conversation_start_router)
     fastapi_app.include_router(conversation_transcript_router)
     fastapi_app.include_router(conversation_end_router)

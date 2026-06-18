@@ -33,6 +33,7 @@ def _user(*, premium: bool, ends_at: datetime | None = None) -> UserRow:
         personalization_consent=None,
         product_improvement_consent=None,
         consent_screen_seen_at=None,
+        deleted_at=None,
     )
 
 

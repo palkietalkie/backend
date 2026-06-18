@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
@@ -11,12 +9,12 @@ from app.services.neon.rows import UserRow
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
+# Field names match the iOS `Mistake` decodable (id, original, correction, count); a mismatch makes the client silently decode to an empty list.
 class MistakeOut(BaseModel):
+    id: str
     original: str
-    corrected: str
-    category: str
+    correction: str
     count: int
-    last_seen_at: datetime
 
 
 @router.get("/mistakes", response_model=list[MistakeOut])
@@ -38,11 +36,10 @@ async def list_mistakes(
     )
     return [
         MistakeOut(
+            id=str(row["id"]),
             original=row["original"],
-            corrected=row["corrected"],
-            category=row["category"],
+            correction=row["corrected"],
             count=row["count"],
-            last_seen_at=row["last_seen_at"],
         )
         for row in rows
     ]

@@ -47,3 +47,41 @@ async def test_refresh_daily_content_writes_all_topics(monkeypatch: pytest.Monke
     today = datetime.now(UTC).date()
     for d, _t, _i in saved:
         assert d == today
+
+
+async def test_refresh_saves_news_when_quizzes_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_news(category: str) -> list[TalkItem]:
+        return [TalkItem(title=f"{category}-headline", summary="x", source="", image_url="")]
+
+    async def _boom(_seeds: list[str]) -> list[TalkItem]:
+        raise RuntimeError("gemma 500")
+
+    saved: dict[str, list[TalkItem]] = {}
+
+    async def _fake_save(_day: object, topic: str, items: list[TalkItem], _db: object) -> None:
+        saved[topic] = items
+
+    class _Acquired:
+        async def __aenter__(self) -> object:
+            return object()
+
+        async def __aexit__(self, *_e: object) -> None:
+            return None
+
+    class _Pool:
+        def acquire(self) -> _Acquired:
+            return _Acquired()
+
+    async def _fake_pool() -> _Pool:
+        return _Pool()
+
+    monkeypatch.setattr(mod, "fetch_news_by_category", _fake_news)
+    monkeypatch.setattr(mod, "generate_quizzes", _boom)
+    monkeypatch.setattr(mod, "save_topic_items", _fake_save)
+    monkeypatch.setattr(mod, "get_neon_pool", _fake_pool)
+
+    await mod.refresh_daily_content()
+
+    # News still persists; quizzes degrade to empty rather than aborting the whole refresh.
+    assert saved["politics"] and saved["business"] and saved["sports"]
+    assert saved["quizzes"] == []

@@ -32,6 +32,15 @@ async def verify_clerk_jwt(token: str) -> dict[str, Any]:
 
     jwks = await fetch_jwks()
     key = find_jwk_by_kid(jwks, kid)
+    if key is None:
+        # Cached JWKS predates a Clerk key rotation; refetch once before giving up so a rotation doesn't 401 every request until the cache TTL expires.
+        jwks = await fetch_jwks(force=True)
+        key = find_jwk_by_kid(jwks, kid)
+    if key is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="unknown kid in token header",
+        )
 
     raw_alg = header.get("alg", "RS256")
     alg: str = raw_alg if isinstance(raw_alg, str) else "RS256"

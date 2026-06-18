@@ -11,9 +11,9 @@ MARGIN = 96
 BG = (16, 16, 24)
 ACCENT = (255, 107, 71)
 TEXT = (240, 240, 245)
-# The framed device capture sits below a two-line headline band.
+# The framed device capture sits just below the headline + rule (no big empty band between them).
 CAPTION_TOP = 150
-DEVICE_TOP = 560
+DEVICE_TOP = 410
 DEVICE_WIDTH = 1080
 CORNER_RADIUS = 56
 

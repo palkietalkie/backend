@@ -61,9 +61,11 @@ async def test_returns_full_shape(
     now = datetime.now(UTC)
     await _seed_phrase(db, user["id"], phrase="at the end of the day", count=4, last_used_at=now)
     item = (await client.get("/stats/phrases")).json()[0]
+    # Shape matches the iOS PhraseUsage decodable (id, phrase, count, alternatives).
+    assert item["id"] == "at the end of the day"
     assert item["phrase"] == "at the end of the day"
     assert item["count"] == 4
-    assert item["last_used_at"] is not None
+    assert item["alternatives"] == []
 
 
 async def test_limit_and_offset_paginate(

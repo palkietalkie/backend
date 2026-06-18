@@ -95,11 +95,11 @@ async def test_returns_full_shape(
     )
     resp = await client.get("/stats/mistakes")
     item = resp.json()[0]
+    # Shape matches the iOS Mistake decodable (id, original, correction, count).
+    assert item["id"]
     assert item["original"] == "I has"
-    assert item["corrected"] == "I have"
-    assert item["category"] == "subject_verb_agreement"
+    assert item["correction"] == "I have"
     assert item["count"] == 3
-    assert item["last_seen_at"] is not None
 
 
 async def test_limit_and_offset_paginate(

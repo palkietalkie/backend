@@ -129,6 +129,34 @@ async def test_verify_clerk_jwt_unknown_kid(
 
 
 @respx.mock
+async def test_verify_clerk_jwt_refetches_jwks_on_unknown_kid(
+    keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
+) -> None:
+    # Simulate a key rotation: the cached JWKS is stale (empty), the real key only appears on a forced refetch.
+    jwks, pem = keys_and_pem
+    route = respx.get(settings.clerk_jwks_url).mock(
+        side_effect=[
+            httpx.Response(200, json={"keys": []}),
+            httpx.Response(200, json=jwks),
+        ]
+    )
+    token = _sign(
+        {
+            "sub": "u1",
+            "iss": settings.clerk_issuer,
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 600,
+        },
+        pem,
+    )
+    claims = await verify_clerk_jwt.verify_clerk_jwt(token)
+    assert claims["sub"] == "u1"
+    assert route.call_count == 2, (
+        "should refetch the JWKS once when the kid is missing from the cache"
+    )
+
+
+@respx.mock
 async def test_verify_clerk_jwt_bad_signature(
     keys_and_pem: tuple[dict[str, Any], bytes], settings: Settings
 ) -> None:

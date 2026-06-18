@@ -4,7 +4,7 @@
 # ///
 """Upload one App Review screenshot per subscription declared in `app/iap/subscriptions_list.py`.
 
-Orchestrator only — Apple's 3-step asset upload is split across `reserve_review_screenshot` (POST the metadata + get presigned upload ops), `upload_screenshot_bytes` (PUT the file bytes per op), and `commit_review_screenshot` (PATCH `uploaded=true` + md5).
+Orchestrator only — Apple's 3-step asset upload is split across `reserve_review_screenshot` (POST the metadata + get presigned upload ops), `upload_asset_bytes` (PUT the file bytes per op), and `commit_review_screenshot` (PATCH `uploaded=true` + md5).
 
 Idempotent on CONTENT: compares the local PNG's md5 to the uploaded asset's `sourceFileChecksum`. Equal -> skip. Different -> delete the stale asset and re-upload (so a regenerated/fixed screenshot actually reaches ASC; a plain "skip if any exists" would strand the old image forever). Missing -> upload.
 
@@ -23,7 +23,7 @@ from scripts.asc.commit_review_screenshot import commit_review_screenshot  # noq
 from scripts.asc.constants import IAP_SCREENSHOTS_DIR  # noqa: E402
 from scripts.asc.get_asc_client import get_asc_client  # noqa: E402
 from scripts.asc.reserve_review_screenshot import reserve_review_screenshot  # noqa: E402
-from scripts.asc.upload_screenshot_bytes import upload_screenshot_bytes  # noqa: E402
+from scripts.asc.upload_asset_bytes import upload_asset_bytes  # noqa: E402
 
 
 def main() -> None:
@@ -51,7 +51,7 @@ def main() -> None:
                 print(f"[asc] {s.product_id}: deleted stale screenshot, re-uploading")
 
             reserved = reserve_review_screenshot(client, s.asc_id, png)
-            upload_screenshot_bytes(png, reserved["attributes"]["uploadOperations"])
+            upload_asset_bytes(png, reserved["attributes"]["uploadOperations"])
             commit_review_screenshot(client, reserved["id"], png)
             print(f"[asc] {s.product_id}: uploaded {png.name}")
 

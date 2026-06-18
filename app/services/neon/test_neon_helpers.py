@@ -175,6 +175,7 @@ async def test_sum_seconds_used_today_counts_recent_sessions(db: DBConn) -> None
         personalization_consent=None,
         product_improvement_consent=None,
         consent_screen_seen_at=None,
+        deleted_at=None,
     )
     assert await sum_seconds_used_today(user_row, db) == 180
 
@@ -215,5 +216,6 @@ async def test_sum_seconds_used_today_excludes_yesterday(db: DBConn) -> None:
         personalization_consent=None,
         product_improvement_consent=None,
         consent_screen_seen_at=None,
+        deleted_at=None,
     )
     assert await sum_seconds_used_today(user_row, db) == 0

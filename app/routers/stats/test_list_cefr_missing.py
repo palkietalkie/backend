@@ -15,9 +15,11 @@ async def test_returns_missing_words_sorted_by_rank(
     assert resp.status_code == 200
     body = resp.json()
     assert len(body) == 5
-    # With no used words, the missing list is just the top-ranked CEFR words in order.
-    expected = [{"lemma": lemma, "level": entry.level} for lemma, entry in SORTED_BY_RANK[:5]]
-    assert body == expected
+    # Response shape matches the iOS CEFRWord decodable (id, word, frequencyRank, used).
+    assert [item["word"] for item in body] == [lemma for lemma, _ in SORTED_BY_RANK[:5]]
+    assert [item["frequency_rank"] for item in body] == [1, 2, 3, 4, 5]
+    assert all(item["used"] is False for item in body)
+    assert all(item["id"] == item["word"] for item in body)
 
 
 async def test_respects_limit(
@@ -40,11 +42,11 @@ async def test_used_words_are_excluded(
         top_lemma,
     )
     body = (await client.get("/stats/cefr", params={"limit": 5})).json()
-    returned = [item["lemma"] for item in body]
+    returned = [item["word"] for item in body]
     assert top_lemma not in returned
     # The slot it vacated is filled by the next-ranked word, keeping the page full.
     assert len(body) == 5
-    assert body[0]["lemma"] == SORTED_BY_RANK[1][0]
+    assert body[0]["word"] == SORTED_BY_RANK[1][0]
 
 
 async def test_level_filter_returns_only_that_level(
@@ -53,9 +55,8 @@ async def test_level_filter_returns_only_that_level(
     client, _ = app_with_overrides
     body = (await client.get("/stats/cefr", params={"level": "A2", "limit": 10})).json()
     assert body, "expected A2 words to exist in the reference set"
-    assert all(item["level"] == "A2" for item in body)
     expected = [lemma for lemma, _rank in BY_LEVEL["A2"][:10]]
-    assert [item["lemma"] for item in body] == expected
+    assert [item["word"] for item in body] == expected
 
 
 async def test_level_filter_excludes_used_words_within_level(
@@ -69,8 +70,10 @@ async def test_level_filter_excludes_used_words_within_level(
         first_a1,
     )
     body = (await client.get("/stats/cefr", params={"level": "A1", "limit": 10})).json()
-    assert first_a1 not in [item["lemma"] for item in body]
-    assert all(item["level"] == "A1" for item in body)
+    words = [item["word"] for item in body]
+    assert first_a1 not in words
+    a1_lemmas = {lemma for lemma, _rank in BY_LEVEL["A1"]}
+    assert all(word in a1_lemmas for word in words)
 
 
 async def test_rejects_invalid_level(

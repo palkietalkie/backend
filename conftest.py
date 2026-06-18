@@ -254,7 +254,7 @@ async def fake_user(db: DBConn) -> UserRow:
                      preferred_name, name_pronunciation, native_languages, target_language, target_accents,
                      proficiency, tutor_speaking_speed, goals,
                      location_city, timezone,
-                     personalization_consent, product_improvement_consent, consent_screen_seen_at""",
+                     personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at""",
         user_id,
         f"user_{uuid.uuid4().hex[:12]}",
         "testuser@palkietalkie.test",
@@ -288,6 +288,7 @@ async def fake_user(db: DBConn) -> UserRow:
         personalization_consent=row["personalization_consent"],
         product_improvement_consent=row["product_improvement_consent"],
         consent_screen_seen_at=row["consent_screen_seen_at"],
+        deleted_at=row["deleted_at"],
     )
 
 
@@ -317,7 +318,7 @@ async def app_with_overrides(
                       preferred_name, name_pronunciation, native_languages, target_language, target_accents,
                       proficiency, tutor_speaking_speed, goals,
                       location_city, timezone,
-                      personalization_consent, product_improvement_consent, consent_screen_seen_at
+                      personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
                FROM users
                WHERE id = $1""",
             fake_user["id"],
@@ -344,6 +345,7 @@ async def app_with_overrides(
             personalization_consent=row["personalization_consent"],
             product_improvement_consent=row["product_improvement_consent"],
             consent_screen_seen_at=row["consent_screen_seen_at"],
+            deleted_at=row["deleted_at"],
         )
 
     fastapi_app = create_app()

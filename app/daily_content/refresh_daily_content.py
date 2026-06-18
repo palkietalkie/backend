@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from app.daily_content.dedup_news_across_categories import dedup_news_across_categories
 from app.daily_content.enrich_news_details import enrich_news_details
 from app.daily_content.fetch_news_by_category import fetch_news_by_category
 from app.daily_content.generate_quizzes import generate_quizzes
@@ -25,8 +26,14 @@ async def refresh_daily_content() -> None:
         enrich_news_details(business),
         enrich_news_details(sports),
     )
+    politics, business, sports = dedup_news_across_categories([politics, business, sports])
     seed_titles = [item.title for item in (politics + business + sports)[:5]]
-    quizzes = await generate_quizzes(seed_titles)
+    # Quizzes depend on an external LLM (Gemma); a transient failure there must NOT lose the day's news, so degrade to no quizzes instead of aborting the whole refresh.
+    try:
+        quizzes = await generate_quizzes(seed_titles)
+    except Exception:  # noqa: BLE001 — any quiz-generation failure should still let news persist
+        logger.exception("quiz generation failed; saving news without quizzes")
+        quizzes = []
 
     pool = await get_neon_pool()
     async with pool.acquire() as conn:
