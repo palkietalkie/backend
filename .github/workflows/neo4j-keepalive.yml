@@ -49,4 +49,8 @@ jobs:
             -X POST "https://${{ matrix.host }}/db/${{ matrix.db }}/query/v2" \
             -d '{"statement":"RETURN 1"}' --max-time 30)
           echo "HTTP $code"; cat /tmp/out; echo
-          [ "$code" = "200" ] || { echo "::error::keep-alive ping failed for ${{ matrix.env }}"; exit 1; }
+          # Aura's Query API v2 answers the keep-alive query with 202 (Accepted), not 200. Both mean the instance received the request and reset its idle timer, which is the whole point; only other codes (401 auth, 404 paused/gone, 5xx) are real failures.
+          case "$code" in
+            200 | 202) echo "keep-alive ok (${{ matrix.env }})" ;;
+            *) echo "::error::keep-alive ping failed for ${{ matrix.env }} (HTTP $code)"; exit 1 ;;
+          esac
