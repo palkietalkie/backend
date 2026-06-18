@@ -39,6 +39,7 @@ from app.routers.personas.create_persona import router as personas_create_router
 from app.routers.personas.delete_persona import router as personas_delete_router
 from app.routers.personas.like_persona import router as personas_like_router
 from app.routers.personas.list_personas import router as personas_list_router
+from app.routers.personas.report_persona import router as personas_report_router
 from app.routers.personas.unlike_persona import router as personas_unlike_router
 from app.routers.personas.update_persona import router as personas_update_router
 from app.routers.plan_limits import router as plan_limits_router
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(personas_delete_router)
     fastapi_app.include_router(personas_like_router)
     fastapi_app.include_router(personas_unlike_router)
+    fastapi_app.include_router(personas_report_router)
     fastapi_app.include_router(stats_overview_router)
     fastapi_app.include_router(stats_mistakes_router)
     fastapi_app.include_router(stats_phrases_router)

@@ -10,6 +10,7 @@ from app.routers.personas.build_persona_out_from_preset import (
     build_persona_out_from_preset,
 )
 from app.routers.personas.build_persona_out_from_row import build_persona_out_from_row
+from app.routers.personas.report_persona import REPORT_HIDE_THRESHOLD
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
@@ -40,8 +41,14 @@ async def list_personas(
                   vocabulary_register, conversational_style, topical_preferences,
                   is_public, like_count, user_id, created_at, updated_at
            FROM personas
-           WHERE user_id = $1 OR is_public = TRUE""",
+           WHERE (user_id = $1
+                  OR (is_public = TRUE
+                      AND (SELECT COUNT(*) FROM persona_reports r WHERE r.persona_id = personas.id) < $2))
+             AND NOT EXISTS (
+                  SELECT 1 FROM persona_reports mine
+                  WHERE mine.persona_id = personas.id AND mine.user_id = $1)""",
         user["id"],
+        REPORT_HIDE_THRESHOLD,
     )
     db_personas = [make_persona_row(row) for row in db_rows]
 
