@@ -1,34 +1,32 @@
 Palkie Talkie is the voice practice partner you wish you had.
 
-Speak English (and more languages soon) out loud, without booking a tutor, turning a camera on, or feeling watched. Walking to work, in the car, in the gym, before bed — open the app and start talking.
+To speak a language like a native, you have to actually speak it. Palkie Talkie is built for exactly that. Open the app and start talking, no booking a tutor, no turning a camera on, no feeling watched. Walking to work, in the car, at the gym, before bed, just talk a little every day.
 
 WHY PALKIE TALKIE
 
 • REAL CONVERSATION, NOT DRILLS. No fill-in-the-blanks. No multiple choice. You talk, the AI listens, replies in character, and corrects you when something sounds off.
 
-• REMEMBERS YOU. Talk about your tennis serve on Monday — on Friday it asks how the match went. Conversations build on each other instead of resetting.
+• REMEMBERS YOU. Talk about your tennis serve on Monday, and on Friday it asks how the match went. Conversations build on each other instead of resetting.
 
 • PICK A PERSONA. A sharp comedian, a patient mentor, an idiom-loving polyglot, a tennis coach. Each one has a real character and their own way of pulling words out of you.
 
-• CORRECTIONS WITHOUT THE CRINGE. When you slip — wrong word, dropped article, awkward phrasing — the AI echoes back the natural way to say it, with a gentle vocal stress on the fix. No "actually," no teacher voice.
+• CORRECTIONS WITHOUT THE CRINGE. When you slip, with a wrong word, a dropped article, awkward phrasing, the AI echoes back the natural way to say it, with a gentle vocal stress on the fix. No "actually," no teacher voice.
 
 • TIPS, RUMORS, AND HEADLINES. The "Today" screen feeds you fresh news, sports, politics, and quiz prompts so you always have something to talk about.
 
-• REAL PROGRESS. Stats screen shows your day streak, talking minutes, vocabulary breadth, speaking rate, pitch range, CEFR vocab coverage, and a list of the mistakes you keep making.
+• REAL PROGRESS. The Stats screen shows your day streak, talking minutes, vocabulary breadth, speaking rate, pitch range, CEFR vocab coverage, and the mistakes you keep making.
 
 WHO IT'S FOR
 
-Anyone who can read this — but freezes when it's time to say it out loud. Functional but not fluent. Lives the language abroad but doesn't speak enough at work. Watches the meeting from the side because joining feels too risky.
-
-We're starting with English for non-native speakers, then expanding to every major language pair.
+Anyone who can read this but freezes when it's time to say it out loud. Functional but not fluent. Living the language abroad but not speaking enough at work. Watching the meeting from the side because joining feels too risky.
 
 PRIVACY
 
-Your conversations are stored under your account to power the personalization. We never sell them to third parties. You can export everything or delete it any time from More → Privacy & Data.
+Your conversations are stored under your account to power the personalization. We never sell them to third parties. You can export everything or delete it any time from More, Privacy & Data.
 
 PRICING
 
-Free tier — 10 minutes of conversation per day, 30 minutes per week. Individual $17.99/month or $83.99/year. Family up to 6 users $19.99/month or $112.99/year. All paid plans auto-renew unless cancelled at least 24 hours before the period ends; manage in Settings → [your Apple ID] → Subscriptions.
+Free tier: 10 minutes of conversation per day and 30 minutes per week. Individual $17.99/month or $83.99/year. Family up to 6 users $19.99/month or $112.99/year. All paid plans auto-renew unless cancelled at least 24 hours before the period ends; manage in Settings, your Apple ID, Subscriptions.
 
 Privacy: https://palkietalkie.com/privacy
 Terms: https://palkietalkie.com/terms

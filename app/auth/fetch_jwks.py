@@ -19,11 +19,14 @@ def reset_cache() -> None:
     _fetched_at = 0.0
 
 
-async def fetch_jwks() -> JWKS:
-    """Returns cached JWKS (JSON Web Key Set) or fetches fresh. Concurrent callers may double-fetch once; cost is bounded by Clerk's edge cache."""
+async def fetch_jwks(force: bool = False) -> JWKS:
+    """Returns cached JWKS (JSON Web Key Set) or fetches fresh. Concurrent callers may double-fetch once; cost is bounded by Clerk's edge cache.
+
+    `force=True` bypasses the cache to pick up a key rotation immediately (the caller hit a kid not in the cached set).
+    """
     global _cached_jwks, _fetched_at
     now = time.time()
-    if _cached_jwks is not None and now - _fetched_at < _TTL_SECONDS:
+    if not force and _cached_jwks is not None and now - _fetched_at < _TTL_SECONDS:
         return _cached_jwks
 
     settings = get_settings()

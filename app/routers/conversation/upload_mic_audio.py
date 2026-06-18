@@ -4,7 +4,7 @@ Companion endpoint: `POST /conversation/{id}/audio/model` for the AI's raw PCM16
 
 Body: raw bytes (Content-Type: audio/wav+deflate). NOT a multipart upload — multipart on FastAPI requires python-multipart and adds 30-50ms of parsing overhead for a single-file payload. Raw body is simpler.
 
-Retention: 14 days. Hard cap: 50 MB per upload.
+Retention: 30 days. Hard cap: 50 MB per upload.
 """
 
 import uuid
@@ -21,7 +21,7 @@ from app.services.neon.rows import UserRow
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
-RETENTION_DAYS = 14
+RETENTION_DAYS = 30
 SOURCE = "mic"
 
 

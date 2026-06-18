@@ -34,6 +34,7 @@ def test_create_app_registers_every_user_facing_router() -> None:
         "/recall/transcripts",
         "/entitlement",
         "/plan_limits",
+        "/account",
         "/events",
         "/webhooks/stripe",
         "/webhooks/apple/asn",

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
@@ -11,10 +9,12 @@ from app.services.neon.rows import UserRow
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
+# Field names match the iOS `PhraseUsage` decodable (id, phrase, count, alternatives); a mismatch makes the client silently decode to an empty list. `id` is the phrase itself (unique per user); `alternatives` is empty until phrase-suggestion is wired here.
 class PhraseOut(BaseModel):
+    id: str
     phrase: str
     count: int
-    last_used_at: datetime
+    alternatives: list[str]
 
 
 @router.get("/phrases", response_model=list[PhraseOut])
@@ -35,6 +35,6 @@ async def list_phrases(
         offset,
     )
     return [
-        PhraseOut(phrase=row["phrase"], count=row["count"], last_used_at=row["last_used_at"])
+        PhraseOut(id=row["phrase"], phrase=row["phrase"], count=row["count"], alternatives=[])
         for row in rows
     ]

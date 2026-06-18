@@ -2,7 +2,7 @@
 
 Companion to `POST /conversation/{id}/audio/mic` which receives the iOS mic recording. Both write to the same `session_audio` table; the `source` column distinguishes them.
 
-Body: raw bytes (Content-Type: audio/wav+deflate). Retention: 14 days. Hard cap: 50 MB per upload.
+Body: raw bytes (Content-Type: audio/wav+deflate). Retention: 30 days. Hard cap: 50 MB per upload.
 """
 
 import uuid
@@ -19,7 +19,7 @@ from app.services.neon.rows import UserRow
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
-RETENTION_DAYS = 14
+RETENTION_DAYS = 30
 SOURCE = "model"
 
 

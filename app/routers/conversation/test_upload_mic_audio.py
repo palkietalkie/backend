@@ -40,7 +40,7 @@ async def test_upload_mic_audio_stores_row(
     assert row is not None
     assert row["bytes"] == len(payload)
     assert row["format"] == CT
-    assert 13 < row["ttl"].days <= 14
+    assert 29 < row["ttl"].days <= 30
 
 
 async def test_upload_mic_audio_rejects_foreign_session(

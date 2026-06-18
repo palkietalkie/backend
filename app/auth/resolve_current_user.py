@@ -33,11 +33,14 @@ async def resolve_current_user(
         """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                   preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
                   location_city, timezone,
-                  personalization_consent, product_improvement_consent, consent_screen_seen_at
+                  personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
            FROM users
            WHERE clerk_user_id = $1""",
         clerk_user_id,
     )
+    if row is not None and row["deleted_at"] is not None:
+        # Soft-deleted account: the row is retained for counts, but the user is gone — reject every authenticated request so a re-login can't resurrect access.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="account deleted")
     if row is None:
         row = await db.fetchrow(
             """INSERT INTO users (id, clerk_user_id, email)
@@ -45,7 +48,7 @@ async def resolve_current_user(
                RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                          preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
                          location_city, timezone,
-                         personalization_consent, product_improvement_consent, consent_screen_seen_at""",
+                         personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at""",
             uuid.uuid4(),
             clerk_user_id,
             email,

@@ -80,6 +80,27 @@ async def test_resolve_keeps_email_when_token_omits_it(
     assert user["email"] == "keep@example.test"
 
 
+async def test_resolve_rejects_soft_deleted_account(
+    monkeypatch: pytest.MonkeyPatch, db: DBConn
+) -> None:
+    # A soft-deleted account (deleted_at set) must be rejected on every request, even with a valid token — a re-login can't resurrect access. The row stays for counts.
+    clerk_id = f"user_deleted_{uuid.uuid4().hex[:8]}"
+    await db.execute(
+        "INSERT INTO users (id, clerk_user_id, email, deleted_at) VALUES ($1, $2, $3, NOW())",
+        uuid.uuid4(),
+        clerk_id,
+        "gone@example.test",
+    )
+
+    async def _fake_verify(token: str) -> dict[str, Any]:
+        return {"sub": clerk_id, "email": "gone@example.test"}
+
+    monkeypatch.setattr(mod, "verify_clerk_jwt", _fake_verify)
+    with pytest.raises(HTTPException) as exc:
+        await mod.resolve_current_user(authorization="Bearer t", db=db)
+    assert exc.value.status_code == 403
+
+
 async def test_resolve_rejects_token_without_sub(
     monkeypatch: pytest.MonkeyPatch, db: DBConn
 ) -> None:

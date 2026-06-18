@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
 
+from app.personas.presets.preset_list import PRESETS
 from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import UserRow
 
@@ -70,3 +71,19 @@ async def test_list_sessions_only_returns_own_sessions(
     ids = [uuid.UUID(row["session_id"]) for row in resp.json()]
     assert mine in ids
     assert foreign not in ids
+
+
+async def test_list_sessions_resolves_preset_persona_name(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
+    # History shows persona_name, not the raw persona UUID; a preset id must resolve to its name.
+    client, user = app_with_overrides
+    preset = PRESETS[0]
+    await db.execute(
+        "INSERT INTO conversation_sessions (id, user_id, persona_id, started_at) VALUES ($1, $2, $3, NOW())",
+        uuid.uuid4(),
+        user["id"],
+        preset.id,
+    )
+    body = (await client.get("/conversation/sessions")).json()
+    assert body[0]["persona_name"] == preset.name
