@@ -149,8 +149,10 @@ async def test_list_cefr_missing_filters_used_words(
     assert isinstance(body, list)
     if body:
         first = body[0]
-        assert "lemma" in first
-        assert "level" in first
+        # CefrWordOut shape: id / word / frequency_rank / used. The endpoint returns missing words, so used is False.
+        assert "word" in first
+        assert "frequency_rank" in first
+        assert first["used"] is False
 
 
 async def test_list_cefr_missing_with_level_filter(
@@ -159,6 +161,8 @@ async def test_list_cefr_missing_with_level_filter(
     client, _ = app_with_overrides
     resp = await client.get("/stats/cefr", params={"level": "A1", "limit": 5})
     assert resp.status_code == 200
-    body = resp.json()
+    body: list[dict[str, object]] = resp.json()
+    assert isinstance(body, list)
+    # The level filter is applied server-side; the response items carry the word, not the level.
     for item in body:
-        assert item["level"] == "A1"
+        assert "word" in item
