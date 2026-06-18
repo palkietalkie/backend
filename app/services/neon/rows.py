@@ -68,6 +68,14 @@ class PersonaLikeRow(TypedDict):
     created_at: datetime
 
 
+class PersonaReportRow(TypedDict):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    persona_id: uuid.UUID
+    reason: str | None
+    created_at: datetime
+
+
 class PersonaRow(TypedDict):
     id: uuid.UUID
     name: str
