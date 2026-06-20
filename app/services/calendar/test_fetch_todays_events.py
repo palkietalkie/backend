@@ -87,6 +87,20 @@ async def test_fetch_todays_events_swallows_provider_errors(
     assert events == []
 
 
+async def test_fetch_todays_events_returns_empty_on_unexpected_failure(
+    fake_user: UserRow, db: DBConn, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # @fallback makes calendar best-effort: a failure OUTSIDE the per-provider guard (here row mapping) must degrade to [] so it can't 500 or hang conversation start, instead of propagating.
+    await _seed_token(db, fake_user["id"])
+
+    def _boom(_row: object) -> CalendarTokenRow:
+        raise RuntimeError("schema drift")
+
+    monkeypatch.setattr(mod, "make_calendar_token_row", _boom)
+    events = await mod.fetch_todays_events(fake_user, db)
+    assert events == []
+
+
 async def test_fetch_todays_events_ignores_unknown_providers(
     fake_user: UserRow, db: DBConn, monkeypatch: pytest.MonkeyPatch
 ) -> None:
