@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.auth.resolve_current_user import resolve_current_user
+from app.profile.goal import Goal
 from app.profile.proficiency import Proficiency
 from app.profile.tutor_speaking_speed import TutorSpeakingSpeed
 from app.services.neon.rows import UserRow
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 class PracticeOptionsOut(BaseModel):
     proficiency: list[Proficiency]
     tutor_speaking_speed: list[TutorSpeakingSpeed]
+    goals: list[Goal]
 
 
 @router.get("/practice-options", response_model=PracticeOptionsOut)
@@ -30,4 +32,5 @@ async def list_practice_options(
     return PracticeOptionsOut(
         proficiency=list(get_args(Proficiency)),
         tutor_speaking_speed=list(get_args(TutorSpeakingSpeed)),
+        goals=list(get_args(Goal)),
     )

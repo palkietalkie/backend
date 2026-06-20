@@ -41,7 +41,14 @@ class AsyncDriver:
 
 class AsyncGraphDatabase:
     @staticmethod
-    def driver(uri: str, *, auth: tuple[str, str] | None = ...) -> AsyncDriver: ...
+    def driver(
+        uri: str,
+        *,
+        auth: tuple[str, str] | None = ...,
+        liveness_check_timeout: float = ...,
+        max_connection_lifetime: float = ...,
+        connection_acquisition_timeout: float = ...,
+    ) -> AsyncDriver: ...
 
 class Auth:
     def __init__(self, scheme: str, principal: str, credentials: str) -> None: ...

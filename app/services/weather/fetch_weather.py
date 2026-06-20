@@ -6,7 +6,9 @@ Returns the current temperature, weather code, and a short human label for promp
 from dataclasses import dataclass
 
 import httpx
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+
+from app.services.fallback import fallback
 
 # Compact subset of the WMO weather codes Open-Meteo returns.
 _WEATHER_CODE_LABELS: dict[int, str] = {
@@ -51,7 +53,11 @@ class _ForecastResponse(BaseModel):
     current: _CurrentBlock | None = None
 
 
-async def fetch_weather(lat: float, lon: float) -> WeatherSnapshot | None:
+@fallback(default=None)
+async def fetch_weather(lat: float | None, lon: float | None) -> WeatherSnapshot | None:
+    # No location → no weather. @best_effort also turns any network/parse failure or a timeout into None, so weather can never break conversation start; coords are optional here so the caller doesn't need its own guard.
+    if lat is None or lon is None:
+        return None
     url = "https://api.open-meteo.com/v1/forecast"
     params: dict[str, str | float] = {
         "latitude": lat,
@@ -59,13 +65,10 @@ async def fetch_weather(lat: float, lon: float) -> WeatherSnapshot | None:
         "current": "temperature_2m,weather_code,is_day",
         "timezone": "auto",
     }
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
-            payload = _ForecastResponse.model_validate(resp.json())
-    except httpx.HTTPError, ValueError, ValidationError:
-        return None
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        resp = await client.get(url, params=params)
+        resp.raise_for_status()
+        payload = _ForecastResponse.model_validate(resp.json())
 
     current = payload.current
     if current is None:

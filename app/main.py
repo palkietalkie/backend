@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.lifespan import lifespan
 from app.routers.account.delete_account import router as account_delete_router
 from app.routers.announce_auth import router as announce_auth_router
+from app.routers.announce_onboarding import router as announce_onboarding_router
 from app.routers.consent.fetch_consent import router as consent_fetch_router
 from app.routers.consent.update_consent import router as consent_update_router
 from app.routers.conversation.append_transcript import router as conversation_transcript_router
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(devices_router)
     fastapi_app.include_router(events_router)
     fastapi_app.include_router(announce_auth_router)
+    fastapi_app.include_router(announce_onboarding_router)
     fastapi_app.include_router(voices_router)
     fastapi_app.include_router(languages_router)
     fastapi_app.include_router(consent_fetch_router)

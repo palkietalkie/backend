@@ -6,6 +6,7 @@ Everything lives here on purpose. The static frame, the persona character format
 import random
 from dataclasses import dataclass
 
+from app.profile.format_goals_for_prompt import format_goals_for_prompt
 from app.services.neon.rows import UserRow
 from app.utils.format_local_time import format_local_time
 
@@ -163,7 +164,8 @@ If a 'Today's topic' section appears below, use it as a hook. If absent, drive f
     ]
 
     if user["goals"]:
-        parts += ["", "## What they've told you about themselves", f"goals: {user['goals']}."]
+        goals_text = format_goals_for_prompt(user["goals"])
+        parts += ["", "## What they've told you about themselves", f"goals: {goals_text}."]
 
     # The pronunciation hint AND its meta-instruction only exist when there's actual guidance. Without it, the model uses its own default and we don't waste prompt tokens on a dangling "follow the given pronunciation" instruction with no pronunciation to follow.
     name_pronunciation = (user["name_pronunciation"] or "").strip()
