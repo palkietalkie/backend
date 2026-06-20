@@ -16,6 +16,7 @@ from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
     PROVIDER_OPENAI,
     PROVIDER_PERSONAPLEX,
+    Provider,
 )
 from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
 from app.routers.entitlement.check_is_premium_now import check_is_premium_now
@@ -51,8 +52,8 @@ class StartResponse(BaseModel):
     text_prompt: str
     voice_id: str
     ws_url: str
-    # "openai" → iOS speaks the JSON event protocol against OpenAI Realtime. "personaplex" → iOS speaks the binary Ogg-Opus protocol against Modal. Switched server-side via INFERENCE_PROVIDER env var.
-    provider: str
+    # "openai" → iOS speaks the JSON event protocol against OpenAI Realtime. "personaplex" → iOS speaks the binary Ogg-Opus protocol against Modal. Switched server-side via INFERENCE_PROVIDER env var. Literal (not str) so the value is constrained at the source of truth: it surfaces as an enum in /openapi.json, the generated iOS type, and a bad value can never reach the client (where the branch silently falls through to PersonaPlex).
+    provider: Provider
     # Populated only when provider == "openai". Short-lived (~1 min) client_secret.value from OpenAI's /v1/realtime/sessions response. iOS attaches it as Authorization: Bearer ... on the WS upgrade. Empty for personaplex.
     ephemeral_token: str | None = None
 

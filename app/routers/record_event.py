@@ -60,5 +60,7 @@ _SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
         "subscription_canceled",
         "premium_upgrade",
         "feedback_submitted",
+        # A realtime session failed (WS error / abnormal disconnect). The events row in Neon is the durable record, but the audio WS is iOS↔provider direct so this is our only live signal a tester's conversation broke — Slack it so a human sees it now, not in a dashboard later. props carry provider + reason.
+        "session_error",
     }
 )
