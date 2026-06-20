@@ -70,6 +70,8 @@ def _mint_app_store_connect_jwt() -> str:
     )
 
 
+# Auto-retry: the assertion depends on Apple actually signing and delivering a JWS to the dev backend within 90s. That delivery is Apple-side and genuinely flaky (it intermittently records "OTHER" instead of "SUCCESS"), so a single attempt blocks unrelated PRs on Apple's infra, not ours. Each rerun triggers a fresh test notification and re-polls.
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 async def test_real_apple_test_notification_round_trips() -> None:
     _require_env()
     import httpx

@@ -51,6 +51,7 @@ dev = [
     # Same pattern again: opuslib (scripts/probe_modal_voice.py) + pyloudnorm (scripts/openai/normalize_loudness.py) live in those scripts' PEP 723 blocks; listed here so pyright resolves their source, not just a stub (reportMissingModuleSource).
     "opuslib>=3.0.1",
     "pyloudnorm>=0.1.1",
+    "pytest-rerunfailures>=16.3",
 ]
 
 [build-system]
