@@ -1,6 +1,6 @@
 """Tests for POST /conversation/start.
 
-External dependencies that need stubbing per provider: - ``fetch_entities_summary`` (Neo4j) — the route catches ``GqlError``, so leaving it real would still let the route succeed (the bolt://localhost driver fails on connect). To make the test deterministic and fast we monkeypatch it to a no-op. - ``fetch_weather`` (Open-Meteo) — only called when lat/lon are supplied; we stub it out to avoid a live HTTP call. - ``mint_openai_session`` (OpenAI Realtime) — for the openai-provider path we stub it; the test patches the symbol in the start_conversation module."""
+External dependencies that need stubbing per provider: - ``fetch_entities_summary`` (Neo4j) — it's ``@fallback``-decorated so it returns ``[]`` on any failure, but the real driver still tries to dial bolt://localhost; we monkeypatch it to a no-op for determinism/speed. - ``fetch_weather`` (Open-Meteo) — only called when lat/lon are supplied; we stub it out to avoid a live HTTP call. - ``mint_openai_session`` (OpenAI Realtime) — for the openai-provider path we stub it; the test patches the symbol in the start_conversation module."""
 
 import uuid
 
@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.config import get_settings
 from app.personas.presets.preset_list import PRESETS
 from app.routers.conversation import start_conversation as start_mod
+from app.services.neo4j import fetch_entities_summary as entities_mod
 from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import UserRow
 
@@ -375,6 +376,26 @@ async def test_start_premium_user_bypasses_free_caps(
 
     monkeypatch.setattr(start_mod, "sum_seconds_used_today", _huge_use)
     monkeypatch.setattr(start_mod, "sum_seconds_used_this_week", _huge_use)
+    preset = PRESETS[0]
+    resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
+    assert resp.status_code == 200
+
+
+async def test_start_succeeds_when_kg_dependency_fails(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    personaplex_provider: None,
+) -> None:
+    # KG / weather / calendar / recall are optional prompt context: a failing or dead dependency must NOT break the Talk View. Failing the Neo4j layer underneath the REAL (@fallback-decorated) fetch_entities_summary proves the resilience holds end-to-end — the route still returns 200 without KG, rather than 500ing as it did when a non-GqlError propagated.
+    async def _no_events(*_args: object, **_kwargs: object) -> list[object]:
+        return []
+
+    def _broken_driver() -> object:
+        raise RuntimeError("AuraDB connection defunct")
+
+    monkeypatch.setattr(entities_mod, "get_neo4j_driver", _broken_driver)
+    monkeypatch.setattr(start_mod, "fetch_todays_events", _no_events)
+    client, _ = app_with_overrides
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
     assert resp.status_code == 200

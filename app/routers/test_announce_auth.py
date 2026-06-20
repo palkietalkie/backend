@@ -48,6 +48,33 @@ async def test_brand_new_user_reads_signed_up(
     get_settings.cache_clear()
 
 
+async def test_preferred_name_and_email_make_a_human_label(
+    app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _ = app_with_overrides
+    _enable_prod_slack(monkeypatch)
+    # JWT carries no email claim → the backend must use the name + email iOS sent, never the opaque clerk id.
+    _patch_jwt(monkeypatch, f"user_{uuid.uuid4().hex[:8]}", None)
+    with respx.mock(base_url="https://slack.com") as router:
+        route = router.post("/api/chat.postMessage").mock(
+            return_value=httpx.Response(200, json={"ok": True, "ts": "1"})
+        )
+        resp = await client.post(
+            "/auth/announce",
+            headers={"Authorization": "Bearer t"},
+            json={
+                "method": "Apple",
+                "preferred_name": "Wes Nishio",
+                "email": "wes@palkietalkie.com",
+            },
+        )
+    assert resp.status_code == 200
+    sent = route.calls.last.request.content.decode()
+    assert "Wes Nishio (wes@palkietalkie.com) signed up with Apple" in sent
+    assert "user_" not in sent, "with a name we must never fall back to the opaque clerk id"
+    get_settings.cache_clear()
+
+
 async def test_returning_user_reads_signed_in(
     app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch, db: DBConn
 ) -> None:

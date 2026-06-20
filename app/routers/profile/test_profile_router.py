@@ -29,6 +29,9 @@ async def test_list_practice_options_exposes_enums(
     body = resp.json()
     assert "beginner" in body["proficiency"]
     assert "normal" in body["tutor_speaking_speed"]
+    # Goal presets are served here too (SSoT) so iOS renders chips without hardcoding the list.
+    assert "dating_relationships" in body["goals"]
+    assert "studying_abroad" in body["goals"]
 
 
 async def test_update_profile_patches_fields(

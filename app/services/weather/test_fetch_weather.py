@@ -54,5 +54,13 @@ async def test_fetch_weather_returns_none_on_validation_error() -> None:
 
 @respx.mock
 async def test_fetch_weather_returns_none_on_http_error() -> None:
+    # Error handling is now the @fallback decorator's job (the inline try/except was removed); a 5xx still yields None.
     respx.get(OPEN_METEO_URL).mock(return_value=httpx.Response(503, text="upstream down"))
     assert await fetch_weather(0.0, 0.0) is None
+
+
+async def test_fetch_weather_returns_none_without_coords() -> None:
+    # Coords are optional so conversation-start doesn't need its own guard: no location → no weather, and no HTTP call is made.
+    assert await fetch_weather(None, None) is None
+    assert await fetch_weather(37.0, None) is None
+    assert await fetch_weather(None, -122.0) is None

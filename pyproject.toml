@@ -26,6 +26,7 @@ dependencies = [
     "uvicorn[standard]>=0.48.0",
     "numpy>=2.4.6",
     "soundfile>=0.13.1",
+    "tzdata>=2026.2",
 ]
 
 [project.optional-dependencies]

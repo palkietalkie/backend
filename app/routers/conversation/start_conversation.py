@@ -1,11 +1,10 @@
+import asyncio
 import logging
 import random
 import uuid
 from datetime import UTC, datetime
 
-import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
-from neo4j.exceptions import GqlError
 from pydantic import BaseModel, Field
 
 from app.auth.resolve_current_user import resolve_current_user
@@ -18,6 +17,7 @@ from app.routers.conversation.constants import (
     PROVIDER_OPENAI,
     PROVIDER_PERSONAPLEX,
 )
+from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
 from app.routers.entitlement.check_is_premium_now import check_is_premium_now
 from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
 from app.services.calendar.fetch_todays_events import fetch_todays_events
@@ -130,58 +130,23 @@ async def start_conversation(
     if topic_mode:
         persona_voice_id = random.choice(list_voices_for_provider(provider)).id  # noqa: S311
 
-    weather = None
-    if body.lat is not None and body.lon is not None:
-        weather = await fetch_weather(body.lat, body.lon)
+    # Recall is awaited after the gather, not inside it: it shares the request's single asyncpg connection with calendar, and one connection runs only one query at a time. Weather/KG/calendar use distinct connections, so they gather safely.
+    weather, kg_entities, events = await asyncio.gather(
+        fetch_weather(body.lat, body.lon),
+        fetch_entities_summary(user["id"]),
+        fetch_todays_events(user, db),
+    )
     weather_label = (
         f"{weather.temperature_c:.0f}°C, {weather.label}, {'day' if weather.is_day else 'night'}"
         if weather
         else None
     )
-
-    try:
-        kg_entities = await fetch_entities_summary(user["id"])
-    except GqlError:
-        # GqlError covers both `Neo4jError` (server-side response errors) and `DriverError` (connection / DNS / auth / config failures). KG enrichment is best-effort — don't 500 the conversation start when Neo4j is unreachable.
-        kg_entities = []
-
-    try:
-        events = await fetch_todays_events(user, db)
-    except asyncpg.PostgresError:
-        events = []
     event_titles = [e.title for e in events]
 
-    # Recall the user's last 3 conversations WITH THIS SAME PERSONA. Each persona has their own memory of the user — Aiden doesn't get fed Naoko's transcript tail. Pulling 3 not 1 so the persona has shared history beyond the very last chat; longer-term recall (per-session summaries + vector search) is the planned upgrade in /CLAUDE.md.
-    # Skipped entirely in topic mode: a Today-screen topic is a deliberate fresh start, so feeding the last conversation's tail would just pull the session back into the old subject (and we'd throw the rows away in assemble_prompt anyway).
-    recent_recall: str | None = None
-    if not topic_mode:
-        last_rows = await db.fetch(
-            """SELECT id, started_at, ended_at
-               FROM conversation_sessions
-               WHERE user_id = $1 AND persona_id = $2 AND ended_at IS NOT NULL
-               ORDER BY ended_at DESC
-               LIMIT 3""",
-            user["id"],
-            body.persona_id,
-        )
-        if last_rows:
-            session_tails: list[str] = []
-            for session_row in reversed(last_rows):
-                transcript_rows = await db.fetch(
-                    """SELECT speaker, text
-                       FROM transcripts
-                       WHERE session_id = $1
-                       ORDER BY started_at DESC
-                       LIMIT 10""",
-                    session_row["id"],
-                )
-                if not transcript_rows:
-                    continue
-                ordered = list(reversed(transcript_rows))
-                joined = " | ".join(f"{t['speaker']}: {t['text'][:200]}" for t in ordered)
-                session_tails.append(joined)
-            if session_tails:
-                recent_recall = "\n---\n".join(session_tails)
+    # Skipped in topic mode: a Today-screen topic is a deliberate fresh start, so feeding the last conversation's tail would pull the session back into the old subject (and assemble_prompt would discard it anyway).
+    recent_recall = (
+        None if topic_mode else await fetch_recent_recall(user["id"], body.persona_id, db)
+    )
 
     text_prompt = assemble_prompt(
         persona_fields,

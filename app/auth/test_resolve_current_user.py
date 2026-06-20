@@ -2,16 +2,20 @@
 
 verify_clerk_jwt is monkeypatched so the test doesn't need a real JWKS; the focus here is the DB upsert behavior of the dependency itself."""
 
+import asyncio
 import inspect
+import json
 import uuid
 from typing import Any
 
+import asyncpg
 import pytest
 from fastapi import HTTPException
 
 from app.auth import resolve_current_user as mod
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
+from app.services.neon.rows import UserRow
 
 
 def test_db_dependency_is_canonical_pooled_connection() -> None:
@@ -35,6 +39,42 @@ async def test_resolve_creates_user_when_missing(
     # Locks the column rename: the SELECT/RETURNING projects users.preferred_name (formerly display_name); a stale name would KeyError in make_user_row. Unset on JIT creation.
     assert user["preferred_name"] is None
     persisted = await db.fetchval("SELECT COUNT(*) FROM users WHERE clerk_user_id = $1", clerk_id)
+    assert persisted == 1
+
+
+async def test_resolve_handles_concurrent_first_signin(
+    monkeypatch: pytest.MonkeyPatch, db_url: str
+) -> None:
+    # On first sign-in the client fires authenticated requests on independent connections (RootView's GET /consent, and POST /devices/apns dispatched from its own Task in the APNs-token callback) that all SELECT-miss the not-yet-created user row and race to INSERT it. Without ON CONFLICT the losers raise UniqueViolationError on ix_users_clerk_user_id, surfacing as a 500 to the brand-new user (then "fixing itself" once the row exists). This locks the resolver idempotent under that race. Needs real concurrent connections, so it builds its own pool rather than using the single transaction-bound `db` fixture.
+    clerk_id = f"user_race_{uuid.uuid4().hex[:8]}"
+
+    async def _fake_verify(token: str) -> dict[str, Any]:
+        return {"sub": clerk_id, "email": "race@example.test"}
+
+    monkeypatch.setattr(mod, "verify_clerk_jwt", _fake_verify)
+
+    async def _init(conn: asyncpg.Connection) -> None:
+        await conn.set_type_codec(
+            "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+        )
+
+    n = 6
+    pool = await asyncpg.create_pool(db_url, min_size=n, max_size=n, init=_init)
+    try:
+
+        async def _resolve_on_own_conn() -> UserRow:
+            async with pool.acquire() as conn:
+                return await mod.resolve_current_user(authorization="Bearer t", db=conn)
+
+        results = await asyncio.gather(*(_resolve_on_own_conn() for _ in range(n)))
+        persisted = await pool.fetchval(
+            "SELECT COUNT(*) FROM users WHERE clerk_user_id = $1", clerk_id
+        )
+    finally:
+        await pool.close()
+
+    # Every concurrent request resolves to the SAME single row, none 500s, and exactly one row exists.
+    assert {r["id"] for r in results} == {results[0]["id"]}
     assert persisted == 1
 
 

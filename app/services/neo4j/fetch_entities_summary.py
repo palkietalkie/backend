@@ -1,9 +1,11 @@
 import uuid
 
+from app.services.fallback import fallback
 from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 from app.services.neo4j.open_session import open_session
 
 
+@fallback(default=[])
 async def fetch_entities_summary(user_id: uuid.UUID, limit: int = 20) -> list[str]:
     driver = get_neo4j_driver()
     async with open_session(driver) as session:

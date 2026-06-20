@@ -27,6 +27,9 @@ class AnnounceIn(BaseModel):
     thread_ts: str | None = None
     # The typed address, when known — labels the pre-auth request and any email-flow failure.
     pending_email: str | None = Field(default=None, max_length=320)
+    # Identity for the success feed — Clerk's name + email, sent by iOS because the JWT often omits them. Without these the feed could only show the opaque clerk_user_id.
+    preferred_name: str | None = Field(default=None, max_length=200)
+    email: str | None = Field(default=None, max_length=320)
     # Holds the iOS `diagnoseAuthError` chain (underlying-error + Clerk fields), which is far longer than a bare message — too small a cap silently 422s the report and we lose the only window into a failure we can't reproduce. iOS caps its side at 1800.
     reason: str | None = Field(default=None, max_length=2000)
 
@@ -68,11 +71,16 @@ async def announce_auth(
     if not isinstance(clerk_user_id, str):
         return AnnounceOut(thread_ts=None)
     raw_email = claims.get("email") or claims.get("primary_email_address")
-    email = raw_email if isinstance(raw_email, str) else None
+    # Prefer the JWT email, fall back to what iOS sent (the JWT template often omits it).
+    email = raw_email if isinstance(raw_email, str) else body.email
     # A row already present means a returning user; absent means this auth is creating them.
     exists = await db.fetchval("SELECT 1 FROM users WHERE clerk_user_id = $1", clerk_user_id)
     verb = "signed in" if exists else "signed up"
-    label = email or clerk_user_id
+    # Human-readable feed: "Name (email)" when both, else whichever we have; the opaque clerk_user_id is the last resort so we never show just "user_3FEs…".
+    if body.preferred_name and email:
+        label = f"{body.preferred_name} ({email})"
+    else:
+        label = body.preferred_name or email or clerk_user_id
     # No mention on success — it's a feed entry, not an alert.
     ts = await post_message(
         settings.slack_channel_gtm,

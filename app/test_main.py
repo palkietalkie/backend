@@ -20,6 +20,7 @@ def test_create_app_registers_every_user_facing_router() -> None:
         "/conversation/{session_id}/audio/model",
         "/personas",
         "/personas/{persona_id}/report",
+        "/onboarding/announce",
         "/profile",
         "/profile/practice-options",
         "/stats",

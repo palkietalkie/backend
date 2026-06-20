@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 import httpx
 
 from app.services.calendar.event import CalendarEvent
+from app.services.fallback import fallback
 from app.services.google_calendar.fetch_today import fetch_today as fetch_google_today
 from app.services.google_calendar.refresh_token import (
     refresh_token as refresh_google_token,
@@ -18,6 +19,7 @@ from app.services.neon.make_rows import make_calendar_token_row
 from app.services.neon.rows import UserRow
 
 
+@fallback(default=[])
 async def fetch_todays_events(user: UserRow, db: DBConn) -> list[CalendarEvent]:
     """Return today's calendar events across all connected providers."""
     rows = await db.fetch(

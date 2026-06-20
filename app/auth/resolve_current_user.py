@@ -29,32 +29,30 @@ async def resolve_current_user(
     raw_email = claims.get("email") or claims.get("primary_email_address")
     email: str | None = raw_email if isinstance(raw_email, str) else None
 
-    row = await db.fetchrow(
-        """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                  preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
-                  location_city, timezone,
-                  personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
-           FROM users
-           WHERE clerk_user_id = $1""",
-        clerk_user_id,
-    )
-    if row is not None and row["deleted_at"] is not None:
+    # Load the row, JIT-creating it on first sight. On first sign-in the client fires authenticated requests on independent connections (RootView's GET /consent, and POST /devices/apns dispatched from its own Task in the APNs-token callback) that all miss this not-yet-created row and race to INSERT it; ON CONFLICT DO NOTHING lets one win while the losers write nothing and re-read the winner's row on the next pass, instead of raising UniqueViolationError on ix_users_clerk_user_id (the 500 every brand-new user hit until the row existed). The INSERT guarantees the row exists, so the loop reads it back in at most two passes.
+    row = None
+    while row is None:
+        row = await db.fetchrow(
+            """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
+                      preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
+                      location_city, timezone,
+                      personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
+               FROM users
+               WHERE clerk_user_id = $1""",
+            clerk_user_id,
+        )
+        if row is None:
+            await db.execute(
+                """INSERT INTO users (id, clerk_user_id, email)
+                   VALUES ($1, $2, $3)
+                   ON CONFLICT (clerk_user_id) DO NOTHING""",
+                uuid.uuid4(),
+                clerk_user_id,
+                email,
+            )
+    if row["deleted_at"] is not None:
         # Soft-deleted account: the row is retained for counts, but the user is gone — reject every authenticated request so a re-login can't resurrect access.
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="account deleted")
-    if row is None:
-        row = await db.fetchrow(
-            """INSERT INTO users (id, clerk_user_id, email)
-               VALUES ($1, $2, $3)
-               RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                         preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
-                         location_city, timezone,
-                         personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at""",
-            uuid.uuid4(),
-            clerk_user_id,
-            email,
-        )
-        assert row is not None
-        return make_user_row(row)
 
     user = make_user_row(row)
     if email and user["email"] != email:
