@@ -57,6 +57,35 @@ async def test_slack_pings_for_allowlisted_event_in_production(
     get_settings.cache_clear()
 
 
+async def test_slack_pings_for_session_error_with_reason(
+    app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A realtime session failure must reach Slack in production so a human sees a broken conversation live, with the reason attached (the audio WS is iOS↔provider direct, so this is the only server-side signal).
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
+    monkeypatch.setenv("SLACK_CHANNEL_GTM", "C_TEST")
+    get_settings.cache_clear()
+
+    client, _ = app_with_overrides
+    with respx.mock(base_url="https://slack.com") as router:
+        route = router.post("/api/chat.postMessage").mock(
+            return_value=httpx.Response(200, json={"ok": True})
+        )
+        resp = await client.post(
+            "/events",
+            json={
+                "event_type": "session_error",
+                "props": {"provider": "openai", "reason": "insufficient_quota"},
+            },
+        )
+        assert resp.status_code == 204
+    assert route.called
+    body = route.calls.last.request.content.decode()
+    assert "session_error" in body
+    assert "insufficient_quota" in body
+    get_settings.cache_clear()
+
+
 async def test_slack_skips_for_telemetry_events_even_in_production(
     app_with_overrides: tuple[AsyncClient, UserRow], monkeypatch: pytest.MonkeyPatch
 ) -> None:

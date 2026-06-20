@@ -1,5 +1,9 @@
-PROVIDER_OPENAI = "openai"
-PROVIDER_PERSONAPLEX = "personaplex"
+from typing import Literal
+
+# Source of truth for the inference-provider wire value. The constants are typed against it, so a typo in either is a type error, and StartResponse.provider reuses Provider to surface it as an enum in /openapi.json + the generated iOS type.
+Provider = Literal["openai", "personaplex"]
+PROVIDER_OPENAI: Provider = "openai"
+PROVIDER_PERSONAPLEX: Provider = "personaplex"
 
 SESSION_BY_USER_SQL = """SELECT id, user_id, persona_id, started_at, ended_at, duration_seconds
 FROM conversation_sessions
