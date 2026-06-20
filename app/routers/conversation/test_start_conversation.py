@@ -407,3 +407,22 @@ def test_topic_override_carries_full_story_but_caps_length() -> None:
     start_mod.StartRequest(persona_id=pid, topic_override="x" * 8000)
     with pytest.raises(ValidationError):
         start_mod.StartRequest(persona_id=pid, topic_override="x" * 8001)
+
+
+def test_start_response_provider_is_constrained_to_known_values() -> None:
+    # The provider field is a Literal, not a free str: the backend can only emit "openai"/"personaplex", so iOS's `if openai else personaplex` branch can never silently route an unexpected value to PersonaPlex. A bad value is a validation error at the source. model_validate (which takes Any) lets the test feed an off-list value to prove the Literal rejects it at runtime.
+    def build(provider: str) -> start_mod.StartResponse:
+        return start_mod.StartResponse.model_validate(
+            {
+                "session_id": uuid.uuid4(),
+                "text_prompt": "",
+                "voice_id": "ash",
+                "ws_url": "wss://x",
+                "provider": provider,
+            }
+        )
+
+    assert build("openai").provider == "openai"
+    assert build("personaplex").provider == "personaplex"
+    with pytest.raises(ValidationError):
+        build("gemini")
