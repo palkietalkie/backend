@@ -146,7 +146,9 @@ async def start_conversation(
 
     # Skipped in topic mode: a Today-screen topic is a deliberate fresh start, so feeding the last conversation's tail would pull the session back into the old subject (and assemble_prompt would discard it anyway).
     recent_recall = (
-        None if topic_mode else await fetch_recent_recall(user["id"], body.persona_id, db)
+        None
+        if topic_mode
+        else await fetch_recent_recall(user["id"], body.persona_id, user["target_language"], db)
     )
 
     text_prompt = assemble_prompt(
@@ -163,13 +165,14 @@ async def start_conversation(
     session_id = uuid.uuid4()
     async with db.transaction():
         await db.execute(
-            """INSERT INTO conversation_sessions (id, user_id, persona_id, started_at)
-               VALUES ($1, $2, $3, $4)
+            """INSERT INTO conversation_sessions (id, user_id, persona_id, started_at, target_language)
+               VALUES ($1, $2, $3, $4, $5)
                RETURNING id, user_id, persona_id, started_at, ended_at, duration_seconds""",
             session_id,
             user["id"],
             body.persona_id,
             now,
+            user["target_language"],
         )
         await db.execute(
             INSERT_EVENT_SQL,

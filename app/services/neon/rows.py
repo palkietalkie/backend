@@ -27,6 +27,7 @@ class ConversationSessionRow(TypedDict):
     started_at: datetime
     ended_at: datetime | None
     duration_seconds: int | None
+    target_language: str | None
 
 
 class DailyContentRow(TypedDict):
