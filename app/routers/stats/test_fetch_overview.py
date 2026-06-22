@@ -188,9 +188,9 @@ async def test_affinity_weights_combines_and_penalizes_reactions(
             props,
         )
     resp = await client.get("/stats")
-    # earned = 3*2 + 2*1 + 1*1 = 9; penalty = 2*1 (sigh) + 2*1 (groan) = 4.
-    # Normalized favorability ratio: round(100 * (9 - 4) / (9 + 4)) = round(38.46) = 38.
-    assert resp.json()["affinity"] == 38
+    # net = 3*2 + 2*1 + 1*1 - 2*1 (sigh) - 2*1 (groan) = 5.
+    # Gradual tanh: round(100 * tanh(5/50)) = round(9.97) = 10. A handful of mixed reactions sits near neutral, not a strong score.
+    assert resp.json()["affinity"] == 10
 
 
 async def test_overview_is_scoped_to_the_user(
