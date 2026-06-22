@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from app.auth.extract_bearer import extract_bearer
 from app.auth.verify_clerk_jwt import verify_clerk_jwt
 from app.config import get_settings
+from app.routers.is_low_signal_auth_failure import is_low_signal_auth_failure
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.slack.post_message import post_message
@@ -54,14 +55,18 @@ async def announce_auth(
         return AnnounceOut(thread_ts=ts)
 
     if body.outcome == "failed":
-        # A failed attempt has no session, so no JWT to identify the user — fall back to the typed email or a placeholder. `<!channel>` pings the channel: a failed sign-in is a broken funnel worth interrupting for.
+        # A failed attempt has no session, so no JWT to identify the user — fall back to the typed email or a placeholder.
         who = body.pending_email or "Someone"
         suffix = f": {body.reason}" if body.reason else ""
-        # The backend log is the real, queryable record of the failure (stdout → Fly logs / aggregator); Slack is only the human alert layered on top. WARNING because a dead sign-in is a broken funnel, not routine.
-        logger.warning("sign-in failed: method=%s who=%s reason=%s", body.method, who, body.reason)
+        # Apple's catch-all 1000 (.unknown) with no underlying cause fires for benign sheet-dismissals and devices with no usable Apple ID, so it isn't a broken funnel: still record it, but quietly and without paging. A real failure (underlying cause, other code, Clerk rejection) keeps the `<!channel>` interrupt.
+        low_signal = is_low_signal_auth_failure(body.reason)
+        # The backend log is the real, queryable record (stdout → Fly logs / aggregator); Slack is the human alert on top.
+        log = logger.info if low_signal else logger.warning
+        log("sign-in failed: method=%s who=%s reason=%s", body.method, who, body.reason)
+        mention = "" if low_signal else "<!channel> "
         ts = await post_message(
             settings.slack_channel_gtm,
-            f"<!channel> {who} failed to sign in with {body.method}{suffix}",
+            f"{mention}{who} failed to sign in with {body.method}{suffix}",
             thread_ts=body.thread_ts,
         )
         return AnnounceOut(thread_ts=ts)
