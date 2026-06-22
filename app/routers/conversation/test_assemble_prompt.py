@@ -212,3 +212,11 @@ def test_prompt_carries_anti_sycophant_stance() -> None:
     )
     prompt = assemble_prompt(fields, _user(), [], None, [])
     assert "sycophant" in prompt
+
+
+def test_never_mandates_addressing_user_by_name() -> None:
+    # Root cause of the "Ken" hallucination: the prompt commanded "address {name} by name in your first turn", but preferred_name was blank, so the model had to invent a name to obey. The mandate is gone — no name-use command, named or blank — so there's no void to fill.
+    for preferred_name in ("Yuki", None, "", "   "):
+        out = assemble_prompt(PERSONA, _user(preferred_name=preferred_name), [], None, [])
+        assert "by name" not in out
+        assert "address" not in out.lower()
