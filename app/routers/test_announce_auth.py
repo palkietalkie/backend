@@ -227,3 +227,30 @@ async def test_failed_oauth_without_email_reads_someone(
     assert "Someone failed to sign in with Google" in sent
     assert "cancelled" in sent
     get_settings.cache_clear()
+
+
+async def test_bare_apple_unknown_is_recorded_without_paging(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # The reported case: Apple's catch-all 1000 (.unknown) with no underlying cause. It must still post (so we have a record) but NOT ping the channel, and log at INFO not WARNING — it's a benign sheet-dismissal / no-Apple-ID device, not a broken funnel.
+    client, _ = app_with_overrides
+    _enable_prod_slack(monkeypatch)
+    reason = "com.apple.AuthenticationServices.AuthorizationError#1000: The operation couldn’t be completed."
+    with respx.mock(base_url="https://slack.com") as router:
+        route = router.post("/api/chat.postMessage").mock(
+            return_value=httpx.Response(200, json={"ok": True, "ts": "6"})
+        )
+        with caplog.at_level("INFO"):
+            resp = await client.post(
+                "/auth/announce", json={"method": "Apple", "outcome": "failed", "reason": reason}
+            )
+    assert resp.status_code == 200
+    sent = route.calls.last.request.content.decode()
+    assert "failed to sign in with Apple" in sent, "still recorded as a message"
+    assert "<!channel>" not in sent, "Apple's catch-all 1000 must NOT page the channel"
+    # Still logged (queryable), but at INFO, not the broken-funnel WARNING.
+    rec = next(r for r in caplog.records if "sign-in failed" in r.message)
+    assert rec.levelname == "INFO"
+    get_settings.cache_clear()
