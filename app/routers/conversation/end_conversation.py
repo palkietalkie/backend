@@ -14,6 +14,12 @@ from app.services.neon.rows import UserRow
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
+class EndRequest(BaseModel):
+    # Summed OpenAI realtime usage for the whole session, reported by iOS from response.done events. Optional + defaulted so older clients that POST an empty body (and the PersonaPlex path, which has no such usage) still end cleanly, leaving the columns NULL rather than a wrong 0.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
 class EndResponse(BaseModel):
     session_id: uuid.UUID
     duration_seconds: int
@@ -23,6 +29,7 @@ class EndResponse(BaseModel):
 async def end_conversation(
     session_id: uuid.UUID,
     background: BackgroundTasks,
+    body: EndRequest = EndRequest(),
     user: UserRow = Depends(resolve_current_user),
     db: DBConn = Depends(get_neon_connection),
 ) -> EndResponse:
@@ -39,11 +46,14 @@ async def end_conversation(
     async with db.transaction():
         await db.execute(
             """UPDATE conversation_sessions
-               SET ended_at = $2, duration_seconds = $3
+               SET ended_at = $2, duration_seconds = $3,
+                   input_tokens = $4, output_tokens = $5
                WHERE id = $1""",
             session_id,
             now,
             duration,
+            body.input_tokens,
+            body.output_tokens,
         )
         await db.execute(
             INSERT_EVENT_SQL,

@@ -94,6 +94,19 @@ async def test_free_users_get_full_realtime_but_mini_transcription() -> None:
     assert session.ws_url.endswith(f"model={OPENAI_REALTIME_MODEL_PAID}")
 
 
+@pytest.mark.asyncio
+async def test_session_records_realtime_model_matching_ws_url() -> None:
+    # The session carries its model id so per-session cost analysis can attribute spend; it must be the SAME model the ws_url connects to, or the recorded model lies about what actually ran.
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    session = await mint_openai_session(
+        text_prompt="x",
+        voice_id=OpenAIVoiceId.ASH,
+        http_client=fake,
+    )
+    assert session.model == OPENAI_REALTIME_MODEL_PAID
+    assert session.ws_url.endswith(f"model={session.model}")
+
+
 class _FakeClient:
     """Implements the HTTPPoster Protocol from mint_session.py — only the kwargs we use."""
 

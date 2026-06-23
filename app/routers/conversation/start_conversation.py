@@ -3,6 +3,7 @@ import logging
 import random
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -19,19 +20,17 @@ from app.routers.conversation.constants import (
     Provider,
 )
 from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
-from app.routers.entitlement.check_is_premium_now import check_is_premium_now
-from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
+from app.routers.conversation.resolve_free_cap import resolve_free_cap
 from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
-from app.services.neon.sum_seconds_used_this_week import sum_seconds_used_this_week
-from app.services.neon.sum_seconds_used_today import sum_seconds_used_today
-from app.services.openai.constants import OpenAIVoiceId
+from app.services.openai.constants import OPENAI_REALTIME_MODEL_PAID, OpenAIVoiceId
 from app.services.openai.mint_openai_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
+from app.services.personaplex.constants import PERSONAPLEX_MODEL
 from app.services.weather.fetch_weather import fetch_weather
 from app.services.ws_ticket.mint_ws_ticket import mint_ws_ticket
 
@@ -56,6 +55,10 @@ class StartResponse(BaseModel):
     provider: Provider
     # Populated only when provider == "openai". Short-lived (~1 min) client_secret.value from OpenAI's /v1/realtime/sessions response. iOS attaches it as Authorization: Bearer ... on the WS upgrade. Empty for personaplex.
     ephemeral_token: str | None = None
+    # Free-tier time left this session before a cap (daily or weekly, whichever is tighter) stops them, in seconds. iOS counts down from this to wrap up ~30s early and show the limit screen. None = unlimited (premium).
+    free_seconds_remaining: int | None = None
+    # Which cap that countdown belongs to, so iOS shows the right message ("back tomorrow" for daily vs "back Monday" for weekly — the weekly block is longer and must read clearly). None = unlimited (premium).
+    free_limit_kind: Literal["daily", "weekly"] | None = None
 
 
 @router.post("/start", response_model=StartResponse)
@@ -65,20 +68,8 @@ async def start_conversation(
     db: DBConn = Depends(get_neon_connection),
 ) -> StartResponse:
     settings = get_settings()
-    # Free-plan caps. Two windows apply — the daily one resets at user-local midnight, the weekly one at user-local Monday 00:00. Whichever the user hits first stops them; rejecting here (rather than mid-conversation) keeps the iOS UX simple: either you get a session or you get an "out of time" screen with an Upgrade CTA.
-    if not check_is_premium_now(user):
-        used_today = await sum_seconds_used_today(user, db)
-        if used_today >= FREE_MINUTES_PER_DAY * 60:
-            raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail=f"daily free limit reached ({FREE_MINUTES_PER_DAY} min). upgrade or come back at local midnight.",
-            )
-        used_this_week = await sum_seconds_used_this_week(user, db)
-        if used_this_week >= FREE_MINUTES_PER_WEEK * 60:
-            raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail=f"weekly free limit reached ({FREE_MINUTES_PER_WEEK} min). upgrade or come back next Monday.",
-            )
+    # Free-plan caps: raises 402 if the user is out of time, else hands back the countdown + which cap it is (None for premium). iOS uses these to wrap up ~30s early and show the right limit screen.
+    free_seconds_remaining, free_limit_kind = await resolve_free_cap(user, db)
     provider = settings.inference_provider.lower()
     preset = find_preset_by_id(body.persona_id)
     persona_voice_id: str
@@ -163,16 +154,19 @@ async def start_conversation(
 
     now = datetime.now(UTC)
     session_id = uuid.uuid4()
+    # Record which model the session runs on: the OpenAI realtime model (same constant mint uses) or the PersonaPlex model on Modal. PersonaPlex bills through Modal and reports no token usage, but the model itself is still worth recording to tell the two paths apart in analysis.
+    session_model = OPENAI_REALTIME_MODEL_PAID if provider == PROVIDER_OPENAI else PERSONAPLEX_MODEL
     async with db.transaction():
         await db.execute(
-            """INSERT INTO conversation_sessions (id, user_id, persona_id, started_at, target_language)
-               VALUES ($1, $2, $3, $4, $5)
+            """INSERT INTO conversation_sessions (id, user_id, persona_id, started_at, target_language, model)
+               VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING id, user_id, persona_id, started_at, ended_at, duration_seconds""",
             session_id,
             user["id"],
             body.persona_id,
             now,
             user["target_language"],
+            session_model,
         )
         await db.execute(
             INSERT_EVENT_SQL,
@@ -202,6 +196,8 @@ async def start_conversation(
             ws_url=openai_session.ws_url,
             provider=PROVIDER_OPENAI,
             ephemeral_token=openai_session.ephemeral_token,
+            free_seconds_remaining=free_seconds_remaining,
+            free_limit_kind=free_limit_kind,
         )
 
     ws_ticket = mint_ws_ticket(str(user["id"]))
@@ -217,4 +213,6 @@ async def start_conversation(
         ws_url=handshake.ws_url,
         provider=PROVIDER_PERSONAPLEX,
         ephemeral_token=None,
+        free_seconds_remaining=free_seconds_remaining,
+        free_limit_kind=free_limit_kind,
     )
