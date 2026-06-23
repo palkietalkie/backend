@@ -20,7 +20,7 @@ from app.asc.app_review_info import (  # noqa: E402
     REVIEW_CONTACT,
     REVIEW_NOTES,
 )
-from scripts.asc.constants import APP_ID, EDITABLE_STATE  # noqa: E402
+from scripts.asc.constants import APP_ID, EDITABLE_VERSION_STATES  # noqa: E402
 from scripts.asc.get_asc_client import get_asc_client  # noqa: E402
 
 
@@ -40,12 +40,14 @@ def set_app_review_details() -> None:
             (
                 str(v["id"])
                 for v in versions.json()["data"]
-                if v.get("attributes", {}).get("appStoreState") == EDITABLE_STATE
+                if v.get("attributes", {}).get("appStoreState") in EDITABLE_VERSION_STATES
             ),
             None,
         )
         if version_id is None:
-            sys.exit(f"no version in {EDITABLE_STATE}")
+            sys.exit(
+                f"no version in an editable state ({', '.join(sorted(EDITABLE_VERSION_STATES))})"
+            )
 
         existing = client.get(f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail")
         current = existing.json().get("data") if existing.status_code < 300 else None

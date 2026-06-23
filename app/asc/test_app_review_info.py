@@ -17,3 +17,10 @@ def test_review_contact_is_complete_and_well_formed() -> None:
 def test_notes_tell_the_reviewer_to_sign_in_with_apple() -> None:
     # Load-bearing: without this instruction the reviewer hits a login wall (SSO-only, no shared credentials) and rejects the build.
     assert "Sign in with Apple" in REVIEW_NOTES
+
+
+def test_notes_explain_how_to_reply_to_the_tutor() -> None:
+    # The 2.1 rejection was "describe the steps to reply to the practice partner": the reviewer couldn't tell it's a hands-free voice app with no reply button. The notes must answer that so a reviewer who won't explore still understands the interaction.
+    lowered = REVIEW_NOTES.lower()
+    assert "speaks out loud" in lowered or "speak out loud" in lowered
+    assert "no buttons" in lowered

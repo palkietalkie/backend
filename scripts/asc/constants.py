@@ -5,6 +5,11 @@ ASC_BASE = "https://api.appstoreconnect.apple.com"
 # Only the in-progress (not-yet-released) appInfo / appStoreVersion is editable; a live one rejects PATCH.
 EDITABLE_STATE = "PREPARE_FOR_SUBMISSION"
 
+# A version's review detail / metadata stays editable for (re)submission both before the first submit and after review kicks it back; a live (READY_FOR_SALE) version rejects PATCH. Used when updating a version we intend to resubmit, which may currently be REJECTED.
+EDITABLE_VERSION_STATES = frozenset(
+    {"PREPARE_FOR_SUBMISSION", "REJECTED", "METADATA_REJECTED", "DEVELOPER_REJECTED"}
+)
+
 # ASC numeric app id for the bundle id. Stable once Apple assigns it. (find_app_id resolves the same value from the bundle id over the network.)
 APP_ID = "6776366891"
 
