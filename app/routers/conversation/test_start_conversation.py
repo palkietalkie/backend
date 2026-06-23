@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.personas.presets.preset_list import PRESETS
+from app.routers.conversation import resolve_free_cap as resolve_mod
 from app.routers.conversation import start_conversation as start_mod
 from app.services.neo4j import fetch_entities_summary as entities_mod
 from app.services.neon.db_conn import DBConn
@@ -59,6 +60,28 @@ async def test_start_with_preset_persona_personaplex_path(
     assert body["ephemeral_token"] is None
     assert body["ws_url"].startswith("wss://")
     assert body["voice_id"]
+    # Fresh free user, no prior usage: the tighter daily window is what's left, so iOS counts down from it.
+    from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY
+
+    assert body["free_seconds_remaining"] == FREE_MINUTES_PER_DAY * 60
+    assert body["free_limit_kind"] == "daily"
+
+
+async def test_start_premium_user_has_unlimited_free_seconds(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    personaplex_provider: None,
+    db: DBConn,
+) -> None:
+    await _stub_externals(monkeypatch)
+    client, user = app_with_overrides
+    await db.execute("UPDATE users SET premium = TRUE WHERE id = $1", user["id"])
+    resp = await client.post("/conversation/start", json={"persona_id": str(PRESETS[0].id)})
+    assert resp.status_code == 200
+    # Premium = no cap, so iOS never starts a countdown.
+    body = resp.json()
+    assert body["free_seconds_remaining"] is None
+    assert body["free_limit_kind"] is None
 
 
 async def test_start_with_unknown_persona_returns_404(
@@ -159,6 +182,7 @@ async def test_start_openai_path_returns_ephemeral_token(
             ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
             ephemeral_token="ek_test_token",
             voice_id=voice_id,
+            model="gpt-realtime",
         )
 
     monkeypatch.setattr(start_mod, "mint_openai_session", _fake_mint)
@@ -180,6 +204,15 @@ async def test_start_openai_path_returns_ephemeral_token(
     assert body["provider"] == "openai"
     assert body["ephemeral_token"] == "ek_test_token"
     assert body["voice_id"] == "ash"
+
+    # The session records the realtime model so cost analysis survives a future per-tier model split.
+    from app.services.openai.constants import OPENAI_REALTIME_MODEL_PAID
+
+    row = await db.fetchrow(
+        "SELECT model FROM conversation_sessions WHERE id = $1", uuid.UUID(body["session_id"])
+    )
+    assert row is not None
+    assert row["model"] == OPENAI_REALTIME_MODEL_PAID
 
 
 async def test_start_openai_rejects_unknown_openai_voice(
@@ -258,6 +291,7 @@ async def test_start_topic_mode_swaps_in_valid_openai_voice(
             ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
             ephemeral_token="ek_test_token",
             voice_id=voice_id,
+            model="gpt-realtime",
         )
 
     monkeypatch.setattr(start_mod, "mint_openai_session", _fake_mint)
@@ -324,8 +358,8 @@ async def test_start_rejects_free_user_who_hit_daily_limit(
     async def _no_week_use(_user: UserRow, _db: DBConn) -> int:
         return 0
 
-    monkeypatch.setattr(start_mod, "sum_seconds_used_today", _hit_daily)
-    monkeypatch.setattr(start_mod, "sum_seconds_used_this_week", _no_week_use)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_today", _hit_daily)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_this_week", _no_week_use)
     client, _ = app_with_overrides
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
@@ -347,8 +381,8 @@ async def test_start_rejects_free_user_who_hit_weekly_limit(
     async def _hit_week(_user: UserRow, _db: DBConn) -> int:
         return 1800  # 30 minutes — equals the weekly cap
 
-    monkeypatch.setattr(start_mod, "sum_seconds_used_today", _no_day_use)
-    monkeypatch.setattr(start_mod, "sum_seconds_used_this_week", _hit_week)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_today", _no_day_use)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_this_week", _hit_week)
     client, _ = app_with_overrides
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
@@ -374,8 +408,8 @@ async def test_start_premium_user_bypasses_free_caps(
     async def _huge_use(_u: UserRow, _d: DBConn) -> int:
         return 99999
 
-    monkeypatch.setattr(start_mod, "sum_seconds_used_today", _huge_use)
-    monkeypatch.setattr(start_mod, "sum_seconds_used_this_week", _huge_use)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_today", _huge_use)
+    monkeypatch.setattr(resolve_mod, "sum_seconds_used_this_week", _huge_use)
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
     assert resp.status_code == 200

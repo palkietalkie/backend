@@ -93,6 +93,53 @@ async def test_end_conversation_rejects_foreign_session(
     assert resp.status_code == 404
 
 
+async def test_end_conversation_stores_reported_tokens(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    client, user = app_with_overrides
+    session_id = await _seed_session(db, user["id"])
+
+    resp = await client.post(
+        f"/conversation/{session_id}/end", json={"input_tokens": 12000, "output_tokens": 8000}
+    )
+    assert resp.status_code == 200
+    row = await db.fetchrow(
+        "SELECT input_tokens, output_tokens FROM conversation_sessions WHERE id = $1", session_id
+    )
+    assert row is not None
+    assert row["input_tokens"] == 12000
+    assert row["output_tokens"] == 8000
+
+
+async def test_end_conversation_without_tokens_leaves_them_null(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Backward compatibility: the build already in TestFlight POSTs an empty body. It must still end, with token columns left NULL (not a wrong 0).
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    client, user = app_with_overrides
+    session_id = await _seed_session(db, user["id"])
+
+    resp = await client.post(f"/conversation/{session_id}/end")
+    assert resp.status_code == 200
+    row = await db.fetchrow(
+        "SELECT input_tokens, output_tokens FROM conversation_sessions WHERE id = $1", session_id
+    )
+    assert row is not None
+    assert row["input_tokens"] is None
+    assert row["output_tokens"] is None
+
+
 async def test_end_conversation_clamps_negative_duration_to_zero(
     app_with_overrides: tuple[AsyncClient, UserRow],
     db: DBConn,

@@ -37,6 +37,8 @@ class OpenAISession:
     ws_url: str
     ephemeral_token: str
     voice_id: OpenAIVoiceId
+    # The realtime model this session runs on, stored per session so cost analysis survives a future tier split (e.g. free → mini, paid → full).
+    model: str
 
 
 async def mint_openai_session(
@@ -111,4 +113,5 @@ async def mint_openai_session(
         ws_url=ws_url,
         ephemeral_token=token,
         voice_id=voice_id,
+        model=realtime_model,
     )
