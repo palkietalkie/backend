@@ -28,6 +28,9 @@ class ConversationSessionRow(TypedDict):
     ended_at: datetime | None
     duration_seconds: int | None
     target_language: str | None
+    model: str | None
+    input_tokens: int | None
+    output_tokens: int | None
 
 
 class DailyContentRow(TypedDict):
