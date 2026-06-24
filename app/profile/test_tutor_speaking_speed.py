@@ -3,6 +3,7 @@
 from app.profile.tutor_speaking_speed import (
     ALL_TUTOR_SPEAKING_SPEEDS,
     TUTOR_SPEED_PLAYBACK_RATE,
+    TutorSpeakingSpeed,
     coerce_speaking_speed,
 )
 
@@ -32,7 +33,7 @@ def test_normal_is_natural_speed() -> None:
 
 
 def test_rates_strictly_increase_slow_to_fast() -> None:
-    order = ["very_slow", "slow", "normal", "fast", "very_fast"]
+    order: list[TutorSpeakingSpeed] = ["very_slow", "slow", "normal", "fast", "very_fast"]
     rates = [TUTOR_SPEED_PLAYBACK_RATE[s] for s in order]
     assert rates == sorted(rates)
     assert len(set(rates)) == len(rates)
