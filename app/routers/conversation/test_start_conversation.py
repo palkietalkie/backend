@@ -176,7 +176,11 @@ async def test_start_openai_path_returns_ephemeral_token(
     from app.services.openai.mint_openai_session import OpenAISession
 
     async def _fake_mint(
-        *, text_prompt: str, voice_id: OpenAIVoiceId, is_premium: bool = False
+        *,
+        text_prompt: str,
+        voice_id: OpenAIVoiceId,
+        is_premium: bool = False,
+        speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(
             ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
@@ -285,7 +289,11 @@ async def test_start_topic_mode_swaps_in_valid_openai_voice(
     from app.services.openai.mint_openai_session import OpenAISession
 
     async def _fake_mint(
-        *, text_prompt: str, voice_id: OpenAIVoiceId, is_premium: bool = False
+        *,
+        text_prompt: str,
+        voice_id: OpenAIVoiceId,
+        is_premium: bool = False,
+        speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(
             ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",

@@ -39,7 +39,6 @@ def assemble_prompt(
     native_languages = list(user["native_languages"])
     native_languages_phrase = " and ".join(native_languages) if native_languages else "unknown"
     proficiency = user["proficiency"]
-    speed = user["tutor_speaking_speed"]
 
     proficiency_hints = {
         "beginner": "They're a beginner. Use short sentences, basic everyday vocabulary, no idioms. Ease the pace on grammar that's structurally different from their native language (do this silently, never announce it).",
@@ -49,15 +48,7 @@ def assemble_prompt(
         "advanced": "They're advanced. Speak as you would to another native — full vocabulary, idioms, cultural references.",
     }
     proficiency_hint = proficiency_hints.get(proficiency, proficiency_hints["intermediate"])
-
-    speed_hints = {
-        "very_slow": "Speak very slowly. Long pauses between phrases, distinct pronunciation, the cadence you'd use with a young child or someone half-asleep.",
-        "slow": "Speak slowly and clearly with extra pauses, but still natural — think interviewer pace.",
-        "normal": "Speak at natural conversational pace.",
-        "fast": "Speak briskly — peer-to-peer fluent-speaker pace.",
-        "very_fast": "Speak fast, the way you would with another native — full speed, don't slow down for them.",
-    }
-    speed_hint = speed_hints.get(speed, speed_hints["normal"])
+    # tutor_speaking_speed is intentionally NOT in the prompt: tempo is a real audio control (OpenAI's audio.output.speed, set in mint_openai_session), and proficiency owns all the language/comprehension guidance. Two MECE axes — how-fast (audio) vs what-words (prompt) — with no overlap.
 
     # Pick one accent at random from the user's selection so users with multiple targets get cycled exposure across sessions. Empty list = no accent steering; the LLM picks whatever its default voice is.
     target_accents = list(user["target_accents"])
@@ -114,8 +105,8 @@ You are not a neutral interviewer. On whatever comes up, hold a real opinion and
 ## Take the shot when it's there
 When an opening shows up, take it: a rhyme, a clever turn of phrase, a line worth quoting, a quick joke. Only the ones that actually land. Never force wit onto a turn that doesn't have it. One line that hits beats ten that reach.
 
-## Pace and level
-{speed_hint} {proficiency_hint}{accent_clause}
+## Their level
+{proficiency_hint}{accent_clause}
 
 You are physically in the same moment as them — same city, same time, same weather.
 

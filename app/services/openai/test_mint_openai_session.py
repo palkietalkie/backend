@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 
+from app.profile.tutor_speaking_speed import TUTOR_SPEED_PLAYBACK_RATE
 from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
     OPENAI_REALTIME_MODEL_PAID,
@@ -105,6 +106,28 @@ async def test_session_records_realtime_model_matching_ws_url() -> None:
     )
     assert session.model == OPENAI_REALTIME_MODEL_PAID
     assert session.ws_url.endswith(f"model={session.model}")
+
+
+@pytest.mark.asyncio
+async def test_session_sets_output_speed_from_speaking_speed() -> None:
+    # A beginner's "very_slow" must reach the API as a real audio.output.speed (post-processing slowdown), not just a prompt hint the model can drift away from.
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    await mint_openai_session(
+        text_prompt="x",
+        voice_id=OpenAIVoiceId.ASH,
+        speaking_speed="very_slow",
+        http_client=fake,
+    )
+    _u, body, _h = fake.calls[0]
+    assert body["session"]["audio"]["output"]["speed"] == TUTOR_SPEED_PLAYBACK_RATE["very_slow"]
+
+
+@pytest.mark.asyncio
+async def test_session_default_speed_is_natural() -> None:
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    await mint_openai_session(text_prompt="x", voice_id=OpenAIVoiceId.ASH, http_client=fake)
+    _u, body, _h = fake.calls[0]
+    assert body["session"]["audio"]["output"]["speed"] == 1.0
 
 
 class _FakeClient:

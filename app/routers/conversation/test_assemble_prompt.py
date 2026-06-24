@@ -190,14 +190,25 @@ def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     assert "## What you remember about them" not in out
 
 
-def test_unknown_proficiency_and_speed_fall_back_to_full_canonical_hint() -> None:
-    # Bug guard: an unrecognized proficiency/speed must get the FULL "intermediate"/"normal" hint, not a stripped default string that drifts from the real entry.
+def test_unknown_proficiency_falls_back_to_full_canonical_hint() -> None:
+    # Bug guard: an unrecognized proficiency must get the FULL "intermediate" hint, not a stripped default that drifts from the real entry.
     user = _user()
     user["proficiency"] = "not-a-real-level"
-    user["tutor_speaking_speed"] = "not-a-real-speed"
     out = assemble_prompt(PERSONA, user, kg_entities=[], weather_label=None, today_events_titles=[])
     assert "mix everyday and slightly elevated vocabulary; use common idioms" in out
-    assert "Speak at natural conversational pace." in out
+
+
+def test_speaking_speed_never_injects_pacing_text() -> None:
+    # Speed is a hard audio control (audio.output.speed), MECE-separate from proficiency, so no per-level pacing phrase may leak into the prompt at any level — that would double-apply with the audio slowdown. (These exact phrases never collide with the proficiency hints, which legitimately mention "ease the pace on grammar".)
+    banned = ["Speak very slowly", "conversational pace", "fluent-speaker pace", "full speed"]
+    for speed in ("very_slow", "slow", "normal", "fast", "very_fast"):
+        user = _user()
+        user["tutor_speaking_speed"] = speed
+        out = assemble_prompt(
+            PERSONA, user, kg_entities=[], weather_label=None, today_events_titles=[]
+        )
+        for phrase in banned:
+            assert phrase not in out
 
 
 def test_prompt_carries_anti_sycophant_stance() -> None:

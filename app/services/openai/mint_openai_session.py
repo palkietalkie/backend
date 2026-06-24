@@ -11,6 +11,7 @@ from typing import Any, Protocol
 import httpx
 
 from app.config import get_settings
+from app.profile.tutor_speaking_speed import TUTOR_SPEED_PLAYBACK_RATE, TutorSpeakingSpeed
 from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
     OPENAI_REALTIME_MODEL_PAID,
@@ -46,6 +47,7 @@ async def mint_openai_session(
     voice_id: OpenAIVoiceId,
     *,
     is_premium: bool = False,
+    speaking_speed: TutorSpeakingSpeed = "normal",
     http_client: HTTPPoster | None = None,
 ) -> OpenAISession:
     settings = get_settings()
@@ -81,6 +83,8 @@ async def mint_openai_session(
                 "output": {
                     "format": {"type": "audio/pcm", "rate": 24000},
                     "voice": voice_id,
+                    # Real post-processing slowdown of the generated audio (0.25-1.5, 1.0 = natural), so a beginner who set "slow" actually hears slower speech instead of just a prompt the model ignores. The prompt hint in assemble_prompt shapes cadence on top of this.
+                    "speed": TUTOR_SPEED_PLAYBACK_RATE[speaking_speed],
                 },
             },
         },
