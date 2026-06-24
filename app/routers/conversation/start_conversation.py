@@ -12,6 +12,7 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.config import get_settings
 from app.personas.presets.find_preset_by_id import find_preset_by_id
 from app.personas.voices.list_voices_for_provider import list_voices_for_provider
+from app.profile.tutor_speaking_speed import coerce_speaking_speed
 from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
 from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
@@ -188,6 +189,7 @@ async def start_conversation(
             text_prompt=text_prompt,
             voice_id=openai_voice,
             is_premium=bool(user["premium"]),
+            speaking_speed=coerce_speaking_speed(user["tutor_speaking_speed"]),
         )
         return StartResponse(
             session_id=session_id,
