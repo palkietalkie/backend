@@ -29,6 +29,11 @@ async def test_list_practice_options_exposes_enums(
     body = resp.json()
     assert "beginner" in body["proficiency"]
     assert "normal" in body["tutor_speaking_speed"]
+    # Speed playback rates are served from the backend (SSoT) so the picker shows the concrete multiplier, which disambiguates "slow" vs "very slow" (vague as words). Every slug has a rate; normal is 1.0; rates increase slow→fast.
+    rates = body["tutor_speaking_speed_rates"]
+    assert set(rates) == set(body["tutor_speaking_speed"])
+    assert rates["normal"] == 1.0
+    assert rates["very_slow"] < rates["slow"] < rates["normal"] < rates["fast"] < rates["very_fast"]
     # Goal presets are served here too (SSoT) so iOS renders chips without hardcoding the list.
     assert "dating_relationships" in body["goals"]
     assert "studying_abroad" in body["goals"]
