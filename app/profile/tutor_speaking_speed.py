@@ -15,13 +15,14 @@ TutorSpeakingSpeed = Literal[
 
 ALL_TUTOR_SPEAKING_SPEEDS: frozenset[TutorSpeakingSpeed] = frozenset(get_args(TutorSpeakingSpeed))
 
-# Concrete playback-rate per level, fed to OpenAI Realtime's session.audio.output.speed (a real post-processing slowdown of the generated audio, NOT just the prompt hint). The prompt hint alone is unreliable: realtime models drift back to native pace within a few turns, so a beginner who set very_slow/slow still got firehosed. These give a guaranteed slowdown. OpenAI's accepted range is 0.25-1.5 (1.0 = natural); kept moderate so slowed speech stays natural, not underwater.
+# Concrete playback-rate per level, fed to OpenAI Realtime's session.audio.output.speed (a real post-processing slowdown of the generated audio, NOT just the prompt hint). The prompt hint alone is unreliable: realtime models drift back to native pace within a few turns, so a beginner who set very_slow/slow still got firehosed. These give a guaranteed slowdown. OpenAI's accepted range is 0.25-1.5 (1.0 = natural).
+# Kept GENTLE (extremes within ±0.20 of natural): audio.output.speed is a time-stretch, and past roughly that the speech starts to sound artificial / processed. Testers including a beginner (Ayumi, the very reason the slow end exists) flagged the stronger 0.7/1.3 ends as unnatural, so the extremes are pulled toward 1.0, trading some slowdown/speedup for audio that still sounds like a person.
 TUTOR_SPEED_PLAYBACK_RATE: dict[TutorSpeakingSpeed, float] = {
-    "very_slow": 0.7,
-    "slow": 0.85,
+    "very_slow": 0.8,
+    "slow": 0.9,
     "normal": 1.0,
-    "fast": 1.15,
-    "very_fast": 1.3,
+    "fast": 1.1,
+    "very_fast": 1.2,
 }
 
 # Maps any string (a raw DB value) back to a known level, defaulting to "normal". Lets callers narrow `users.tutor_speaking_speed` (typed as plain str) to the Literal without a cast, and keeps a stale/null value from crashing the speed lookup.
