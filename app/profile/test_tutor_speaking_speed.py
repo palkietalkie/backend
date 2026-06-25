@@ -39,10 +39,16 @@ def test_rates_strictly_increase_slow_to_fast() -> None:
     assert len(set(rates)) == len(rates)
 
 
-def test_beginner_levels_are_a_real_slowdown() -> None:
-    # The reason this exists (a beginner like Ayumi): very_slow/slow must be meaningfully below natural, not a token nudge.
-    assert TUTOR_SPEED_PLAYBACK_RATE["very_slow"] <= 0.75
+def test_beginner_levels_are_still_a_slowdown() -> None:
+    # very_slow/slow must stay below natural so a beginner (Ayumi) gets real help, not a token nudge.
+    assert TUTOR_SPEED_PLAYBACK_RATE["very_slow"] < 1.0
     assert TUTOR_SPEED_PLAYBACK_RATE["slow"] < 1.0
+
+
+def test_extremes_stay_gentle_to_avoid_processing_artifacts() -> None:
+    # audio.output.speed is a time-stretch; past ~±0.2 it sounds artificial (Ayumi + Wes flagged the stronger ends). Lock the extremes near natural so we don't regress to underwater/chipmunk audio.
+    for rate in TUTOR_SPEED_PLAYBACK_RATE.values():
+        assert abs(rate - 1.0) <= 0.2
 
 
 def test_coerce_passes_known_levels() -> None:
