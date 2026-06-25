@@ -42,14 +42,17 @@ if [ "$ROWS_PY_BEFORE" != "$ROWS_PY_AFTER" ]; then
     exit 1
 fi
 
-# Actually reformat (not just --check): a check-and-fail hook just makes the dev run the same command by hand. Rewrite in place, but DON'T stage — if anything changed, fail so the dev reviews and re-stages (auto-staging would silently fold unreviewed edits into the commit). Detect changes from ruff's own report (not `git diff`, which would also trip on unrelated unstaged edits).
-echo "pre-commit: ruff format"
-fmt_out="$("$RUFF" format app/ inference/ scripts/ migrations/ conftest.py)"
-echo "$fmt_out"
-if echo "$fmt_out" | grep -q "reformatted"; then
-    echo "pre-commit: ruff reformatted files above — review and 'git add' them, then re-commit" >&2
-    exit 1
-fi
+# Reformat in place, then auto-restage ruff's changes — but ONLY for files that were already staged and were otherwise clean. A file with pre-existing unstaged edits is left alone (re-adding it would silently fold unreviewed work into the commit), and unstaged files are never introduced. This reduces the manual re-stage burden a check-and-fail hook imposes without the auto-staging footgun.
+echo "pre-commit: ruff format (auto-restage formatter changes to cleanly-staged files)"
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+DIRTY_BEFORE=$(git diff --name-only)
+"$RUFF" format app/ inference/ scripts/ migrations/ conftest.py
+git diff --name-only | while read -r f; do
+    [ -z "$f" ] && continue
+    echo "$STAGED" | grep -qx "$f" || continue        # only files that were staged
+    echo "$DIRTY_BEFORE" | grep -qx "$f" && continue  # skip files that already had unstaged edits
+    git add "$f" && echo "pre-commit: re-staged formatter changes in $f"
+done
 
 echo "pre-commit: ruff check"
 "$RUFF" check app/ inference/ scripts/ migrations/ conftest.py

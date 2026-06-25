@@ -45,7 +45,7 @@ async def record_event(
 
     # Slack only the small set of human-meaningful events from production. Telemetry like `pitch_range` and `cold_start_complete` belongs in a metrics dashboard, not a channel — Slacking them creates pure noise at low user counts. And dev events share the same Slack creds, so unfiltered we'd spam the GTM channel with every connected-device session.
     settings = get_settings()
-    if settings.app_env == "production" and body.event_type in _SLACK_WORTHY_EVENT_TYPES:
+    if settings.app_env == "production" and is_slack_worthy(body.event_type):
         text = (
             f":iphone: *{body.event_type}* — {format_user_label(user)} {format_event_props(body.props)}"
         ).rstrip()
@@ -62,5 +62,12 @@ _SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
         "feedback_submitted",
         # A realtime session failed (WS error / abnormal disconnect). The events row in Neon is the durable record, but the audio WS is iOS↔provider direct so this is our only live signal a tester's conversation broke — Slack it so a human sees it now, not in a dashboard later. props carry provider + reason.
         "session_error",
+        # In-app "rate your experience" result (props: rating 1-5 + optional comment). Early qualitative signal worth a human seeing immediately, separate from any public App Store review (which Apple keeps private from us).
+        "experience_rating",
     }
 )
+
+
+def is_slack_worthy(event_type: str) -> bool:
+    """Whether an incoming event should be posted to Slack in real time (vs. only landing in the events table for dashboards)."""
+    return event_type in _SLACK_WORTHY_EVENT_TYPES
