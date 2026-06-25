@@ -222,8 +222,8 @@ def test_unknown_proficiency_falls_back_to_full_canonical_hint() -> None:
 
 
 def test_speaking_speed_never_injects_pacing_text() -> None:
-    # Speed is a hard audio control (audio.output.speed), MECE-separate from proficiency, so no per-level pacing phrase may leak into the prompt at any level — that would double-apply with the audio slowdown. (These exact phrases never collide with the proficiency hints, which legitimately mention "ease the pace on grammar".)
-    banned = ["Speak very slowly", "conversational pace", "fluent-speaker pace", "full speed"]
+    # Speed lives entirely in audio.output.speed (post-processing), never the prompt: a prompt pace lever was tested against the real API and has no effect (the model ignores pace instructions, see test_sandbox_openai_speed.py), so no per-level pacing phrase, especially a words-per-minute target, may leak into the prompt at any level.
+    banned = ["words per minute", "wpm", "Speak slowly", "Speak quickly", "conversational pace"]
     for speed in ("very_slow", "slow", "normal", "fast", "very_fast"):
         user = _user()
         user["tutor_speaking_speed"] = speed
