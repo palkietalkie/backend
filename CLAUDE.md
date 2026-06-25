@@ -51,6 +51,7 @@ Conventions, not a file tree (filesystem is the source of truth). What lives whe
 - Backend prd → Fly `palkietalkie-api`. Auto-deploys on push to `main` via `.github/workflows/deploy-api.yml` (`FLY_API_TOKEN` GH secret).
 - Backend dev → Fly `palkietalkie-api-dev`. Manual deploy (`flyctl deploy -a palkietalkie-api-dev` or via `boot.sh`).
 - Inference `voice` (both Modal envs) → manual `modal deploy inference/voice_server.py` or via `.github/workflows/deploy-inference.yml` (`MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` GH secrets, triggers on changes under `inference/`).
+- Log shipper → Fly `palkietalkie-logs`, a SEPARATE app (prebuilt `superfly/fly-log-shipper` image, no Dockerfile, config in `fly.logshipper.toml`) that forwards the org's NATS log stream (prd + dev) to Better Stack for real retention, vs flyctl's live-only ~100-line tail. Manual deploy: `flyctl deploy -c backend/fly.logshipper.toml -a palkietalkie-logs`. Secrets `ACCESS_TOKEN` (a `fly tokens create readonly`) + `BETTER_STACK_SOURCE_TOKEN` via `fly secrets`; non-secret `ORG` + `BETTER_STACK_INGESTING_HOST` live in the toml. Better Stack source "palkietalkie-prd" under `admin@palkietalkie.com`.
 - CI: `.github/workflows/pytest.yml` runs ruff + pyright + pytest with coverage on every PR + push to main.
 
 ## LGTM Workflow

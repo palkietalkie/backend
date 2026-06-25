@@ -179,6 +179,29 @@ def test_assemble_prompt_correction_examples_are_topic_neutral() -> None:
     assert "backhand" not in out
 
 
+def test_corrections_are_explicit_and_continue_not_silent_echo() -> None:
+    # Wes-reported failure: the old "slip the natural version in and stress a word" approach read as the AI just repeating the user back, so the learner couldn't tell what was wrong.
+    # The fix must make the correction LEGIBLE (point it out, contrast it) AND keep the conversation moving, and the old silent-echo instruction must be gone.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label=None, today_events_titles=[]
+    )
+    assert "LEGIBLE" in out
+    assert "make the contrast land" in out
+    assert "keep the conversation moving" in out
+    assert "Just slip the natural version into how you reply" not in out
+
+
+def test_natural_phrasing_upgrade_is_independent_of_correctness() -> None:
+    # Non-native users want more than error-correction: even grammatically-correct-but-unnatural phrasing should be upgraded to how a native would actually say it.
+    # The rephrase trigger is naturalness, NOT whether the sentence was wrong, and the old correctness-gated suppression ("already correct, do NOT point at anything") must be gone.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label=None, today_events_titles=[]
+    )
+    assert "INDEPENDENT of correctness" in out
+    assert "sound native" in out
+    assert "already correct, do NOT point at anything" not in out
+
+
 def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     out = assemble_prompt(
         PERSONA,

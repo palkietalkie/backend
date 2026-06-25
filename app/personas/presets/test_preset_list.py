@@ -36,3 +36,19 @@ def test_preset_descriptions_have_no_em_or_en_dashes() -> None:
     # No em/en dashes in user-facing copy (the board-member description was de-dashed).
     for p in PRESETS:
         assert "—" not in p.description and "–" not in p.description, p.name
+
+
+def test_journaling_companion_present() -> None:
+    # The journaling-companion persona (the wedge for low-pressure speaking practice) must ship with its sounding-board role.
+    matches = [p for p in PRESETS if p.name == "Journaling companion"]
+    assert len(matches) == 1
+    assert "sounding board" in matches[0].role.lower()
+    assert matches[0].description.strip()
+
+
+def test_no_raw_warmth_in_prompt_fed_persona_fields() -> None:
+    # De-warming: a bare "warm" instruction in a prompt-fed field tilts the persona sycophantic (against the product vision).
+    # Warmth is only allowed paired with a sharpening counterweight (e.g. "kind but no fluff"), never standalone.
+    for p in PRESETS:
+        for field in (p.role, p.conversational_style, p.vocabulary_register):
+            assert "warm" not in field.lower(), f"{p.name!r} has raw warmth in a prompt-fed field"
