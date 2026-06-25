@@ -48,7 +48,7 @@ def assemble_prompt(
         "advanced": "They're advanced. Speak as you would to another native — full vocabulary, idioms, cultural references.",
     }
     proficiency_hint = proficiency_hints.get(proficiency, proficiency_hints["intermediate"])
-    # tutor_speaking_speed is intentionally NOT in the prompt. We tested a prompt pace lever (a target words-per-minute hint) against the real API and it does nothing, the realtime model ignores pace instructions and reverts to ~210 wpm regardless (see app/services/openai/test_sandbox_openai_speed.py). Tempo is carried entirely by the audio.output.speed post-processing knob set in mint_openai_session; proficiency owns the language/comprehension guidance.
+    # tutor_speaking_speed is intentionally NOT in the prompt. We tested a prompt pace lever (a target words-per-minute hint) against the real API and it does nothing, the realtime model ignores pace instructions and reverts to ~210 wpm regardless (see app/services/openai/test_manual_openai_speed.py). Tempo is carried entirely by the audio.output.speed post-processing knob set in mint_openai_session; proficiency owns the language/comprehension guidance.
 
     # Pick one accent at random from the user's selection so users with multiple targets get cycled exposure across sessions. Empty list = no accent steering; the LLM picks whatever its default voice is.
     target_accents = list(user["target_accents"])

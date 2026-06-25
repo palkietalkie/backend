@@ -1,9 +1,9 @@
 """Live integration test + recorded experiment: the tutor speaking-speed control.
 
-Skipped by default (the `sandbox` marker); run manually with real OpenAI creds:
+Unconditionally skipped. To run, comment out the `pytest.mark.skip` in `pytestmark` below, then with real OpenAI creds:
 
     set -a; source .env; set +a
-    uv run pytest -m sandbox app/services/openai/test_sandbox_openai_speed.py -s
+    uv run pytest app/services/openai/test_manual_openai_speed.py -s
 
 It opens a real OpenAI Realtime WebSocket exactly like iOS does (Bearer ephemeral token from `mint_openai_session`), forces the persona to read a fixed passage, and measures OUTPUT AUDIO DURATION (PCM16 @ 24kHz → seconds). Words-per-minute = transcript words / minutes, robust even if the model paraphrases. `-s` prints the WPM per level so a human can eyeball the real pace.
 
@@ -27,7 +27,11 @@ from app.services.neon.rows import UserRow
 from app.services.openai.constants import OpenAIVoiceId
 from app.services.openai.mint_openai_session import mint_openai_session
 
-pytestmark = [pytest.mark.sandbox, pytest.mark.asyncio]
+# Manual only: a real OpenAI Realtime call costs money and is too slow/flaky for any automated run, so it's unconditionally skipped (CI, pre-push, everywhere). To run it, comment out the skip below.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skip(reason="manual only: real OpenAI Realtime call; comment out this skip to run"),
+]
 
 _SAMPLE_RATE = 24000  # PCM16 mono, per mint_openai_session's audio.output.format
 _PASSAGE = (

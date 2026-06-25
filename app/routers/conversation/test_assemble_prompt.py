@@ -222,7 +222,7 @@ def test_unknown_proficiency_falls_back_to_full_canonical_hint() -> None:
 
 
 def test_speaking_speed_never_injects_pacing_text() -> None:
-    # Speed lives entirely in audio.output.speed (post-processing), never the prompt: a prompt pace lever was tested against the real API and has no effect (the model ignores pace instructions, see test_sandbox_openai_speed.py), so no per-level pacing phrase, especially a words-per-minute target, may leak into the prompt at any level.
+    # Speed lives entirely in audio.output.speed (post-processing), never the prompt: a prompt pace lever was tested against the real API and has no effect (the model ignores pace instructions, see test_manual_openai_speed.py), so no per-level pacing phrase, especially a words-per-minute target, may leak into the prompt at any level.
     banned = ["words per minute", "wpm", "Speak slowly", "Speak quickly", "conversational pace"]
     for speed in ("very_slow", "slow", "normal", "fast", "very_fast"):
         user = _user()
