@@ -1,0 +1,22 @@
+# Third Fly config in this dir, and it has to be: fly.toml (palkietalkie-api) and fly.dev.toml
+# (palkietalkie-api-dev) both BUILD the backend from Dockerfile. This is a SEPARATE app
+# (palkietalkie-logs) running a PREBUILT upstream image (superfly/fly-log-shipper, Vector inside)
+# with no Dockerfile and no http_service, so it can't reuse either backend toml.
+#
+# What it does: reads the org's NATS log stream (every app, incl. palkietalkie-api prd) and forwards
+# to Better Stack for real retention, replacing flyctl's live-only ~100-line tail. We own only config.
+# Secrets (NOT here): ACCESS_TOKEN (fly read token), BETTER_STACK_SOURCE_TOKEN. Set via `fly secrets`.
+app = "palkietalkie-logs"
+primary_region = "sjc"
+
+[build]
+  image = "ghcr.io/superfly/fly-log-shipper:latest"
+
+# Non-secret config (the host is a public ingest endpoint, the org slug is not sensitive).
+[env]
+  ORG = "personal"
+  BETTER_STACK_INGESTING_HOST = "s2543274.eu-fsn-3.betterstackdata.com"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
