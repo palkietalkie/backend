@@ -55,6 +55,14 @@ class EventRow(TypedDict):
     props: dict[str, Any]
 
 
+class ExperienceRatingRow(TypedDict):
+    id: int
+    user_id: uuid.UUID
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+
 class MistakeRow(TypedDict):
     id: uuid.UUID
     user_id: uuid.UUID
