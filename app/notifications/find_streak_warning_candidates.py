@@ -2,22 +2,25 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from app.notifications.notification_kinds import DAILY_REMINDER
+from app.notifications.notification_kinds import STREAK_WARNING
 from app.services.neon.db_conn import DBConn
+
+# Late-evening "last chance before midnight breaks the streak". A code constant (no per-user UI yet), distinct from the daily reminder hour so a streak-holder can get both nudges on the same day.
+STREAK_WARNING_HOUR_LOCAL = 21
 
 
 @dataclass(frozen=True)
-class ReminderCandidate:
+class StreakWarningCandidate:
     user_id: uuid.UUID
     tokens: list[str]
     local_today: date
     last_practice_local_date: date | None
 
 
-async def find_reminder_candidates(db: DBConn, now: datetime) -> list[ReminderCandidate]:
-    """Users whose local clock at `now` is at their reminder hour, who want reminders, have a device token, and haven't been reminded yet today.
+async def find_streak_warning_candidates(db: DBConn, now: datetime) -> list[StreakWarningCandidate]:
+    """Users whose local clock at `now` is the streak-warning hour, who want reminders, have a token, and haven't had an streak-warning push yet today (its own dedup, separate from the daily reminder's).
 
-    `now` is passed in (not SQL `now()`) so the scheduler controls the tick time and tests are deterministic. This only narrows the set cheaply; the actual send decision (streak / practiced-today / comeback) is per-candidate in the job. Timezone, enable flag, and reminder hour all fall back to defaults so a user with no notification_prefs row is still considered. "Not reminded today" is a NOT EXISTS against notification_log (per_kind_key = the user's local date)."""
+    Whether they have a LIVE streak and actually skipped today is decided per-candidate in the job (streak is derived via compute_day_streak, not in SQL). Mirrors find_reminder_candidates with the streak-warning hour; its own-day dedup is a NOT EXISTS against notification_log under the streak_warning kind, separate from the daily reminder's, so a streak-holder can get both nudges on the same day."""
     rows = await db.fetch(
         """SELECT u.id AS user_id,
                   array_agg(DISTINCT d.apns_token) AS tokens,
@@ -30,18 +33,18 @@ async def find_reminder_candidates(db: DBConn, now: datetime) -> list[ReminderCa
              LEFT JOIN notification_prefs p ON p.user_id = u.id
             WHERE u.deleted_at IS NULL
               AND COALESCE(p.reminders_enabled, TRUE)
-              AND EXTRACT(HOUR FROM ($1 AT TIME ZONE COALESCE(u.timezone, 'UTC')))
-                  = COALESCE(p.reminder_hour_local, 19)
+              AND EXTRACT(HOUR FROM ($1 AT TIME ZONE COALESCE(u.timezone, 'UTC'))) = $2
               AND NOT EXISTS (
                     SELECT 1 FROM notification_log nl
-                     WHERE nl.user_id = u.id AND nl.kind = $2
+                     WHERE nl.user_id = u.id AND nl.kind = $3
                        AND nl.per_kind_key = ($1 AT TIME ZONE COALESCE(u.timezone, 'UTC'))::date::text)
             GROUP BY u.id, u.timezone""",
         now,
-        DAILY_REMINDER,
+        STREAK_WARNING_HOUR_LOCAL,
+        STREAK_WARNING,
     )
     return [
-        ReminderCandidate(
+        StreakWarningCandidate(
             user_id=row["user_id"],
             tokens=list(row["tokens"]),
             local_today=row["local_today"],

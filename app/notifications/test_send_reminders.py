@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.notifications import send_reminders as mod
+from app.notifications.notification_kinds import DAILY_REMINDER
 from app.notifications.send_reminders import send_reminders
 from app.services.apple_push.localized_alert import LocalizedAlert
 from app.services.apple_push.push_result import PushResult
@@ -58,7 +59,9 @@ async def test_pushes_due_user_who_has_not_practiced_today_and_stamps(
     assert len(sent) == 1
     # Stamped so the next hourly tick won't push them again today.
     stamped = await db.fetchval(
-        "SELECT last_reminded_on FROM notification_prefs WHERE user_id = $1", fake_user["id"]
+        "SELECT per_kind_key FROM notification_log WHERE user_id = $1 AND kind = $2",
+        fake_user["id"],
+        DAILY_REMINDER,
     )
     assert stamped is not None
 

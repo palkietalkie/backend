@@ -1,9 +1,10 @@
-import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from app.notifications.build_reminder_push import build_reminder_alert
 from app.notifications.choose_reminder import choose_reminder
 from app.notifications.find_reminder_candidates import find_reminder_candidates
+from app.notifications.notification_kinds import DAILY_REMINDER
+from app.notifications.record_notification import record_notification
 from app.services.apple_push.send_push import send_push
 from app.services.neon.db_conn import DBConn
 from app.services.stats.compute_day_streak import compute_day_streak
@@ -28,17 +29,8 @@ async def send_reminders(db: DBConn, now: datetime) -> int:
         alert = build_reminder_alert(kind, streak)
         for token in candidate.tokens:
             await send_push(token, alert)
-        await _stamp_reminded(db, candidate.user_id, candidate.local_today)
+        await record_notification(
+            db, candidate.user_id, DAILY_REMINDER, candidate.local_today.isoformat()
+        )
         sent += 1
     return sent
-
-
-async def _stamp_reminded(db: DBConn, user_id: uuid.UUID, local_today: date) -> None:
-    # Upsert: the dedup stamp lives on the (possibly not-yet-existing) prefs row, so the hourly scheduler won't push this user again until their next local day.
-    await db.execute(
-        """INSERT INTO notification_prefs (user_id, last_reminded_on)
-           VALUES ($1, $2)
-           ON CONFLICT (user_id) DO UPDATE SET last_reminded_on = $2, updated_at = NOW()""",
-        user_id,
-        local_today,
-    )

@@ -34,6 +34,7 @@ async def test_end_conversation_writes_duration_and_emits_event(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, user = app_with_overrides
     started = datetime.now(UTC) - timedelta(seconds=120)
     session_id = await _seed_session(db, user["id"], started)
@@ -67,6 +68,7 @@ async def test_end_conversation_returns_404_for_unknown_session(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, _ = app_with_overrides
     resp = await client.post(f"/conversation/{uuid.uuid4()}/end")
     assert resp.status_code == 404
@@ -81,6 +83,7 @@ async def test_end_conversation_rejects_foreign_session(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, _ = app_with_overrides
     other_id = uuid.uuid4()
     await db.execute(
@@ -102,6 +105,7 @@ async def test_end_conversation_stores_reported_tokens(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, user = app_with_overrides
     session_id = await _seed_session(db, user["id"])
 
@@ -127,6 +131,7 @@ async def test_end_conversation_without_tokens_leaves_them_null(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, user = app_with_overrides
     session_id = await _seed_session(db, user["id"])
 
@@ -149,6 +154,7 @@ async def test_end_conversation_clamps_negative_duration_to_zero(
         return None
 
     monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
     client, user = app_with_overrides
     # started_at in the future would yield a negative duration; route clamps to 0.
     started = datetime.now(UTC) + timedelta(seconds=60)
@@ -157,3 +163,27 @@ async def test_end_conversation_clamps_negative_duration_to_zero(
     resp = await client.post(f"/conversation/{session_id}/end")
     assert resp.status_code == 200
     assert resp.json()["duration_seconds"] == 0
+
+
+async def test_end_conversation_schedules_milestone_check(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Session-end must kick off the streak-milestone celebration (#3) for this user, off the request path.
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    called: list[uuid.UUID] = []
+
+    async def _milestone(user_id: uuid.UUID) -> None:
+        called.append(user_id)
+
+    monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _milestone)
+    client, user = app_with_overrides
+    session_id = await _seed_session(db, user["id"])
+
+    resp = await client.post(f"/conversation/{session_id}/end")
+    assert resp.status_code == 200
+    assert called == [user["id"]]

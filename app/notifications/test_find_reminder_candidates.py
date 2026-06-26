@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from app.notifications.find_reminder_candidates import find_reminder_candidates
+from app.notifications.notification_kinds import DAILY_REMINDER
 from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import UserRow
 
@@ -47,9 +48,10 @@ async def test_reminders_disabled_excludes_the_user(db: DBConn, fake_user: UserR
 async def test_already_reminded_today_excludes_the_user(db: DBConn, fake_user: UserRow) -> None:
     await _add_token(db, fake_user["id"])
     await db.execute(
-        """INSERT INTO notification_prefs (user_id, last_reminded_on)
-           VALUES ($1, ($2 AT TIME ZONE 'Asia/Tokyo')::date)""",
+        """INSERT INTO notification_log (user_id, kind, per_kind_key)
+           VALUES ($1, $2, ($3 AT TIME ZONE 'Asia/Tokyo')::date::text)""",
         fake_user["id"],
+        DAILY_REMINDER,
         _DUE,
     )
     assert await find_reminder_candidates(db, _DUE) == []

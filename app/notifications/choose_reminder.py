@@ -5,7 +5,7 @@ COMEBACK_AFTER_DAYS = 2
 
 
 class ReminderKind(Enum):
-    # Streak alive: "keep your N-day streak going, practice today". Doubles as the streak-at-risk nudge.
+    # Streak alive: "keep your N-day streak going, practice today". Doubles as the streak-warning nudge.
     KEEP_STREAK = "keep_streak"
     # Lapsed for a couple days: "we miss you".
     COMEBACK = "comeback"
