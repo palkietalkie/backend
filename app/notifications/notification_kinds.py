@@ -8,3 +8,4 @@ STREAK_WARNING = (
 )
 MILESTONE = "milestone"  # per_kind_key = the streak length reached as text, e.g. '30'; one celebration per milestone
 WEEKLY_RECAP = "weekly_recap"  # per_kind_key = the local ISO week 'IYYY-Www', e.g. '2026-W25'; one recap per week
+DAILY_CONTENT = "daily_content"  # per_kind_key = user's local date 'YYYY-MM-DD'; one "fresh topics" nudge per local day

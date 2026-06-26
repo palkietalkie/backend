@@ -4,7 +4,7 @@ _TITLE = "notif_weekly_recap_title"
 
 
 def build_weekly_recap_alert(sessions: int, minutes: int, streak: int) -> LocalizedAlert:
-    """The weekly recap push (#6): "N sessions, M min this week" + a streak call-to-action.
+    """The weekly recap push: "N sessions, M min this week" + a streak call-to-action.
 
     Every count is a numeral arg (so "1 session" stays consistent with "1 min", never a spelled-out "One"). The _one vs _other key only swaps the singular/plural NOUN, which is the one thing on-device plural rules can't do for string loc-args. Minutes uses the invariant "min" abbreviation and the streak clause is phrased plural-safely per locale, so neither needs its own form.
 

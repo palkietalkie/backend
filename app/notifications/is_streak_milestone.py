@@ -8,7 +8,7 @@ _ROUND_MILESTONE = 500
 
 
 def is_streak_milestone(streak: int) -> bool:
-    """Whether this streak length is a celebration milestone (#3)."""
+    """Whether this streak length is a celebration milestone."""
     if streak in _EARLY_MILESTONES:
         return True
     if streak >= _DAYS_PER_YEAR and streak % _DAYS_PER_YEAR == 0:
