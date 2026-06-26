@@ -27,10 +27,12 @@ from app.services.neon.rows import UserRow
 from app.services.openai.constants import OpenAIVoiceId
 from app.services.openai.mint_openai_session import mint_openai_session
 
-# Manual only: a real OpenAI Realtime call costs money and is too slow/flaky for any automated run, so it's unconditionally skipped (CI, pre-push, everywhere). To run it, comment out the skip below.
+# Unconditionally skipped because each run makes real, PAID OpenAI Realtime calls (and is slow/flaky), which has no place in CI or pre-push. To run it manually, comment out the skip below.
 pytestmark = [
     pytest.mark.asyncio,
-    pytest.mark.skip(reason="manual only: real OpenAI Realtime call; comment out this skip to run"),
+    pytest.mark.skip(
+        reason="costs real OpenAI money per run; comment out this skip to run manually"
+    ),
 ]
 
 _SAMPLE_RATE = 24000  # PCM16 mono, per mint_openai_session's audio.output.format
