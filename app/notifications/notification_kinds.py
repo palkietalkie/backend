@@ -7,3 +7,4 @@ STREAK_WARNING = (
     "streak_warning"  # per_kind_key = user's local date 'YYYY-MM-DD'; one warning per local day
 )
 MILESTONE = "milestone"  # per_kind_key = the streak length reached as text, e.g. '30'; one celebration per milestone
+WEEKLY_RECAP = "weekly_recap"  # per_kind_key = the local ISO week 'IYYY-Www', e.g. '2026-W25'; one recap per week
