@@ -42,7 +42,8 @@ def build_event_dict(etype: str, **data: Any) -> dict[str, Any]:
 
 def build_stripe_event(etype: str, **data: Any) -> stripe.Event:
     """Typed `stripe.Event` matching what `verify_event` returns, for dispatch_event tests."""
-    return stripe.Event.construct_from(build_event_dict(etype, **data), key="sk_test")  # pyright: ignore[reportUnknownMemberType]
+    # type-escape: stripe — Event.construct_from is untyped in the SDK stubs, no typed constructor exists.
+    return stripe.Event.construct_from(build_event_dict(etype, **data), key="sk_test")
 
 
 def test_verify_event_happy_path() -> None:
@@ -188,9 +189,22 @@ async def test_dispatch_no_clerk_user_id(db: DBConn) -> None:
 
 async def test_dispatch_unhandled_event_type(db: DBConn, stripe_user: dict[str, Any]) -> None:
     event = build_stripe_event(
-        "invoice.payment_failed",
+        "invoice.created",
         id="inv_1",
         metadata={"clerk_user_id": stripe_user["clerk_user_id"]},
     )
     out = await dispatch_event(db, event)
     assert out.startswith("ignored ")
+
+
+async def test_dispatch_payment_failed_triggers_notify(
+    db: DBConn, stripe_user: dict[str, Any]
+) -> None:
+    # invoice.payment_failed is only the trigger for the "update your payment method" push (no state change; Stripe sets past_due via subscription.updated). With no device token, notify is a no-op, so this exercises the dispatch branch without a real APNs call.
+    event = build_stripe_event(
+        "invoice.payment_failed",
+        id="inv_1",
+        metadata={"clerk_user_id": stripe_user["clerk_user_id"]},
+    )
+    out = await dispatch_event(db, event)
+    assert out == "notified payment_failed"
