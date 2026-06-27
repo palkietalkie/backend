@@ -11,6 +11,13 @@ from app.services.neon.db_conn import DBConn
 from app.services.neon.rows import UserRow
 
 
+def test_end_conversation_holds_the_real_run_milestone_check() -> None:
+    # Session-end schedules the streak-milestone celebration; lock that it imports the real run_milestone_check from its home in app.notifications.milestone, so a wrong or broken import can't silently no-op the celebration.
+    from app.notifications.milestone.celebrate_streak_milestone import run_milestone_check
+
+    assert end_conversation_mod.run_milestone_check is run_milestone_check
+
+
 async def _seed_session(
     db: DBConn, user_id: uuid.UUID, started_at: datetime | None = None
 ) -> uuid.UUID:

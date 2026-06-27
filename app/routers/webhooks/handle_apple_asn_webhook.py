@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.config import get_settings
-from app.notifications.notify_subscription_change import notify_subscription_change
-from app.notifications.transition_for_apple_notification import transition_for_apple_notification
+from app.notifications.subscription.notify_subscription_change import notify_subscription_change
+from app.notifications.subscription.transition_for_apple_notification import (
+    transition_for_apple_notification,
+)
 from app.services.apple_asn.apply_decision import apply_decision
 from app.services.apple_asn.decide_state import decide_state
 from app.services.apple_asn.exceptions import (

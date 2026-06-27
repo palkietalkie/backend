@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.auth.resolve_current_user import resolve_current_user
-from app.notifications.celebrate_streak_milestone import run_milestone_check
+from app.notifications.milestone.celebrate_streak_milestone import run_milestone_check
 from app.routers.conversation.constants import INSERT_EVENT_SQL, SESSION_BY_USER_SQL
 from app.routers.conversation.run_post_session_pipelines import run_post_session_pipelines
 from app.services.neon.db_conn import DBConn

@@ -21,6 +21,18 @@ from app.services.stripe_webhooks.verify_event import verify_event
 WEBHOOK_SECRET = "whsec_test_secret"
 
 
+def test_dispatch_event_holds_the_real_subscription_helpers() -> None:
+    # Stripe dispatch fires the subscription-lifecycle push; lock that it imports the real helpers from app.notifications.subscription, so a wrong or broken import can't silently drop the notification.
+    from app.notifications.subscription.notify_subscription_change import notify_subscription_change
+    from app.notifications.subscription.transition_for_stripe_event import (
+        transition_for_stripe_event,
+    )
+    from app.services.stripe_webhooks import dispatch_event as dispatch_mod
+
+    assert dispatch_mod.notify_subscription_change is notify_subscription_change
+    assert dispatch_mod.transition_for_stripe_event is transition_for_stripe_event
+
+
 def _stripe_sig(payload: bytes, secret: str, ts: int | None = None) -> tuple[str, int]:
     ts = ts if ts is not None else int(time.time())
     signed = f"{ts}.".encode() + payload

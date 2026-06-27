@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
-from app.notifications.subscription_transition import SubscriptionTransition
+from app.notifications.subscription.subscription_transition import SubscriptionTransition
 from app.routers.webhooks import handle_apple_asn_webhook as mod
 from app.services.apple_asn._fakes import FakeVerifier, build_notification_dict
 from app.services.apple_asn.exceptions import (
