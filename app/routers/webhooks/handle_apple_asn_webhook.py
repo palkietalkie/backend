@@ -16,7 +16,9 @@ from app.services.apple_asn.get_verifier import get_verifier
 from app.services.apple_asn.parse_expires import parse_expires
 from app.services.apple_asn.verify_and_decode import verify_and_decode
 from app.services.neon.db_conn import DBConn
+from app.services.neon.find_user_by_clerk_id import find_user_by_clerk_id
 from app.services.neon.get_neon_connection import get_neon_connection
+from app.services.slack.format_user_label import format_user_label
 from app.services.slack.post_message import post_message
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -60,9 +62,11 @@ async def handle_apple_asn_webhook(
         expires_at=expires_at,
         auto_renew=auto_renew if isinstance(auto_renew, int) else None,
     )
+    user = await find_user_by_clerk_id(db, str(clerk_user_id))
+    label = format_user_label(user) if user is not None else str(clerk_user_id)
     await post_message(
         get_settings().slack_channel_gtm,
-        f":apple: *apple_asn.{raw_type.lower()}* — user `{clerk_user_id}` decision=`{decision}`",
+        f":apple: *apple_asn.{raw_type.lower()}* — {label} decision=`{decision}`",
     )
     # Push the lifecycle notification AFTER the entitlement write, so a delivery hiccup can't fail the webhook (Apple would retry and re-apply).
     transition = transition_for_apple_notification(raw_type)
