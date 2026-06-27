@@ -15,7 +15,7 @@ from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
 from app.services.slack.format_event_props import format_event_props
 from app.services.slack.format_user_label import format_user_label
-from app.services.slack.post_message import post_message
+from app.services.slack.post_session_threaded import post_session_threaded
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -49,7 +49,10 @@ async def record_event(
         text = (
             f":iphone: *{body.event_type}* — {format_user_label(user)} {format_event_props(body.props)}"
         ).rstrip()
-        await post_message(settings.slack_channel_gtm, text)
+        # Keep one conversation's events (tool calls, session errors) in a single Slack thread. Events without a session (signup, subscription) carry no sessionId and post standalone.
+        raw_session = body.props.get("sessionId")
+        session_id = raw_session if isinstance(raw_session, str) else None
+        await post_session_threaded(settings.slack_channel_gtm, text, session_id)
 
 
 # Curated list of events that ARE useful to see in Slack in real time. Telemetry (pitch_range, cold_start_complete, transcripts) explicitly excluded — those go to the events table for dashboards instead. Add an event here only when a human watching #gtm-prd would react to it.
@@ -62,6 +65,8 @@ _SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
         "feedback_submitted",
         # A realtime session failed (WS error / abnormal disconnect). The events row in Neon is the durable record, but the audio WS is iOS↔provider direct so this is our only live signal a tester's conversation broke — Slack it so a human sees it now, not in a dashboard later. props carry provider + reason.
         "session_error",
+        # The model called a realtime function tool (recall_*, web_fetch, end_conversation). The tool call rides the iOS↔provider WS directly and never hits the backend on its own, so iOS echoes each one here. end_conversation in particular silently hangs up the session — without this we have no signal whether the model ended a conversation vs the user leaving. props carry name + query.
+        "tool_call",
     }
 )
 

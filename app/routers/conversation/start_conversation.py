@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.auth.resolve_current_user import resolve_current_user
@@ -32,6 +32,8 @@ from app.services.openai.constants import OPENAI_REALTIME_MODEL_PAID, OpenAIVoic
 from app.services.openai.mint_openai_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
 from app.services.personaplex.constants import PERSONAPLEX_MODEL
+from app.services.slack.format_user_label import format_user_label
+from app.services.slack.post_session_threaded import post_session_threaded
 from app.services.weather.fetch_weather import fetch_weather
 from app.services.ws_ticket.mint_ws_ticket import mint_ws_ticket
 
@@ -65,6 +67,7 @@ class StartResponse(BaseModel):
 @router.post("/start", response_model=StartResponse)
 async def start_conversation(
     body: StartRequest,
+    background_tasks: BackgroundTasks,
     user: UserRow = Depends(resolve_current_user),
     db: DBConn = Depends(get_neon_connection),
 ) -> StartResponse:
@@ -176,6 +179,14 @@ async def start_conversation(
             now,
             {"persona_id": str(body.persona_id), "voice_id": persona_voice_id},
         )
+
+    # Open the session's Slack thread: this start message is the root every later session event (tool calls, errors) replies under, so one conversation stays in one thread. Fire-and-forget AFTER the response (BackgroundTasks) so the Slack POST never enters the latency-critical /start path; post_message itself no-ops outside production.
+    background_tasks.add_task(
+        post_session_threaded,
+        settings.slack_channel_gtm,
+        f":speech_balloon: *conversation_start* — {format_user_label(user)} `persona={persona_fields.name}`",
+        str(session_id),
+    )
 
     if provider == PROVIDER_OPENAI:
         try:
