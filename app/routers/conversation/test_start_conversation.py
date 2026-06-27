@@ -67,6 +67,31 @@ async def test_start_with_preset_persona_personaplex_path(
     assert body["free_limit_kind"] == "daily"
 
 
+async def test_start_opens_one_slack_thread_root_keyed_by_the_session(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    monkeypatch: pytest.MonkeyPatch,
+    personaplex_provider: None,
+) -> None:
+    await _stub_externals(monkeypatch)
+    calls: list[tuple[str, str, str | None]] = []
+
+    async def _spy(channel: str, text: str, session_id: str | None) -> None:
+        calls.append((channel, text, session_id))
+
+    monkeypatch.setattr(start_mod, "post_session_threaded", _spy)
+    client, _ = app_with_overrides
+    preset = PRESETS[0]
+    resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
+    assert resp.status_code == 200
+    session_id = resp.json()["session_id"]
+    assert len(calls) == 1, "starting a conversation opens exactly one Slack thread root"
+    _channel, text, threaded_session = calls[0]
+    assert threaded_session == session_id, (
+        "thread keyed by the session so later events reply under it"
+    )
+    assert preset.name in text, "the root names the persona so the thread reads at a glance"
+
+
 async def test_start_premium_user_has_unlimited_free_seconds(
     app_with_overrides: tuple[AsyncClient, UserRow],
     monkeypatch: pytest.MonkeyPatch,
