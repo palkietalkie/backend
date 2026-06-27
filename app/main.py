@@ -36,6 +36,12 @@ from app.routers.integrations.push_apple_calendar_events import (
 )
 from app.routers.list_languages import router as languages_router
 from app.routers.list_voices import router as voices_router
+from app.routers.notification_prefs.fetch_notification_prefs import (
+    router as notification_prefs_fetch_router,
+)
+from app.routers.notification_prefs.update_notification_prefs import (
+    router as notification_prefs_update_router,
+)
 from app.routers.personas.create_persona import router as personas_create_router
 from app.routers.personas.delete_persona import router as personas_delete_router
 from app.routers.personas.like_persona import router as personas_like_router
@@ -129,6 +135,8 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(languages_router)
     fastapi_app.include_router(consent_fetch_router)
     fastapi_app.include_router(consent_update_router)
+    fastapi_app.include_router(notification_prefs_fetch_router)
+    fastapi_app.include_router(notification_prefs_update_router)
     return fastapi_app
 
 

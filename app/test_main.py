@@ -42,6 +42,7 @@ def test_create_app_registers_every_user_facing_router() -> None:
         "/webhooks/stripe",
         "/webhooks/apple/asn",
         "/consent",
+        "/notification-prefs",
     }
     missing = expected - paths
     assert not missing, f"missing routes: {missing}"
