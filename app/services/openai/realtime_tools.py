@@ -46,7 +46,7 @@ REALTIME_TOOLS: list[dict[str, Any]] = [
     ),
     _tool(
         "end_conversation",
-        "End the conversation and return the user to the app. Call this the moment the user clearly signals they want to stop: 'let's end', 'I have to go', 'that's all for today', 'bye', 'talk later', or the equivalent in their language. Say one short goodbye line, then call this. Do NOT call it for a mid-topic pause or a thinking silence.",
+        "End the conversation and return the user to the app. ONLY call this when the USER has EXPLICITLY asked to stop talking, with an unambiguous farewell: 'I have to go', 'let's stop', 'bye', 'talk later', 'that's all for today', or the clear equivalent in their language. Say one short goodbye line, then call this. NEVER end on your own judgement that the chat has wound down, on a pause or thinking silence, or on a remark about the TOPIC rather than the conversation — e.g. 'there's nothing left between us', 'no unfinished business', 'we're done with that', 'that settles it' are about the subject, NOT a request to leave, so keep going and ask a follow-up. When in doubt, do NOT end. A conversation cut off while the user still wants to talk is far worse than one that runs a little long.",
         {},
         [],
     ),
