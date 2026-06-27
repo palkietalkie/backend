@@ -13,6 +13,7 @@ from neo4j.exceptions import GqlError
 from app.audio_retention.prune_expired_audio import run_prune_expired_audio_scheduler
 from app.config import get_settings
 from app.daily_content.run_daily_content_scheduler import run_daily_content_scheduler
+from app.notifications.run_reminder_scheduler import run_reminder_scheduler
 from app.services.neo4j.close_neo4j_driver import close_neo4j_driver
 from app.services.neo4j.get_neo4j_driver import get_neo4j_driver
 
@@ -34,13 +35,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     daily_content_task = asyncio.create_task(run_daily_content_scheduler())
     audio_prune_task = asyncio.create_task(run_prune_expired_audio_scheduler())
+    reminder_task = asyncio.create_task(run_reminder_scheduler())
 
+    scheduler_tasks = (daily_content_task, audio_prune_task, reminder_task)
     try:
         yield
     finally:
-        for task in (daily_content_task, audio_prune_task):
+        for task in scheduler_tasks:
             task.cancel()
-        for task in (daily_content_task, audio_prune_task):
+        for task in scheduler_tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
         await close_neo4j_driver()

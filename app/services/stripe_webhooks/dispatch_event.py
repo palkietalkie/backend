@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 
 import stripe
 
+from app.notifications.notify_subscription_change import notify_subscription_change
+from app.notifications.transition_for_stripe_event import transition_for_stripe_event
 from app.services.neon.apply_subscription_state import apply_subscription_state
 from app.services.neon.db_conn import DBConn
 from app.services.stripe_webhooks.constants import ACTIVE_STATUSES, SOURCE
@@ -35,7 +37,18 @@ async def dispatch_event(db: DBConn, event: stripe.Event) -> str:
             cancel_at_period_end=cancel_at_period_end,
             source=SOURCE,
         )
+        transition = transition_for_stripe_event(
+            etype, is_active=is_active, cancel_at_period_end=cancel_at_period_end
+        )
+        if transition is not None:
+            await notify_subscription_change(db, clerk_user_id, transition)
         return "applied"
+    if etype == "invoice.payment_failed":
+        # No state change: Stripe sets the subscription to past_due (still active per ACTIVE_STATUSES) and emits subscription.updated separately. This event is only the trigger for the "update your payment method" push.
+        transition = transition_for_stripe_event(etype, is_active=True, cancel_at_period_end=False)
+        if transition is not None:
+            await notify_subscription_change(db, clerk_user_id, transition)
+        return "notified payment_failed"
     if etype == "customer.subscription.deleted":
         # Remains active until period_end.
         await apply_subscription_state(

@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
+from app.notifications.subscription_transition import SubscriptionTransition
 from app.routers.webhooks import handle_apple_asn_webhook as mod
 from app.services.apple_asn._fakes import FakeVerifier, build_notification_dict
 from app.services.apple_asn.exceptions import (
@@ -123,3 +124,38 @@ async def test_applies_decision_on_known_notification(
     row = await db.fetchrow("SELECT premium FROM users WHERE clerk_user_id = $1", clerk_id)
     assert row is not None
     assert row["premium"] is True
+
+
+async def test_subscribed_fires_the_welcome_notification(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clerk_id = "user_apple_welcome_under_test"
+    await db.execute(
+        "INSERT INTO users (id, clerk_user_id, premium) VALUES (gen_random_uuid(), $1, FALSE)",
+        clerk_id,
+    )
+    captured: list[tuple[str, SubscriptionTransition]] = []
+
+    async def _fake_notify(_db: object, cuid: str, transition: SubscriptionTransition) -> int:
+        captured.append((cuid, transition))
+        return 0
+
+    monkeypatch.setattr(mod, "notify_subscription_change", _fake_notify)
+
+    notif = build_notification_dict(raw_type="SUBSCRIBED")
+    verifier = FakeVerifier(
+        notification=notif,
+        transaction={"appAccountToken": clerk_id, "expiresDate": 1_900_000_000_000},
+        renewal={"autoRenewStatus": 1},
+    )
+
+    async def _get_verifier() -> Any:
+        return verifier
+
+    monkeypatch.setattr(mod, "get_verifier", _get_verifier)
+    client, _ = app_with_overrides
+    resp = await client.post("/webhooks/apple/asn", json={"signedPayload": "abc"})
+    assert resp.status_code == 200
+    assert captured == [(clerk_id, SubscriptionTransition.WELCOME)]

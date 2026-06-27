@@ -73,6 +73,20 @@ class MistakeRow(TypedDict):
     last_seen_at: datetime
 
 
+class NotificationLogRow(TypedDict):
+    user_id: uuid.UUID
+    kind: str
+    per_kind_key: str
+    sent_at: datetime
+
+
+class NotificationPrefRow(TypedDict):
+    user_id: uuid.UUID
+    reminders_enabled: bool
+    reminder_hour_local: int
+    updated_at: datetime
+
+
 class PersonaLikeRow(TypedDict):
     id: uuid.UUID
     user_id: uuid.UUID

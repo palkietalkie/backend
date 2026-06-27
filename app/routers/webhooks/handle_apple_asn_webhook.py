@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.config import get_settings
+from app.notifications.notify_subscription_change import notify_subscription_change
+from app.notifications.transition_for_apple_notification import transition_for_apple_notification
 from app.services.apple_asn.apply_decision import apply_decision
 from app.services.apple_asn.decide_state import decide_state
 from app.services.apple_asn.exceptions import (
@@ -62,4 +64,8 @@ async def handle_apple_asn_webhook(
         get_settings().slack_channel_gtm,
         f":apple: *apple_asn.{raw_type.lower()}* — user `{clerk_user_id}` decision=`{decision}`",
     )
+    # Push the lifecycle notification AFTER the entitlement write, so a delivery hiccup can't fail the webhook (Apple would retry and re-apply).
+    transition = transition_for_apple_notification(raw_type)
+    if transition is not None:
+        await notify_subscription_change(db, str(clerk_user_id), transition)
     return {"ok": "true"}
