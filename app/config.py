@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # --- Clerk ---
     clerk_jwks_url: str = "https://example.clerk.accounts.dev/.well-known/jwks.json"
     clerk_issuer: str = "https://example.clerk.accounts.dev"
+    # Backend API key (api.clerk.com). Used to backfill a JIT user row's email + first name when the session JWT omits them (Apple sign-in does). Empty in tests/local without Clerk wired, which skips the backfill.
+    clerk_secret_key: str = ""
 
     # --- Stripe ---
     stripe_secret_key: str = ""

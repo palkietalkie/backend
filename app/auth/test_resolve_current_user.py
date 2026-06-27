@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import json
 import uuid
+from collections.abc import Iterator
 from typing import Any
 
 import asyncpg
@@ -13,9 +14,20 @@ import pytest
 from fastapi import HTTPException
 
 from app.auth import resolve_current_user as mod
+from app.config import get_settings
+from app.services.clerk.fetch_clerk_user import ClerkUserProfile
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
+
+
+@pytest.fixture(autouse=True)
+def disable_clerk_backfill(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    # Default every test here to no Clerk backend key, so resolve_current_user's Apple-backfill path stays inert and never fires a real api.clerk.com call (the local .env carries a real key). The backfill test opts in explicitly.
+    monkeypatch.setenv("CLERK_SECRET_KEY", "")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def test_db_dependency_is_canonical_pooled_connection() -> None:
@@ -171,3 +183,54 @@ async def test_resolve_accepts_primary_email_address_claim(
     monkeypatch.setattr(mod, "verify_clerk_jwt", _fake_verify)
     user = await mod.resolve_current_user(authorization="Bearer t", db=db)
     assert user["email"] == "pri@example.test"
+
+
+async def test_resolve_backfills_email_and_first_name_from_clerk_when_jwt_omits_them(
+    monkeypatch: pytest.MonkeyPatch, db: DBConn
+) -> None:
+    # Apple sign-in: the session JWT carries only `sub`, so the JIT row is created with NULL email + preferred_name. The resolver backfills both from Clerk's Backend API so the user has a real label (tutor address + Slack) instead of a raw clerk id. preferred_name is the FIRST name only.
+    clerk_id = f"user_apple_{uuid.uuid4().hex[:8]}"
+
+    async def _fake_verify(token: str) -> dict[str, Any]:
+        return {"sub": clerk_id}
+
+    async def _fake_fetch(_cid: str, _secret: str) -> ClerkUserProfile:
+        return ClerkUserProfile(email="relay@privaterelay.appleid.com", first_name="Taka")
+
+    monkeypatch.setattr(mod, "verify_clerk_jwt", _fake_verify)
+    monkeypatch.setattr(mod, "fetch_clerk_user", _fake_fetch)
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_test_x")
+    get_settings.cache_clear()
+
+    user = await mod.resolve_current_user(authorization="Bearer t", db=db)
+    assert user["email"] == "relay@privaterelay.appleid.com"
+    assert user["preferred_name"] == "Taka"
+    row = await db.fetchrow(
+        "SELECT email, preferred_name FROM users WHERE clerk_user_id = $1", clerk_id
+    )
+    assert row is not None
+    assert row["email"] == "relay@privaterelay.appleid.com"
+    assert row["preferred_name"] == "Taka"
+
+
+async def test_resolve_skips_clerk_backfill_when_no_secret_configured(
+    monkeypatch: pytest.MonkeyPatch, db: DBConn
+) -> None:
+    # Without a Clerk backend key (local/test default), the resolver must NOT call Clerk — otherwise every authenticated request with a not-yet-named row would hit the network. The autouse fixture already empties the key.
+    clerk_id = f"user_nosecret_{uuid.uuid4().hex[:8]}"
+    called = False
+
+    async def _fake_verify(token: str) -> dict[str, Any]:
+        return {"sub": clerk_id}
+
+    async def _fake_fetch(_cid: str, _secret: str) -> ClerkUserProfile | None:
+        nonlocal called
+        called = True
+        return None
+
+    monkeypatch.setattr(mod, "verify_clerk_jwt", _fake_verify)
+    monkeypatch.setattr(mod, "fetch_clerk_user", _fake_fetch)
+
+    user = await mod.resolve_current_user(authorization="Bearer t", db=db)
+    assert not called, "no Clerk secret → no Clerk call"
+    assert user["preferred_name"] is None

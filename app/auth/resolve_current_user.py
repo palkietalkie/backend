@@ -6,6 +6,8 @@ from fastapi import Depends, Header, HTTPException, status
 
 from app.auth.extract_bearer import extract_bearer
 from app.auth.verify_clerk_jwt import verify_clerk_jwt
+from app.config import get_settings
+from app.services.clerk.fetch_clerk_user import fetch_clerk_user
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_user_row
@@ -62,4 +64,21 @@ async def resolve_current_user(
             email,
         )
         user["email"] = email
+
+    # Apple sign-in omits email + name from the session JWT, so a JIT row created from it has no human label (NULL email + preferred_name) — unreadable in Slack, no name for the tutor. Backfill once from Clerk's Backend API. Gated on a still-missing field so it self-terminates after the first successful fill; a Clerk hiccup returns None and is swallowed so it never blocks the request. preferred_name is the FIRST name only (how the tutor addresses the user); pronunciation is filled separately by the Gemma path on profile open.
+    secret = get_settings().clerk_secret_key
+    if secret and (user["email"] is None or user["preferred_name"] is None):
+        profile = await fetch_clerk_user(clerk_user_id, secret)
+        if profile is not None:
+            new_email = user["email"] or profile.email
+            new_name = user["preferred_name"] or profile.first_name
+            if new_email != user["email"] or new_name != user["preferred_name"]:
+                await db.execute(
+                    "UPDATE users SET email = $2, preferred_name = $3, updated_at = NOW() WHERE id = $1",
+                    user["id"],
+                    new_email,
+                    new_name,
+                )
+                user["email"] = new_email
+                user["preferred_name"] = new_name
     return user

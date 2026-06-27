@@ -43,6 +43,17 @@ def test_apple_bundle_id_is_not_a_settings_field() -> None:
     assert "apple_bundle_id" not in Settings.model_fields
 
 
+def test_clerk_secret_key_loads_from_env_and_defaults_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The Apple-signin profile backfill is gated on this key; it must map to the CLERK_SECRET_KEY env var and default empty (so an unset env skips the backfill rather than crashing). chdir to a dir without a .env so only the real env var is read.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CLERK_SECRET_KEY", raising=False)
+    assert Settings().clerk_secret_key == ""
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_test_abc")
+    assert Settings().clerk_secret_key == "sk_test_abc"
+
+
 def test_get_settings_is_cached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # lru_cache(maxsize=1) means two calls return the same instance.
     monkeypatch.chdir(tmp_path)
