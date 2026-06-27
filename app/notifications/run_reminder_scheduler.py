@@ -2,10 +2,10 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
-from app.notifications.send_daily_content_nudge import send_daily_content_nudge
-from app.notifications.send_reminders import send_reminders
-from app.notifications.send_streak_warning import send_streak_warning
-from app.notifications.send_weekly_recap import send_weekly_recap
+from app.notifications.daily_content.send_daily_content_nudge import send_daily_content_nudge
+from app.notifications.reminder.send_reminders import send_reminders
+from app.notifications.streak_warning.send_streak_warning import send_streak_warning
+from app.notifications.weekly_recap.send_weekly_recap import send_weekly_recap
 from app.services.neon.get_neon_pool import get_neon_pool
 
 logger = logging.getLogger(__name__)

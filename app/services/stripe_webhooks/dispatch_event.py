@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 
 import stripe
 
-from app.notifications.notify_subscription_change import notify_subscription_change
-from app.notifications.transition_for_stripe_event import transition_for_stripe_event
+from app.notifications.subscription.notify_subscription_change import notify_subscription_change
+from app.notifications.subscription.transition_for_stripe_event import transition_for_stripe_event
 from app.services.neon.apply_subscription_state import apply_subscription_state
 from app.services.neon.db_conn import DBConn
 from app.services.stripe_webhooks.constants import ACTIVE_STATUSES, SOURCE
