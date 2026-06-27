@@ -5,6 +5,19 @@ import pytest
 from app.notifications import run_reminder_scheduler as mod
 
 
+def test_scheduler_holds_the_real_per_kind_senders() -> None:
+    # The scheduler ticks every kind; lock that it imports each real sender from its per-kind home, so a wrong or broken import can't silently skip a notification kind.
+    from app.notifications.daily_content.send_daily_content_nudge import send_daily_content_nudge
+    from app.notifications.reminder.send_reminders import send_reminders
+    from app.notifications.streak_warning.send_streak_warning import send_streak_warning
+    from app.notifications.weekly_recap.send_weekly_recap import send_weekly_recap
+
+    assert mod.send_reminders is send_reminders
+    assert mod.send_streak_warning is send_streak_warning
+    assert mod.send_weekly_recap is send_weekly_recap
+    assert mod.send_daily_content_nudge is send_daily_content_nudge
+
+
 async def test_one_tick_runs_both_daily_and_streak_warning_passes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
