@@ -397,7 +397,7 @@ async def test_start_rejects_free_user_who_hit_daily_limit(
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
     assert resp.status_code == 402
-    assert "daily" in resp.json()["detail"].lower()
+    assert resp.json()["detail"]["free_limit_kind"] == "daily"
 
 
 async def test_start_rejects_free_user_who_hit_weekly_limit(
@@ -420,7 +420,7 @@ async def test_start_rejects_free_user_who_hit_weekly_limit(
     preset = PRESETS[0]
     resp = await client.post("/conversation/start", json={"persona_id": str(preset.id)})
     assert resp.status_code == 402
-    assert "weekly" in resp.json()["detail"].lower()
+    assert resp.json()["detail"]["free_limit_kind"] == "weekly"
 
 
 async def test_start_premium_user_bypasses_free_caps(
