@@ -60,6 +60,28 @@ def test_assemble_prompt_includes_name_city_weather() -> None:
     assert "cloudy" in out
 
 
+def test_assemble_prompt_tells_the_model_to_ignore_noise_garbage() -> None:
+    # Outdoor mic noise gets transcribed as garbage ("yeah", ".", a stray word); the model must not react to it, or the conversation collapses. Lock the instruction into the prompt.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label="cloudy", today_events_titles=[]
+    )
+    lowered = out.lower()
+    assert "noise" in lowered
+    # The correct behavior is to IGNORE noise (no reply), not to "keep going" (which is an excuse to talk).
+    assert "the only correct response to noise is no response" in lowered
+    assert "do not use it as an excuse to keep talking" in lowered
+
+
+def test_assemble_prompt_has_no_echo_ignore_clause() -> None:
+    # Wrong diagnosis we removed: a user line matching the tutor's last line was NOT mic echo (AEC is on, no loop) — the user really said it (repeating to practice). The "that's your own voice echoing back, ignore it" clause would silence a real turn, so it must be gone. A coherent repeat isn't in the noise garbage list, so it needs no special handling.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label="cloudy", today_events_titles=[]
+    )
+    lowered = out.lower()
+    assert "echoing" not in lowered
+    assert "back into the mic" not in lowered
+
+
 def test_assemble_prompt_defaults_when_user_blank() -> None:
     out = assemble_prompt(
         PERSONA,

@@ -70,9 +70,9 @@ async def mint_openai_session(
                 "input": {
                     "format": {"type": "audio/pcm", "rate": 24000},
                     "turn_detection": {
-                        # Semantic VAD: instead of pure energy threshold (which fires on wind, traffic, AirPod echo of our own TTS, and side conversations), semantic VAD only commits a turn when the audio is plausibly a complete user utterance. Falls back internally to server_vad-style behavior for the energy gate, but adds a "does this look like a real turn?" check on top. Direct fix for outdoor use cases (e-scooter rides, walks) where energy-based VAD generated phantom replies like "exactly" / "right" off background noise.
+                        # Semantic VAD over pure energy threshold: it judges whether the audio is a plausibly-complete user utterance rather than firing on any sound above a level, which gives cleaner turn-taking.
                         "type": "semantic_vad",
-                        # `eagerness="auto"` is OpenAI's default. Briefly set to `low` while debugging an echo loop, then back to `auto` per Wes's call on 2026-06-06: with the iOS AEC-failure log in place we can see whether AEC is actually engaging on this build before tightening VAD again. If the loop recurs and AEC engaged cleanly, drop back to `low`.
+                        # `eagerness="auto"` keeps turn-taking snappy (low adds a real wait before committing, hurting the quiet-environment case and barge-in). Outdoor ambient-noise robustness lives upstream in the iOS near-field gate (Audio/NearFieldGate.swift), which silences anything that isn't the close primary speaker before it reaches this VAD, so the VAD doesn't need to be conservative to avoid phantom turns. Tighten this only if on-device testing shows the gate leaking noise into committed turns.
                         "eagerness": "auto",
                         "interrupt_response": True,
                         "create_response": True,
