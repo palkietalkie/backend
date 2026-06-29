@@ -21,15 +21,22 @@ async def resolve_free_cap(
         return None, None
     used_today = await sum_seconds_used_today(user, db)
     if used_today >= FREE_MINUTES_PER_DAY * 60:
+        # Structured detail (not a bare string) so iOS reads free_limit_kind to show the right limit screen, mirroring the 200 path's field, instead of string-sniffing the message.
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"daily free limit reached ({FREE_MINUTES_PER_DAY} min). upgrade or come back at local midnight.",
+            detail={
+                "free_limit_kind": "daily",
+                "message": f"daily free limit reached ({FREE_MINUTES_PER_DAY} min). upgrade or come back at local midnight.",
+            },
         )
     used_this_week = await sum_seconds_used_this_week(user, db)
     if used_this_week >= FREE_MINUTES_PER_WEEK * 60:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"weekly free limit reached ({FREE_MINUTES_PER_WEEK} min). upgrade or come back next Monday.",
+            detail={
+                "free_limit_kind": "weekly",
+                "message": f"weekly free limit reached ({FREE_MINUTES_PER_WEEK} min). upgrade or come back next Monday.",
+            },
         )
     daily_remaining = FREE_MINUTES_PER_DAY * 60 - used_today
     weekly_remaining = FREE_MINUTES_PER_WEEK * 60 - used_this_week

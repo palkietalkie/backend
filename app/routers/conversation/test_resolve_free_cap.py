@@ -71,6 +71,7 @@ async def test_daily_cap_exhausted_raises_402(
     with pytest.raises(HTTPException) as exc:
         await resolve_free_cap(fake_user, db)
     assert exc.value.status_code == 402
+    # The structured free_limit_kind field is asserted at the HTTP level in test_start_conversation.py (resp.json is Any, so no pyright fight with HTTPException.detail's str|None type). Here just confirm the kind reaches the detail.
     assert "daily" in str(exc.value.detail).lower()
 
 

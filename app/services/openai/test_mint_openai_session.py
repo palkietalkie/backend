@@ -66,6 +66,17 @@ async def test_session_registers_recall_tools() -> None:
 
 
 @pytest.mark.asyncio
+async def test_turn_detection_uses_auto_eagerness_semantic_vad() -> None:
+    # Turn-taking stays snappy at eagerness="auto"; outdoor noise robustness lives in the iOS near-field gate upstream, not in a conservative VAD. semantic_vad (not server_vad) is the regression guard here — server_vad would fire on any energy and reintroduce phantom turns.
+    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
+    await mint_openai_session(text_prompt="x", voice_id=OpenAIVoiceId.ASH, http_client=fake)
+    _url, body, _headers = fake.calls[0]
+    turn_detection = body["session"]["audio"]["input"]["turn_detection"]
+    assert turn_detection["type"] == "semantic_vad"
+    assert turn_detection["eagerness"] == "auto"
+
+
+@pytest.mark.asyncio
 async def test_paid_users_get_full_realtime_and_transcription_models() -> None:
     fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
     await mint_openai_session(
