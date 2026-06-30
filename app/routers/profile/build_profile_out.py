@@ -1,9 +1,16 @@
+from typing import get_args
+
 from pydantic import BaseModel
 
 from app.profile.languages import AccentName, LanguageName
 from app.profile.proficiency import Proficiency
 from app.profile.tutor_speaking_speed import TutorSpeakingSpeed
 from app.services.neon.rows import UserRow
+
+_VALID_LANGUAGES = frozenset(get_args(LanguageName))
+_VALID_ACCENTS = frozenset(get_args(AccentName))
+_VALID_PROFICIENCY = frozenset(get_args(Proficiency))
+_VALID_SPEED = frozenset(get_args(TutorSpeakingSpeed))
 
 
 class ProfileOut(BaseModel):
@@ -26,7 +33,20 @@ def build_profile_out(
     user: UserRow,
     name_pronunciation_suggestion: str | None = None,
 ) -> ProfileOut:
-    # DB columns are VARCHAR / TEXT[]; model_validate checks the plain str / list[str] against the Literal field types at runtime. Every write path already ran them through ProfileUpdate's validators, so they pass — and a drift (DB value outside the Literal) now fails loud instead of slipping through a cast.
-    return ProfileOut.model_validate(
-        {**user, "name_pronunciation_suggestion": name_pronunciation_suggestion}
-    )
+    # GET /profile must NEVER 500 on a stale enum value. The TestFlight build in App Review aborts its ENTIRE profile screen (blank, untappable pickers) the instant this read fails, and that build is frozen during the Apple account conversion, so no client fix can ship. If a stored value drifted outside the current Literal (e.g. an accent we later renamed), coerce it to a safe default here instead of raising. Writes still validate strictly via ProfileUpdate, so this only softens reads of already-persisted data.
+    coerced = {
+        **user,
+        "target_language": user["target_language"]
+        if user["target_language"] in _VALID_LANGUAGES
+        else "English",
+        "proficiency": user["proficiency"]
+        if user["proficiency"] in _VALID_PROFICIENCY
+        else "intermediate",
+        "tutor_speaking_speed": user["tutor_speaking_speed"]
+        if user["tutor_speaking_speed"] in _VALID_SPEED
+        else "normal",
+        "native_languages": [lang for lang in user["native_languages"] if lang in _VALID_LANGUAGES],
+        "target_accents": [accent for accent in user["target_accents"] if accent in _VALID_ACCENTS],
+        "name_pronunciation_suggestion": name_pronunciation_suggestion,
+    }
+    return ProfileOut.model_validate(coerced)
