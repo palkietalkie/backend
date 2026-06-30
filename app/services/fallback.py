@@ -1,6 +1,6 @@
 """Decorator that makes a non-critical enrichment function degrade to a default instead of failing.
 
-KG, weather, calendar, and last-session recall are *context* for the conversation-start prompt — nice to have, never load-bearing. "Return the data, or this fallback value if the source is unavailable" is each function's own contract, so the resilience lives on the function (one decorator) rather than at every call site. On a timeout or any error the wrapped function logs and returns `default`, so a failure or a slow/dead dependency (e.g. a defunct AuraDB connection) degrades to "no context" instead of 500ing or hanging the Talk View.
+KG, calendar, and last-session recall are *context* for the conversation-start prompt — nice to have, never load-bearing. "Return the data, or this fallback value if the source is unavailable" is each function's own contract, so the resilience lives on the function (one decorator) rather than at every call site. On a timeout or any error the wrapped function logs and returns `default`, so a failure or a slow/dead dependency (e.g. a defunct AuraDB connection) degrades to "no context" instead of 500ing or hanging the Talk View.
 """
 
 import asyncio

@@ -3,7 +3,7 @@
 Distinct from dump_session_audio.py (a single-session AEC diagnostic that prints RMS/peak/strip-chart to /tmp): this is a batch export of EVERY session in a Pacific-time day, both tracks (mic = the user's voice, model = the tutor's), plus each session's transcript, named by user + PT timestamp so the founder can sit and listen back to learn customers.
 
 Run: `cd backend && uv run scripts/neon/export_day_sessions.py --prd [YYYY-MM-DD] [--out DIR]`
-Default date is yesterday (Pacific day). Default out is ios/recordings/<date> (gitignored). The mic track is absent for any session whose best-effort iOS upload didn't land.
+Default date is yesterday (Pacific day). Writes to ios/recordings/<user>/<datetime> (gitignored), grouped by customer. The mic track is absent for any session whose best-effort iOS upload didn't land.
 """
 
 from __future__ import annotations
@@ -61,9 +61,8 @@ async def main() -> None:
                 "SELECT COALESCE($1::date, (now() AT TIME ZONE 'America/Los_Angeles')::date - 1)::text",
                 day,
             )
-            out = (
-                Path(out_override) if out_override else REPO_ROOT / "ios" / "recordings" / day_label
-            )
+            # Group by customer first (recordings/<user>/<datetime>) so listening through one person's sessions across days is a single folder, not a date-folder scavenger hunt.
+            out = Path(out_override) if out_override else REPO_ROOT / "ios" / "recordings"
             out.mkdir(parents=True, exist_ok=True)
             sessions = await db.fetch(
                 """SELECT s.id,
@@ -79,24 +78,28 @@ async def main() -> None:
             )
             n_audio = n_txt = 0
             for s in sessions:
-                base = f"{safe(s['user_name'])} {s['started_pt']} PT"
+                user_dir = out / safe(s["user_name"])
+                user_dir.mkdir(parents=True, exist_ok=True)
+                base = f"{s['started_pt']} PT"
                 turns = await fetch_session_transcripts(db, s["id"])
                 if turns:
-                    lines = [f"{base}  (session {s['id']}, dur={s['dur']}s)\n"]
+                    lines = [f"{s['user_name']} {base}  (session {s['id']}, dur={s['dur']}s)\n"]
                     for t in turns:
                         who = "USER" if t["speaker"] == "user" else "TUTOR"
                         stamp = t["started_at"].strftime("%H:%M:%S")
                         lines.append(f"[{stamp}] {who}: {t['text']}")
-                    (out / f"{base}.txt").write_text("\n".join(lines) + "\n")
+                    (user_dir / f"{base}.txt").write_text("\n".join(lines) + "\n")
                     n_txt += 1
                 for src in ("mic", "model"):
                     got = await fetch_session_audio(db, s["id"], source=src)
                     if got is None:
                         continue
                     audio, sr = decode_audio_bytes(got[0])
-                    sf.write(str(out / f"{base} {src}.wav"), audio, sr)
+                    sf.write(str(user_dir / f"{base} {src}.wav"), audio, sr)
                     n_audio += 1
-                    print(f"  wrote {base} {src}.wav  ({len(audio) / sr:.1f}s @ {sr}Hz)")
+                    print(
+                        f"  wrote {safe(s['user_name'])}/{base} {src}.wav  ({len(audio) / sr:.1f}s @ {sr}Hz)"
+                    )
             print(f"\nDONE ({day_label}): {n_audio} audio files, {n_txt} transcripts -> {out}")
     finally:
         await pool.close()

@@ -26,7 +26,6 @@ def assemble_prompt(
     persona_fields: PersonaPromptFields,
     user: UserRow,
     kg_entities: list[str],
-    weather_label: str | None,
     today_events_titles: list[str],
     recent_recall: str | None = None,
     topic_override: str | None = None,
@@ -34,7 +33,6 @@ def assemble_prompt(
     name = user["preferred_name"] or "the user"
     city = user["location_city"] or "their city"
     when = format_local_time(user["timezone"])
-    weather = weather_label or "weather unknown"
     target_lang = user["target_language"]
     native_languages = list(user["native_languages"])
     native_languages_phrase = " and ".join(native_languages) if native_languages else "unknown"
@@ -109,7 +107,7 @@ When an opening shows up, take it: a rhyme, a clever turn of phrase, a line wort
 ## Their level
 {proficiency_hint}{accent_clause}
 
-You are physically in the same moment as them — same city, same time, same weather.
+You are physically in the same moment as them: same city, same time.
 
 ## Opening
 Open right now. Don't wait. Open with something real — an observation about the moment you're in, a question you've been meaning to ask, an opinion you've been holding — not a greeting. Never ask 'what would you like to practice today?' — that dumps the work on them and produces small talk.
@@ -158,7 +156,7 @@ If a 'Today's topic' section appears below, use it as a hook. If absent, drive f
     parts += [
         "",
         "## Their context",
-        f"Location: {city}. Time: {when}. Weather: {weather}.",
+        f"Location: {city}. Time: {when}.",
     ]
 
     if user["goals"]:
