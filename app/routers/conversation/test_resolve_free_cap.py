@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from fastapi import HTTPException
 
@@ -18,14 +20,20 @@ def _const(value: int):
     return _f
 
 
-def _always_premium(_user: UserRow) -> bool:
+def _always_full(_user: UserRow) -> bool:
     return True
 
 
-async def test_premium_has_no_cap(
+async def test_full_access_has_no_cap(
     fake_user: UserRow, db: DBConn, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(mod, "check_is_premium_now", _always_premium)
+    monkeypatch.setattr(mod, "check_has_full_access", _always_full)
+    assert await resolve_free_cap(fake_user, db) == (None, None)
+
+
+async def test_trial_user_has_no_cap(fake_user: UserRow, db: DBConn) -> None:
+    # A brand-new (just-created) user is inside the first-month free trial, so the caps don't apply even with no premium subscription — the whole point of the trial.
+    fake_user["created_at"] = datetime.now(UTC)
     assert await resolve_free_cap(fake_user, db) == (None, None)
 
 

@@ -72,7 +72,10 @@ async def test_fetch_entitlement_free_user_full_budget(
     resp = await client.get("/entitlement")
     assert resp.status_code == 200
     body = resp.json()
+    # The baseline fake_user is an ESTABLISHED account (created 60 days ago), so it's past the trial: a plain free user, not premium, not in trial.
     assert body["is_premium"] is False
+    assert body["trial_active"] is False
+    assert body["trial_ends_at"] is None
     assert body["free_minutes_remaining_today"] == 10
 
 
@@ -90,6 +93,26 @@ async def test_fetch_entitlement_consumed_minutes_reduce_budget(
     resp = await client.get("/entitlement")
     body = resp.json()
     assert body["free_minutes_remaining_today"] == 7
+
+
+async def test_fetch_entitlement_trial_user_is_uncapped(
+    app_with_overrides: tuple[AsyncClient, UserRow], db: DBConn
+) -> None:
+    # A brand-new (just-signed-up) user is inside the first-month trial: NOT premium, but uncapped — full minutes even with usage on the clock, plus a trial_ends_at the app can show.
+    client, user = app_with_overrides
+    await db.execute("UPDATE users SET created_at = NOW() WHERE id = $1", user["id"])
+    await db.execute(
+        """INSERT INTO conversation_sessions (id, user_id, started_at, duration_seconds)
+           VALUES ($1, $2, NOW(), 300)""",
+        uuid.uuid4(),
+        user["id"],
+    )
+    resp = await client.get("/entitlement")
+    body = resp.json()
+    assert body["is_premium"] is False
+    assert body["trial_active"] is True
+    assert body["trial_ends_at"] is not None
+    assert body["free_minutes_remaining_today"] == 10
 
 
 async def test_fetch_entitlement_premium_returns_full_minutes(

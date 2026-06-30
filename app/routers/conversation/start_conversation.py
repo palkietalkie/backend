@@ -22,6 +22,7 @@ from app.routers.conversation.constants import (
 )
 from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
 from app.routers.conversation.resolve_free_cap import resolve_free_cap
+from app.routers.entitlement.check_has_full_access import check_has_full_access
 from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
@@ -192,7 +193,7 @@ async def start_conversation(
         openai_session = await mint_openai_session(
             text_prompt=text_prompt,
             voice_id=openai_voice,
-            is_premium=bool(user["premium"]),
+            is_premium=check_has_full_access(user),
             speaking_speed=coerce_speaking_speed(user["tutor_speaking_speed"]),
         )
         return StartResponse(
