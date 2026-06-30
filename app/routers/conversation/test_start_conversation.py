@@ -208,10 +208,10 @@ async def test_start_openai_path_returns_ephemeral_token(
         speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(
-            ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
+            ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-2",
             ephemeral_token="ek_test_token",
             voice_id=voice_id,
-            model="gpt-realtime",
+            model="gpt-realtime-2",
         )
 
     monkeypatch.setattr(start_mod, "mint_openai_session", _fake_mint)
@@ -321,10 +321,10 @@ async def test_start_topic_mode_swaps_in_valid_openai_voice(
         speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(
-            ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
+            ws_url="wss://api.openai.com/v1/realtime?model=gpt-realtime-2",
             ephemeral_token="ek_test_token",
             voice_id=voice_id,
-            model="gpt-realtime",
+            model="gpt-realtime-2",
         )
 
     monkeypatch.setattr(start_mod, "mint_openai_session", _fake_mint)

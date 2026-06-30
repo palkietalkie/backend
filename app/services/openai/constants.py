@@ -1,7 +1,7 @@
 from enum import StrEnum
 
-# Realtime model: everyone currently gets the full "gpt-realtime" (mint_openai_session ignores tier for it). The mini tier is kept here, unused, as the cheaper free-plan option for when we work out how to make it behave: today it ignores the prompt's explicit prohibitions and parrots "let's slow down" every turn, and we don't yet know the fix (prompt tuning, config, or a better mini). Until then, mini is shelved. Transcription stays tiered — it's STT for captions, not the persona's voice.
-OPENAI_REALTIME_MODEL_PAID = "gpt-realtime"
+# Realtime model: everyone gets the full realtime model (mint_openai_session ignores tier for it). gpt-realtime-2 audio is $32/$64 per 1M in/out ($0.40 cached) — the bulk of conversation cost — with GPT-5-class reasoning and a 128K context. The mini tier is kept here, unused, as the cheaper free-plan option for when we work out how to make it behave: today it ignores the prompt's explicit prohibitions and parrots "let's slow down" every turn, and we don't yet know the fix (prompt tuning, config, or a better mini). Until then, mini is shelved. Transcription stays tiered — it's STT for captions, not the persona's voice.
+OPENAI_REALTIME_MODEL_PAID = "gpt-realtime-2"
 OPENAI_REALTIME_MODEL_FREE = "gpt-realtime-mini"
 OPENAI_TRANSCRIPTION_MODEL_PAID = "gpt-4o-transcribe"
 OPENAI_TRANSCRIPTION_MODEL_FREE = "gpt-4o-mini-transcribe"
