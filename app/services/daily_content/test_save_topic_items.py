@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -35,6 +35,23 @@ async def test_save_overwrites_same_topic(db: DBConn) -> None:
 
 async def test_load_returns_empty_dict_when_no_rows(db: DBConn) -> None:
     assert await load_today_topics(db) == {}
+
+
+async def test_load_falls_back_to_latest_day_when_today_missing(db: DBConn) -> None:
+    # The nightly UTC gap: a UTC day's content is generated at 06:00 UTC, so between 00:00 and 06:00 UTC (a late-PT-evening user) "today" has no row yet and every news section rendered empty in real use. load_today_topics must serve the most recent generated day instead of nothing.
+    yesterday = datetime.now(UTC).date() - timedelta(days=1)
+    await save_topic_items(yesterday, "sports", [_item("Yesterday's match")], db)
+    loaded = await load_today_topics(db)
+    assert [i.title for i in loaded["sports"]] == ["Yesterday's match"]
+
+
+async def test_load_prefers_today_over_older_when_present(db: DBConn) -> None:
+    today = datetime.now(UTC).date()
+    older = today - timedelta(days=2)
+    await save_topic_items(older, "sports", [_item("Old")], db)
+    await save_topic_items(today, "sports", [_item("Today")], db)
+    loaded = await load_today_topics(db)
+    assert [i.title for i in loaded["sports"]] == ["Today"]
 
 
 async def test_save_stores_jsonb_arrays_not_string_scalars(db: DBConn) -> None:

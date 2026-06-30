@@ -224,6 +224,16 @@ def test_natural_phrasing_upgrade_is_independent_of_correctness() -> None:
     assert "already correct, do NOT point at anything" not in out
 
 
+def test_subtle_corrections_are_spelled_out_and_the_turn_advances() -> None:
+    # Real use (David): a subtle correction he couldn't even perceive — saying the right version alone taught nothing, and the turn stalled on the fix. The prompt must spell the contrast out explicitly AND keep the turn moving the topic forward.
+    out = assemble_prompt(
+        PERSONA, _user(), kg_entities=[], weather_label=None, today_events_titles=[]
+    )
+    assert "you said X, but a native says Y" in out
+    assert "pushes the conversation forward" in out
+    assert "only corrects and then stalls is a failed turn" in out
+
+
 def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     out = assemble_prompt(
         PERSONA,
