@@ -60,6 +60,7 @@ from app.routers.recall.web_fetch import router as web_fetch_router
 from app.routers.record_event import router as events_router
 from app.routers.record_experience_rating import router as ratings_router
 from app.routers.register_apns_token import router as devices_router
+from app.routers.remove_kg_entity import router as kg_remove_router
 from app.routers.stats.fetch_overview import router as stats_overview_router
 from app.routers.stats.list_cefr_missing import router as stats_cefr_router
 from app.routers.stats.list_mistakes import router as stats_mistakes_router
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(profile_update_router)
     fastapi_app.include_router(profile_practice_options_router)
     fastapi_app.include_router(kg_router)
+    fastapi_app.include_router(kg_remove_router)
     fastapi_app.include_router(recall_facts_router)
     fastapi_app.include_router(recall_conversations_router)
     fastapi_app.include_router(recall_transcripts_router)

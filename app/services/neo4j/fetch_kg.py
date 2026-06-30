@@ -11,8 +11,8 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
     edges: list[dict[str, Any]] = []
     async with open_session(driver) as session:
         result = await session.run(
-            "MATCH (n:Entity {user_id: $uid}) RETURN n.name AS name, n.type AS type, "
-            "properties(n) AS props",
+            "MATCH (n:Entity {user_id: $uid}) WHERE n.removed_at IS NULL "
+            "RETURN n.name AS name, n.type AS type, properties(n) AS props",
             uid=str(user_id),
         )
         async for record in result:
@@ -24,7 +24,9 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
                     "type": record["type"],
                     "name": record["name"],
                     "attrs": {
-                        k: str(v) for k, v in props.items() if k not in ("user_id", "name", "type")
+                        k: str(v)
+                        for k, v in props.items()
+                        if k not in ("user_id", "name", "type", "removed_at")
                     },
                 }
             )
@@ -33,6 +35,7 @@ async def fetch_kg(user_id: uuid.UUID) -> dict[str, Any]:
         # Older rows (from before the schema change) may not have a kind property — coalesce to the edge type so the response is never null.
         result = await session.run(
             "MATCH (a:Entity {user_id: $uid})-[r]->(b:Entity {user_id: $uid}) "
+            "WHERE a.removed_at IS NULL AND b.removed_at IS NULL "
             "RETURN a.name AS src, coalesce(r.kind, type(r)) AS rel, b.name AS dst",
             uid=str(user_id),
         )
