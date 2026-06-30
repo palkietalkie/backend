@@ -17,7 +17,7 @@ import subprocess
 import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -243,13 +243,14 @@ async def db(pool: asyncpg.Pool) -> AsyncIterator[DBConn]:
 
 @pytest.fixture
 async def fake_user(db: DBConn) -> UserRow:
-    """Baseline user row for router tests."""
+    """Baseline user row for router tests. created_at is set well in the past so the baseline is an ESTABLISHED free user, past the first-month trial — otherwise every free-cap test would see a trial user with no caps. Trial behavior is covered by tests that set created_at explicitly recent."""
     user_id = uuid.uuid4()
     now = datetime.now(UTC)
+    established = now - timedelta(days=60)
     row = await db.fetchrow(
         """INSERT INTO users (id, clerk_user_id, email, preferred_name, native_languages,
                               location_city, timezone, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                      preferred_name, name_pronunciation, native_languages, target_language, target_accents,
                      proficiency, tutor_speaking_speed, goals,
@@ -262,6 +263,7 @@ async def fake_user(db: DBConn) -> UserRow:
         ["Japanese"],
         "Tokyo",
         "Asia/Tokyo",
+        established,
         now,
     )
     assert row is not None
