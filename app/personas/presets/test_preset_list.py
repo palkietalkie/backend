@@ -46,6 +46,15 @@ def test_journaling_companion_present() -> None:
     assert matches[0].description.strip()
 
 
+def test_journaling_is_default_and_generic_personas_disabled() -> None:
+    # Wes: the default persona is the Journaling companion (lowest sort_weight = first in Recommended = what a new user lands on), and the generic "A man" / "A woman" personas are disabled for now.
+    names = [p.name for p in PRESETS]
+    assert "A man" not in names
+    assert "A woman" not in names
+    sort_weight_zero = [p.name for p in PRESETS if p.sort_weight == 0]
+    assert sort_weight_zero == ["Journaling companion"]
+
+
 def test_no_raw_warmth_in_prompt_fed_persona_fields() -> None:
     # De-warming: a bare "warm" instruction in a prompt-fed field tilts the persona sycophantic (against the product vision).
     # Warmth is only allowed paired with a sharpening counterweight (e.g. "kind but no fluff"), never standalone.
