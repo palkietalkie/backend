@@ -167,6 +167,25 @@ async def test_fetch_profile_returns_suggestion_when_pronunciation_empty(
     assert persisted is None
 
 
+async def test_fetch_profile_survives_gemma_failure(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pronunciation hint makes a live Gemma call; if it fails, GET /profile must still return 200, not 500. The frozen TestFlight build blanks its ENTIRE profile screen (all pickers, untappable) on any failed GET, so a flaky Gemma quota would otherwise brick every tester whose pronunciation is unset."""
+    from app.routers.profile import fetch_profile as fetch_profile_mod
+
+    async def _raise(_preferred_name: str, _target_language: str) -> str:
+        raise RuntimeError("gemma 429 rate limited")
+
+    monkeypatch.setattr(fetch_profile_mod, "guess_name_pronunciation", _raise)
+    client, user = app_with_overrides
+    await db.execute("UPDATE users SET name_pronunciation = NULL WHERE id = $1", user["id"])
+    resp = await client.get("/profile")
+    assert resp.status_code == 200
+    assert resp.json()["name_pronunciation_suggestion"] is None
+
+
 async def test_update_profile_null_pronunciation_keeps_existing(
     app_with_overrides: tuple[AsyncClient, UserRow],
     db: DBConn,

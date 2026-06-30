@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # --- Inference provider switch ---
-    # Selects which speech-to-speech backend `/conversation/start` mints a session for. Dev-only switch, no UI. "openai" calls OpenAI's Realtime API (`gpt-realtime-mini`, $10/M audio input + $20/M audio output, JSON event protocol). Picked over `gpt-realtime-2` ($32/$64) which is unshippable at $17.99/mo Individual. `gpt-realtime` base and `gpt-realtime-2` are also valid model strings if a pricing/quality tradeoff later shifts. "personaplex" routes to NVIDIA PersonaPlex on Modal (binary Ogg-Opus protocol). Defaulting to openai because PersonaPlex on Modal still has cold-start + cost variance we're A/B-testing against.
+    # Selects which speech-to-speech backend `/conversation/start` mints a session for. Dev-only switch, no UI. "openai" calls OpenAI's Realtime API over a JSON event protocol (model id + cost/capability rationale in `app/services/openai/constants.py`). "personaplex" routes to NVIDIA PersonaPlex on Modal (binary Ogg-Opus protocol). Defaulting to openai because PersonaPlex on Modal still has cold-start + cost variance we're A/B-testing against.
     inference_provider: str = "openai"
 
     # --- News ---

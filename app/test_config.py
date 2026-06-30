@@ -38,6 +38,11 @@ def test_personaplex_ws_url_is_alias_for_ws_base() -> None:
     assert s.personaplex_ws_url == s.personaplex_ws_base
 
 
+def test_inference_provider_code_default_is_openai() -> None:
+    # The default inference plane is OpenAI Realtime (gpt-realtime-2); PersonaPlex is opt-in via INFERENCE_PROVIDER=personaplex. Assert the code default off the field (not Settings(), which would read an env override).
+    assert Settings.model_fields["inference_provider"].default == "openai"
+
+
 def test_apple_bundle_id_is_not_a_settings_field() -> None:
     # Bundle id is a non-secret constant (app/apple_identifiers.py), deliberately NOT env-loaded Settings.
     assert "apple_bundle_id" not in Settings.model_fields

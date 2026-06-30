@@ -17,6 +17,11 @@ from app.services.openai.constants import (
 from app.services.openai.mint_openai_session import mint_openai_session
 
 
+def test_realtime_model_is_gpt_realtime_2() -> None:
+    # Pin the realtime model so it can't silently regress (rationale lives in constants.py).
+    assert OPENAI_REALTIME_MODEL_PAID == "gpt-realtime-2"
+
+
 def test_voice_enum_includes_known_ids() -> None:
     members = {v.value for v in OpenAIVoiceId}
     assert members == {

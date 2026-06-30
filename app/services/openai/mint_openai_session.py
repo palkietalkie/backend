@@ -1,6 +1,6 @@
 """OpenAI Realtime API session minter (GA, not Beta).
 
-Alternative inference path to PersonaPlex. Backend calls OpenAI's GA endpoint ``/v1/realtime/client_secrets`` to mint a short-lived ephemeral token (default 10 min TTL, configurable up to 2h), which iOS uses to open a WebSocket directly to ``wss://api.openai.com/v1/realtime?model=gpt-realtime-mini``. The audio + text protocol on that WS is JSON event frames (``input_audio_buffer.append`` going out, ``response.audio.delta`` coming back), NOT the binary Ogg-Opus protocol the PersonaPlex path speaks. iOS picks the wire format based on the ``provider`` field on ``StartResponse``.
+Alternative inference path to PersonaPlex. Backend calls OpenAI's GA endpoint ``/v1/realtime/client_secrets`` to mint a short-lived ephemeral token (default 10 min TTL, configurable up to 2h), which iOS uses to open a WebSocket directly to ``wss://api.openai.com/v1/realtime?model=gpt-realtime-2``. The audio + text protocol on that WS is JSON event frames (``input_audio_buffer.append`` going out, ``response.audio.delta`` coming back), NOT the binary Ogg-Opus protocol the PersonaPlex path speaks. iOS picks the wire format based on the ``provider`` field on ``StartResponse``.
 
 This used to call the Beta endpoint ``/v1/realtime/sessions`` with the ``OpenAI-Beta: realtime=v1`` header; OpenAI killed the Beta shape entirely (``beta_api_shape_disabled``) so the GA contract is the only path now. Source of truth for the GA shape: openai/openai-python ``src/openai/resources/realtime/`` and ``src/openai/types/realtime/*``."""
 

@@ -17,6 +17,11 @@ def test_tool_call_is_slack_worthy() -> None:
     assert is_slack_worthy("tool_call")
 
 
+def test_app_crash_is_slack_worthy() -> None:
+    # A crash aborts the iOS process and never reaches the backend on its own; the device reports it on next launch as an app_crash event. Slacking it live is our only signal a tester hit a crash without polling App Store Connect.
+    assert is_slack_worthy("app_crash")
+
+
 def test_session_ended_is_durable_only_not_slack_worthy() -> None:
     # Every session emits one of these; Slacking them all would drown the channel. The value is the durable events-table row recording WHY the session ended (tool / cap / user-left), queried for the abnormal-end ratio, not a live ping.
     assert not is_slack_worthy("session_ended")
