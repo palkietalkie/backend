@@ -6,6 +6,8 @@ Each record is one row of Apple's questionnaire: a data type, whether it's linke
 
 Decisions baked in (the non-obvious ones):
 
+Coarse (not Precise) Location: the app only ever derives the user's city for weather + situational context; it does not need or store street-level coordinates.
+
 Transcripts + Audio carry a Product Personalization purpose because memory/persona recall is the product; the "product improvement / model training" consent toggle maps to Apple's "Other Purposes" (Apple has no model-training purpose).
 
 Nothing is used for tracking: there is no third-party ad SDK and no cross-app identifier sharing."""
@@ -50,6 +52,13 @@ APP_PRIVACY: tuple[CollectedData, ...] = (
     CollectedData(
         category="Contact Info",
         data_type="Name",
+        linked_to_identity=True,
+        used_for_tracking=False,
+        purposes=(APP_FUNCTIONALITY, PRODUCT_PERSONALIZATION),
+    ),
+    CollectedData(
+        category="Location",
+        data_type="Coarse Location",
         linked_to_identity=True,
         used_for_tracking=False,
         purposes=(APP_FUNCTIONALITY, PRODUCT_PERSONALIZATION),
