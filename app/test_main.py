@@ -62,3 +62,9 @@ def test_create_app_title_and_version() -> None:
 def test_web_fetch_route_is_registered() -> None:
     # main.py wires the recall/web_fetch endpoint that backs the realtime web_fetch tool.
     assert "/recall/web_fetch" in set(create_app().openapi()["paths"])
+
+
+def test_kg_delete_route_is_registered() -> None:
+    # The KG screen's swipe-to-remove soft-deletes a wrong item via DELETE /kg/{entity_id}, a separate router from the GET /kg read; this guards the wiring of that second router.
+    paths = create_app().openapi()["paths"]
+    assert "delete" in paths.get("/kg/{entity_id}", {})
