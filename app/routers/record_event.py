@@ -67,6 +67,8 @@ _SLACK_WORTHY_EVENT_TYPES: frozenset[str] = frozenset(
         "session_error",
         # The model called a realtime function tool (recall_*, web_fetch, end_conversation). The tool call rides the iOS↔provider WS directly and never hits the backend on its own, so iOS echoes each one here. end_conversation in particular silently hangs up the session — without this we have no signal whether the model ended a conversation vs the user leaving. props carry name + query.
         "tool_call",
+        # The app crashed (uncaught NSException or fatal signal). A crash aborts the process, so the device can't report it as it dies; iOS captures it and POSTs it here on the next launch. Our only live signal a tester hit a crash without waiting on App Store Connect. props carry name + reason + top_frame + build + the full stack.
+        "app_crash",
     }
 )
 
