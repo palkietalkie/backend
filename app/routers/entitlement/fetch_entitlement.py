@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -7,11 +7,8 @@ from app.auth.resolve_current_user import resolve_current_user
 from app.routers.entitlement.check_has_full_access import check_has_full_access
 from app.routers.entitlement.check_is_in_trial import check_is_in_trial
 from app.routers.entitlement.check_is_premium_now import check_is_premium_now
-from app.routers.entitlement.constants import (
-    FREE_MINUTES_PER_DAY,
-    FREE_MINUTES_PER_WEEK,
-    FREE_TRIAL_DURATION,
-)
+from app.routers.entitlement.compute_trial_ends_at import compute_trial_ends_at
+from app.routers.entitlement.constants import FREE_MINUTES_PER_DAY, FREE_MINUTES_PER_WEEK
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
@@ -35,20 +32,13 @@ class EntitlementResponse(BaseModel):
     premium_ends_at: datetime | None
 
 
-def _trial_ends_at(user: UserRow) -> datetime:
-    created = user["created_at"]
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=UTC)
-    return created + FREE_TRIAL_DURATION
-
-
 @router.get("", response_model=EntitlementResponse)
 async def fetch_entitlement(
     user: UserRow = Depends(resolve_current_user),
     db: DBConn = Depends(get_neon_connection),
 ) -> EntitlementResponse:
     trial_active = check_is_in_trial(user)
-    trial_ends_at = _trial_ends_at(user) if trial_active else None
+    trial_ends_at = compute_trial_ends_at(user) if trial_active else None
     # Full access (paying premium OR inside the free trial) reports the caps as fully available — no DB count, no countdown. is_premium stays false for a trial-only user so the app can distinguish the two.
     if check_has_full_access(user):
         return EntitlementResponse(
