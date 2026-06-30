@@ -80,9 +80,7 @@ def _make_user() -> UserRow:
 
 async def _measure_wpm(audio_speed: TutorSpeakingSpeed, extra_instruction: str = "") -> float:
     """Heard words-per-minute when audio.output.speed is set for `audio_speed` and `extra_instruction` (e.g. a pace request) is appended to the prompt. Splitting the two lets a test pin the audio knob and probe the prompt in isolation."""
-    prompt = assemble_prompt(
-        _PERSONA, _make_user(), kg_entities=[], weather_label=None, today_events_titles=[]
-    )
+    prompt = assemble_prompt(_PERSONA, _make_user(), kg_entities=[], today_events_titles=[])
     if extra_instruction:
         prompt = f"{prompt}\n\n{extra_instruction}"
     session = await mint_openai_session(prompt, OpenAIVoiceId.ALLOY, speaking_speed=audio_speed)

@@ -34,7 +34,6 @@ from app.services.personaplex.build_handshake import build_handshake
 from app.services.personaplex.constants import PERSONAPLEX_MODEL
 from app.services.slack.format_user_label import format_user_label
 from app.services.slack.post_session_threaded import post_session_threaded
-from app.services.weather.fetch_weather import fetch_weather
 from app.services.ws_ticket.mint_ws_ticket import mint_ws_ticket
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
@@ -43,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class StartRequest(BaseModel):
     persona_id: uuid.UUID
+    # The device's live location. Weather (its only former consumer) was removed; kept here, unused for now, for the live-city feature (the persona knowing where the user actually is — see the prompt's Location line, which still falls back to the stale profile city).
     lat: float | None = Field(default=None, ge=-90, le=90)
     lon: float | None = Field(default=None, ge=-180, le=180)
     # Generous bound (was 500, which truncated news summaries): the topic hook should carry the full story, not a headline. Still capped so the prompt can't be ballooned arbitrarily.
@@ -126,16 +126,10 @@ async def start_conversation(
     if topic_mode:
         persona_voice_id = random.choice(list_voices_for_provider(provider)).id  # noqa: S311
 
-    # Recall is awaited after the gather, not inside it: it shares the request's single asyncpg connection with calendar, and one connection runs only one query at a time. Weather/KG/calendar use distinct connections, so they gather safely.
-    weather, kg_entities, events = await asyncio.gather(
-        fetch_weather(body.lat, body.lon),
+    # Recall is awaited after the gather, not inside it: it shares the request's single asyncpg connection with calendar, and one connection runs only one query at a time. KG and calendar use distinct connections, so they gather safely.
+    kg_entities, events = await asyncio.gather(
         fetch_entities_summary(user["id"]),
         fetch_todays_events(user, db),
-    )
-    weather_label = (
-        f"{weather.temperature_c:.0f}°C, {weather.label}, {'day' if weather.is_day else 'night'}"
-        if weather
-        else None
     )
     event_titles = [e.title for e in events]
 
@@ -150,7 +144,6 @@ async def start_conversation(
         persona_fields,
         user,
         kg_entities,
-        weather_label,
         event_titles,
         recent_recall=recent_recall,
         topic_override=body.topic_override,

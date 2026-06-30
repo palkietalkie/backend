@@ -1,6 +1,6 @@
 """Tests for POST /conversation/start.
 
-External dependencies that need stubbing per provider: - ``fetch_entities_summary`` (Neo4j) — it's ``@fallback``-decorated so it returns ``[]`` on any failure, but the real driver still tries to dial bolt://localhost; we monkeypatch it to a no-op for determinism/speed. - ``fetch_weather`` (Open-Meteo) — only called when lat/lon are supplied; we stub it out to avoid a live HTTP call. - ``mint_openai_session`` (OpenAI Realtime) — for the openai-provider path we stub it; the test patches the symbol in the start_conversation module."""
+External dependencies that need stubbing per provider: - ``fetch_entities_summary`` (Neo4j) — it's ``@fallback``-decorated so it returns ``[]`` on any failure, but the real driver still tries to dial bolt://localhost; we monkeypatch it to a no-op for determinism/speed. - ``mint_openai_session`` (OpenAI Realtime) — for the openai-provider path we stub it; the test patches the symbol in the start_conversation module."""
 
 import uuid
 
@@ -346,35 +346,6 @@ async def test_start_topic_mode_swaps_in_valid_openai_voice(
     )
     assert resp.status_code == 200
     assert resp.json()["voice_id"] in {v.id for v in OPENAI_VOICES}
-
-
-async def test_start_with_weather_lat_lon_uses_stub(
-    app_with_overrides: tuple[AsyncClient, UserRow],
-    monkeypatch: pytest.MonkeyPatch,
-    personaplex_provider: None,
-) -> None:
-    await _stub_externals(monkeypatch)
-
-    from app.services.weather.fetch_weather import WeatherSnapshot
-
-    called: dict[str, float] = {}
-
-    async def _fake_weather(lat: float, lon: float) -> WeatherSnapshot:
-        called["lat"] = lat
-        called["lon"] = lon
-        return WeatherSnapshot(temperature_c=21.5, label="clear sky", is_day=True)
-
-    monkeypatch.setattr(start_mod, "fetch_weather", _fake_weather)
-    client, _ = app_with_overrides
-    preset = PRESETS[0]
-    resp = await client.post(
-        "/conversation/start",
-        json={"persona_id": str(preset.id), "lat": 37.7, "lon": -122.4},
-    )
-    assert resp.status_code == 200
-    assert called == {"lat": 37.7, "lon": -122.4}
-    # The weather label gets embedded in the prompt's "Their context" section.
-    assert "clear sky" in resp.json()["text_prompt"]
 
 
 async def test_start_rejects_free_user_who_hit_daily_limit(

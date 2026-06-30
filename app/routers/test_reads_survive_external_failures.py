@@ -13,7 +13,6 @@ _EXTERNAL_SERVICE_MODULES = {
     "guess_name_pronunciation",
     "neo4j",
     "pinecone",
-    "weather",
     "google_calendar",
     "openai",
 }

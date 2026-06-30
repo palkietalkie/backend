@@ -25,7 +25,7 @@ class KGResponse(BaseModel):
 
 @router.get("", response_model=KGResponse)
 async def fetch_kg(user: UserRow = Depends(resolve_current_user)) -> KGResponse:
-    # AuraDB (free tier) pauses when idle and can time out. A read-only viewer must never 500 the client over it — degrade to an empty graph so the rest of the screen still works.
+    # A read-only viewer must never 500 the client over AuraDB — degrade to an empty graph on a hard failure. Do NOT bound the wait: AuraDB (free tier) takes 10-20s to wake from idle, and failing fast would just hand back an empty graph to a user who has data. The client uses a longer timeout for /kg so it waits the cold start out and shows the real graph; the kept-warm keepalive makes a cold start rare anyway.
     try:
         data = await fetch_kg_from_neo4j(user["id"])
     except Exception:
