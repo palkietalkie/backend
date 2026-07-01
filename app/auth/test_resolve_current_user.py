@@ -50,6 +50,8 @@ async def test_resolve_creates_user_when_missing(
     assert user["email"] == "jit@palkietalkie.test"
     # Locks the column rename: the SELECT/RETURNING projects users.preferred_name (formerly display_name); a stale name would KeyError in make_user_row. Unset on JIT creation.
     assert user["preferred_name"] is None
+    # The SELECT must project correction_frequency (a missing projection would KeyError in make_user_row); a JIT user gets the column default.
+    assert user["correction_frequency"] == "sometimes"
     persisted = await db.fetchval("SELECT COUNT(*) FROM users WHERE clerk_user_id = $1", clerk_id)
     assert persisted == 1
 
