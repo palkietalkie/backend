@@ -16,8 +16,8 @@ from app.services.openai.constants import (
     OPENAI_CLIENT_SECRETS_URL,
     OPENAI_REALTIME_MODEL_PAID,
     OPENAI_REALTIME_WS_URL_TEMPLATE,
-    OPENAI_TRANSCRIPTION_MODEL_FREE,
-    OPENAI_TRANSCRIPTION_MODEL_PAID,
+    OPENAI_TRANSCRIPTION_DELAY,
+    OPENAI_TRANSCRIPTION_MODEL,
     OpenAIVoiceId,
 )
 from app.services.openai.realtime_tools import REALTIME_TOOLS
@@ -46,16 +46,12 @@ async def mint_openai_session(
     text_prompt: str,
     voice_id: OpenAIVoiceId,
     *,
-    is_premium: bool = False,
     speaking_speed: TutorSpeakingSpeed = "normal",
     http_client: HTTPPoster | None = None,
 ) -> OpenAISession:
     settings = get_settings()
-    # Always the full realtime model, regardless of tier. The mini tier ignores the prompt's explicit ban on patient-tutor filler and parrots "let's slow down" nearly every turn (confirmed in prod transcripts, even while acknowledging it overuses the phrase), which wrecks the conversation. Conversation quality IS the product, so the free-tier cost increase is accepted. Transcription stays tiered — it's STT for the live captions and doesn't affect what the persona says.
+    # Always the full realtime model, regardless of tier. The mini tier ignores the prompt's explicit ban on patient-tutor filler and parrots "let's slow down" nearly every turn (confirmed in prod transcripts, even while acknowledging it overuses the phrase), which wrecks the conversation. Conversation quality IS the product, so the free-tier cost increase is accepted.
     realtime_model = OPENAI_REALTIME_MODEL_PAID
-    transcription_model = (
-        OPENAI_TRANSCRIPTION_MODEL_PAID if is_premium else OPENAI_TRANSCRIPTION_MODEL_FREE
-    )
     ws_url = OPENAI_REALTIME_WS_URL_TEMPLATE.format(model=realtime_model)
     payload: dict[str, Any] = {
         "session": {
@@ -78,7 +74,10 @@ async def mint_openai_session(
                         "create_response": True,
                     },
                     # Without this the API never emits `conversation.item.input_audio_transcription.completed`, iOS never sees user turns, and the transcripts table only ever has persona rows.
-                    "transcription": {"model": transcription_model},
+                    "transcription": {
+                        "model": OPENAI_TRANSCRIPTION_MODEL,
+                        "delay": OPENAI_TRANSCRIPTION_DELAY,
+                    },
                 },
                 "output": {
                     "format": {"type": "audio/pcm", "rate": 24000},

@@ -32,6 +32,7 @@ def make_user_row(row: asyncpg.Record) -> UserRow:
         target_accents=list(row["target_accents"]),
         proficiency=row["proficiency"],
         tutor_speaking_speed=row["tutor_speaking_speed"],
+        correction_frequency=row["correction_frequency"],
         goals=row["goals"],
         location_city=row["location_city"],
         timezone=row["timezone"],

@@ -12,5 +12,5 @@ def test_all_proficiencies_matches_advertised_set() -> None:
     )
 
 
-def test_all_proficiencies_size_is_five_cefr_bands() -> None:
+def test_all_proficiencies_size_is_five() -> None:
     assert len(ALL_PROFICIENCIES) == 5

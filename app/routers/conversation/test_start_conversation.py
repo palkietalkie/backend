@@ -223,7 +223,6 @@ async def test_start_openai_path_returns_ephemeral_token(
         *,
         text_prompt: str,
         voice_id: OpenAIVoiceId,
-        is_premium: bool = False,
         speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(
@@ -336,7 +335,6 @@ async def test_start_topic_mode_swaps_in_valid_openai_voice(
         *,
         text_prompt: str,
         voice_id: OpenAIVoiceId,
-        is_premium: bool = False,
         speaking_speed: str = "normal",
     ) -> OpenAISession:
         return OpenAISession(

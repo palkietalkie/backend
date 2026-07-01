@@ -36,7 +36,7 @@ async def resolve_current_user(
     while row is None:
         row = await db.fetchrow(
             """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
-                      preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, goals,
+                      preferred_name, name_pronunciation, native_languages, target_language, target_accents, proficiency, tutor_speaking_speed, correction_frequency, goals,
                       location_city, timezone,
                       personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
                FROM users

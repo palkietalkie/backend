@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.personas.presets.find_preset_by_id import find_preset_by_id
 from app.personas.voices.list_voices_for_provider import list_voices_for_provider
 from app.profile.tutor_speaking_speed import coerce_speaking_speed
-from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
+from app.routers.conversation.assemble_prompt import assemble_prompt
 from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
     PROVIDER_OPENAI,
@@ -21,8 +21,8 @@ from app.routers.conversation.constants import (
     Provider,
 )
 from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
+from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
 from app.routers.conversation.resolve_free_cap import resolve_free_cap
-from app.routers.entitlement.check_has_full_access import check_has_full_access
 from app.services.calendar.fetch_todays_events import fetch_todays_events
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
@@ -195,7 +195,6 @@ async def start_conversation(
         openai_session = await mint_openai_session(
             text_prompt=text_prompt,
             voice_id=openai_voice,
-            is_premium=check_has_full_access(user),
             speaking_speed=coerce_speaking_speed(user["tutor_speaking_speed"]),
         )
         return StartResponse(

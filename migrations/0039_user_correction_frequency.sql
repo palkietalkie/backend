@@ -1,0 +1,3 @@
+-- How often the tutor points out language gaps, as a BASELINE the persona still overrides by situation (never mid-vent, never dodging a real question, never on laughter/noise). Stored as a named slug like every other lever (proficiency, tutor_speaking_speed), NOT a raw number: the 0/25/50/75/100% the user sees is a display concern mapped separately, not the stored value. NOT NULL DEFAULT 'sometimes' (50%) mirrors those levers and is the neutral middle; the onboarding step lets the user pick their level, users adjust it anytime.
+ALTER TABLE users ADD COLUMN correction_frequency VARCHAR NOT NULL DEFAULT 'sometimes'
+    CHECK (correction_frequency IN ('never', 'rarely', 'sometimes', 'often', 'always'));

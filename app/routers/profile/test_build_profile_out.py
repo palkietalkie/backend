@@ -32,6 +32,7 @@ def _user_row(
         "name_pronunciation": None,
         "target_language": target_language,
         "tutor_speaking_speed": tutor_speaking_speed,
+        "correction_frequency": "sometimes",
         "proficiency": proficiency,
         "native_languages": native_languages if native_languages is not None else ["English"],
         "target_accents": target_accents if target_accents is not None else ["Beijing Standard"],
