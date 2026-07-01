@@ -57,6 +57,30 @@ def test_assemble_prompt_includes_name_and_city() -> None:
     assert "Tokyo" in out
 
 
+def test_live_city_overrides_stale_profile_city() -> None:
+    # People move; the device's live city (this session) must win over the profile's location_city so the persona is placed where the user actually is now.
+    out = assemble_prompt(
+        PERSONA,
+        _user(location_city="Tokyo"),
+        kg_entities=[],
+        today_events_titles=[],
+        live_city="Osaka",
+    )
+    assert "Osaka" in out
+    assert "Tokyo" not in out
+
+
+def test_falls_back_to_profile_city_when_no_live_city() -> None:
+    out = assemble_prompt(
+        PERSONA,
+        _user(location_city="Tokyo"),
+        kg_entities=[],
+        today_events_titles=[],
+        live_city=None,
+    )
+    assert "Tokyo" in out
+
+
 def test_assemble_prompt_tells_the_model_to_ignore_noise_garbage() -> None:
     # Outdoor mic noise gets transcribed as garbage ("yeah", ".", a stray word); the model must not react to it, or the conversation collapses. Lock the instruction into the prompt.
     out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
