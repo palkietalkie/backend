@@ -29,9 +29,11 @@ def assemble_prompt(
     today_events_titles: list[str],
     recent_recall: str | None = None,
     topic_override: str | None = None,
+    live_city: str | None = None,
 ) -> str:
     name = user["preferred_name"] or "the user"
-    city = user["location_city"] or "their city"
+    # Prefer the device's live city (reverse-geocoded this session) over the profile's location_city: people move and rarely edit the profile field, so the live reading is what actually places the persona in the user's here-and-now. Fall back to the profile, then a generic "their city".
+    city = live_city or user["location_city"] or "their city"
     when = format_local_time(user["timezone"])
     target_lang = user["target_language"]
     native_languages = list(user["native_languages"])

@@ -43,9 +43,10 @@ logger = logging.getLogger(__name__)
 
 class StartRequest(BaseModel):
     persona_id: uuid.UUID
-    # The device's live location. Weather (its only former consumer) was removed; kept here, unused for now, for the live-city feature (the persona knowing where the user actually is — see the prompt's Location line, which still falls back to the stale profile city).
+    # The device's live location, reverse-geocoded on the phone. lat/lon are kept for future use; city is what the prompt actually consumes — it places the persona in the user's current city (people move; the profile field goes stale), preferred over the profile's location_city.
     lat: float | None = Field(default=None, ge=-90, le=90)
     lon: float | None = Field(default=None, ge=-180, le=180)
+    city: str | None = Field(default=None, max_length=120)
     # Generous bound (was 500, which truncated news summaries): the topic hook should carry the full story, not a headline. Still capped so the prompt can't be ballooned arbitrarily.
     topic_override: str | None = Field(default=None, max_length=8000)
 
@@ -148,6 +149,7 @@ async def start_conversation(
         event_titles,
         recent_recall=recent_recall,
         topic_override=body.topic_override,
+        live_city=body.city,
     )
 
     now = datetime.now(UTC)

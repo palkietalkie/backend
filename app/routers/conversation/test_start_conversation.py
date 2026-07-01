@@ -189,6 +189,25 @@ async def test_start_writes_conversation_start_event(
     assert len(events) == 1
 
 
+async def test_start_forwards_live_city_into_prompt(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+    personaplex_provider: None,
+) -> None:
+    # The device sends its live city on /start; it must override the stale profile city in the assembled prompt so the persona is placed where the user actually is.
+    await _stub_externals(monkeypatch)
+    client, user = app_with_overrides
+    await db.execute("UPDATE users SET location_city = 'Tokyo' WHERE id = $1", user["id"])
+    resp = await client.post(
+        "/conversation/start", json={"persona_id": str(PRESETS[0].id), "city": "Osaka"}
+    )
+    assert resp.status_code == 200
+    prompt = resp.json()["text_prompt"]
+    assert "Osaka" in prompt
+    assert "Tokyo" not in prompt
+
+
 async def test_start_openai_path_returns_ephemeral_token(
     app_with_overrides: tuple[AsyncClient, UserRow],
     db: DBConn,
