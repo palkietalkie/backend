@@ -3,7 +3,8 @@
 import uuid
 from datetime import UTC, datetime
 
-from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
+from app.routers.conversation.assemble_prompt import assemble_prompt
+from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
 from app.services.neon.rows import UserRow
 
 
@@ -14,6 +15,7 @@ def _user(
     native_languages: list[str] | None = None,
     goals: str | None = "job interview prep",
     location_city: str | None = "Tokyo",
+    correction_frequency: str = "sometimes",
 ) -> UserRow:
     return UserRow(
         id=uuid.uuid4(),
@@ -30,6 +32,7 @@ def _user(
         target_language="English",
         proficiency="intermediate",
         tutor_speaking_speed="normal",
+        correction_frequency=correction_frequency,
         goals=goals,
         location_city=location_city,
         timezone="Asia/Tokyo",
@@ -242,12 +245,24 @@ def test_assemble_prompt_skips_memory_section_when_empty() -> None:
     assert "## What you remember about them" not in out
 
 
+def test_beginner_is_a_real_from_zero_beginner() -> None:
+    # Yas quit Chinese because the old "beginner" threw A1 sentences at a from-zero learner. `beginner` must now scaffold in the native language and explicitly NOT expect sentences.
+    user = _user()
+    user["proficiency"] = "beginner"
+    out = assemble_prompt(PERSONA, user, kg_entities=[], today_events_titles=[])
+    # Scaffolds in the user's native language (default Japanese) rather than repeating unparseable English.
+    assert "Speak mostly in Japanese" in out
+    assert "Do NOT expect sentences" in out
+    # Carries its CEFR range so the model can calibrate.
+    assert "CEFR pre-A1 to A1" in out
+
+
 def test_unknown_proficiency_falls_back_to_full_canonical_hint() -> None:
     # Bug guard: an unrecognized proficiency must get the FULL "intermediate" hint, not a stripped default that drifts from the real entry.
     user = _user()
     user["proficiency"] = "not-a-real-level"
     out = assemble_prompt(PERSONA, user, kg_entities=[], today_events_titles=[])
-    assert "mix everyday and slightly elevated vocabulary; use common idioms" in out
+    assert "Intermediate (CEFR B1)" in out
 
 
 def test_speaking_speed_never_injects_pacing_text() -> None:
@@ -259,6 +274,79 @@ def test_speaking_speed_never_injects_pacing_text() -> None:
         out = assemble_prompt(PERSONA, user, kg_entities=[], today_events_titles=[])
         for phrase in banned:
             assert phrase not in out
+
+
+def test_prompt_tells_the_model_not_to_react_to_laughter() -> None:
+    # Nao noticed the AI stopped and reacted every time she laughed. The prompt can't stop the VAD interrupting, but it must stop the model treating a laugh as a turn and derailing.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    lowered = out.lower()
+    assert "laugh" in lowered
+    assert "not a turn" in lowered
+    # If a laugh clips the model mid-sentence it should continue, not restart or ask what's funny.
+    assert "finish the thought" in lowered
+
+
+def test_prompt_puts_the_person_before_correction() -> None:
+    # Nao's core complaint ("you're just fixing my English", not solving my problem): the AI corrected every turn even when she asked a real question or brought a real problem. The prompt must prioritize engaging as a person over correcting, and it must outrank the natural-phrasing rule.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    assert "Be a real partner first" in out
+    assert "Correcting a person who just asked you a real question" in out
+
+
+def test_prompt_backs_off_corrections_when_user_pushes_back() -> None:
+    # When the user signals the correcting is unwanted, the AI must drop it (Nao said it, and the AI ignored her).
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    assert "stop correcting me" in out
+
+
+def test_prompt_does_not_mandate_correcting_every_turn() -> None:
+    # The old prompt demanded correction "non-negotiable, every turn". That absolutism is gone; density is now the user's correction_frequency baseline, and the persona still reads the room via 'Be a real partner first'.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    assert "non-negotiable, every turn" not in out
+    assert "Be a real partner first" in out
+
+
+def test_correction_frequency_never_turns_corrections_off() -> None:
+    # `never` = pure conversation partner (Nao's end): the whole teaching section is swapped for an off-note, and none of the correction machinery remains.
+    out = assemble_prompt(
+        PERSONA, _user(correction_frequency="never"), kg_entities=[], today_events_titles=[]
+    )
+    assert "corrections turned OFF" in out
+    assert "INDEPENDENT of correctness" not in out
+    assert "you said X, but a native says Y" not in out
+
+
+def test_correction_frequency_always_corrects_essentially_everything() -> None:
+    # `always` = Wes's end: catch everything, but the teaching machinery (how to correct legibly) is still present.
+    out = assemble_prompt(
+        PERSONA, _user(correction_frequency="always"), kg_entities=[], today_events_titles=[]
+    )
+    assert "Correct essentially every gap" in out
+    assert "INDEPENDENT of correctness" in out
+
+
+def test_prompt_states_palkie_talkie_identity_and_mission() -> None:
+    # Nao's session: asked "who are you / what is this / what's your name" and the AI dodged (said it had no name, gave a vague answer). The prompt must let the persona name the product (Palkie Talkie) and its mission (get fluent in the target language) when asked.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    assert "Palkie Talkie" in out
+    assert "fluent" in out.lower()
+    # The mission references the user's actual target language, not a hardcoded "English".
+    assert "English" in out  # _user() sets target_language="English"
+
+
+def test_prompt_can_describe_app_features_when_asked() -> None:
+    # Users asked what the app does / what they'd learn and got no answer. The persona should be able to point at real features.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    lowered = out.lower()
+    assert "news and quizzes" in lowered
+    assert "stats" in lowered
+
+
+def test_prompt_forbids_repeating_the_same_acknowledgment() -> None:
+    # Nao twice called out the AI overusing "Exactly" (in the transcript), and it kept doing it. The prompt must ban repeating the same discourse marker turn after turn.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    assert "Don't repeat the same acknowledgment" in out
+    assert "Exactly" in out
 
 
 def test_prompt_carries_anti_sycophant_stance() -> None:

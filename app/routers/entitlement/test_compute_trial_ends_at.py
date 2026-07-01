@@ -23,6 +23,7 @@ def _user(created_at: datetime) -> UserRow:
         target_language="English",
         proficiency="intermediate",
         tutor_speaking_speed="normal",
+        correction_frequency="sometimes",
         goals=None,
         location_city=None,
         timezone=None,

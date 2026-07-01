@@ -82,32 +82,20 @@ async def test_turn_detection_uses_auto_eagerness_semantic_vad() -> None:
 
 
 @pytest.mark.asyncio
-async def test_paid_users_get_full_realtime_and_transcription_models() -> None:
-    fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
-    await mint_openai_session(
-        text_prompt="x",
-        voice_id=OpenAIVoiceId.ASH,
-        is_premium=True,
-        http_client=fake,
-    )
-    _url, body, _headers = fake.calls[0]
-    assert body["session"]["model"] == OPENAI_REALTIME_MODEL_PAID
-    assert body["session"]["audio"]["input"]["transcription"]["model"] == "gpt-4o-transcribe"
-
-
-@pytest.mark.asyncio
-async def test_free_users_get_full_realtime_but_mini_transcription() -> None:
-    # The realtime model is ALWAYS the full one (mini parrots "let's slow down" and ignores prompt prohibitions). Only transcription stays tiered to save cost on the free plan.
+async def test_transcription_uses_whisper_with_high_delay_for_everyone() -> None:
+    # Not tiered by plan any more: everyone gets gpt-realtime-whisper (strongly multilingual, so a Japanese speaker's turns stop coming back as Chinese/Thai/Korean) with a high `delay` (more audio context before emitting = better accuracy + fewer wrong-language guesses). Whisper doesn't take a language/prompt hint, which is fine since users code-switch.
     fake = _FakeClient(_resp(200, {"value": "ek_tok"}))
     session = await mint_openai_session(
-        text_prompt="x",
-        voice_id=OpenAIVoiceId.ASH,
-        is_premium=False,
-        http_client=fake,
+        text_prompt="x", voice_id=OpenAIVoiceId.ASH, http_client=fake
     )
     _url, body, _headers = fake.calls[0]
+    transcription = body["session"]["audio"]["input"]["transcription"]
     assert body["session"]["model"] == OPENAI_REALTIME_MODEL_PAID
-    assert body["session"]["audio"]["input"]["transcription"]["model"] == "gpt-4o-mini-transcribe"
+    assert transcription["model"] == "gpt-realtime-whisper"
+    assert transcription["delay"] == "high"
+    # No language/prompt pin: code-switchers must not be locked to one language.
+    assert "language" not in transcription
+    assert "prompt" not in transcription
     assert session.ws_url.endswith(f"model={OPENAI_REALTIME_MODEL_PAID}")
 
 

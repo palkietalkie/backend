@@ -2,6 +2,7 @@ from typing import get_args
 
 from pydantic import BaseModel
 
+from app.profile.correction_frequency import CorrectionFrequency, coerce_correction_frequency
 from app.profile.languages import AccentName, LanguageName
 from app.profile.proficiency import Proficiency
 from app.profile.tutor_speaking_speed import TutorSpeakingSpeed
@@ -24,6 +25,7 @@ class ProfileOut(BaseModel):
     target_accents: list[AccentName]
     proficiency: Proficiency
     tutor_speaking_speed: TutorSpeakingSpeed
+    correction_frequency: CorrectionFrequency
     goals: str | None
     location_city: str | None
     timezone: str | None
@@ -45,6 +47,8 @@ def build_profile_out(
         "tutor_speaking_speed": user["tutor_speaking_speed"]
         if user["tutor_speaking_speed"] in _VALID_SPEED
         else "normal",
+        # Narrow to the Literal; a stale/drifted value coerces to the neutral middle so the read never 500s.
+        "correction_frequency": coerce_correction_frequency(user["correction_frequency"]),
         "native_languages": [lang for lang in user["native_languages"] if lang in _VALID_LANGUAGES],
         "target_accents": [accent for accent in user["target_accents"] if accent in _VALID_ACCENTS],
         "name_pronunciation_suggestion": name_pronunciation_suggestion,

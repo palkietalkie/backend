@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.auth.resolve_current_user import resolve_current_user
+from app.profile.correction_frequency import CorrectionFrequency
 from app.profile.is_accent_in_language import is_accent_in_language
 from app.profile.is_language_name import is_language_name
 from app.profile.languages import AccentName, LanguageName
@@ -26,6 +27,7 @@ class ProfileUpdate(BaseModel):
     target_accents: list[AccentName] | None = None
     proficiency: Proficiency | None = None
     tutor_speaking_speed: TutorSpeakingSpeed | None = None
+    correction_frequency: CorrectionFrequency | None = None
     goals: str | None = None
     location_city: str | None = Field(default=None, max_length=120)
     timezone: str | None = Field(default=None, max_length=64)
@@ -75,12 +77,13 @@ async def update_profile(
                goals                = COALESCE($9, goals),
                location_city        = COALESCE($10, location_city),
                timezone             = COALESCE($11, timezone),
+               correction_frequency = COALESCE($12, correction_frequency),
                updated_at           = NOW()
            WHERE id = $1
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                      preferred_name, name_pronunciation,
                      native_languages, target_language, target_accents,
-                     proficiency, tutor_speaking_speed,
+                     proficiency, tutor_speaking_speed, correction_frequency,
                      goals, location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at""",
         user["id"],
@@ -94,6 +97,7 @@ async def update_profile(
         body.goals,
         body.location_city,
         body.timezone,
+        body.correction_frequency,
     )
     assert row is not None
     updated = make_user_row(row)

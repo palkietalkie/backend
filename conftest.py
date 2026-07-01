@@ -253,7 +253,7 @@ async def fake_user(db: DBConn) -> UserRow:
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                      preferred_name, name_pronunciation, native_languages, target_language, target_accents,
-                     proficiency, tutor_speaking_speed, goals,
+                     proficiency, tutor_speaking_speed, correction_frequency, goals,
                      location_city, timezone,
                      personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at""",
         user_id,
@@ -284,6 +284,7 @@ async def fake_user(db: DBConn) -> UserRow:
         target_accents=list(row["target_accents"]),
         proficiency=row["proficiency"],
         tutor_speaking_speed=row["tutor_speaking_speed"],
+        correction_frequency=row["correction_frequency"],
         goals=row["goals"],
         location_city=row["location_city"],
         timezone=row["timezone"],
@@ -318,7 +319,7 @@ async def app_with_overrides(
         row = await db.fetchrow(
             """SELECT id, clerk_user_id, email, premium, premium_ends_at, created_at, updated_at,
                       preferred_name, name_pronunciation, native_languages, target_language, target_accents,
-                      proficiency, tutor_speaking_speed, goals,
+                      proficiency, tutor_speaking_speed, correction_frequency, goals,
                       location_city, timezone,
                       personalization_consent, product_improvement_consent, consent_screen_seen_at, deleted_at
                FROM users
@@ -341,6 +342,7 @@ async def app_with_overrides(
             target_accents=list(row["target_accents"]),
             proficiency=row["proficiency"],
             tutor_speaking_speed=row["tutor_speaking_speed"],
+            correction_frequency=row["correction_frequency"],
             goals=row["goals"],
             location_city=row["location_city"],
             timezone=row["timezone"],

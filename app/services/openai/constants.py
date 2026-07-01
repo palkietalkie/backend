@@ -1,10 +1,11 @@
 from enum import StrEnum
 
-# Realtime model: everyone gets the full realtime model (mint_openai_session ignores tier for it). gpt-realtime-2 audio is $32/$64 per 1M in/out ($0.40 cached) — the bulk of conversation cost — with GPT-5-class reasoning and a 128K context. The mini tier is kept here, unused, as the cheaper free-plan option for when we work out how to make it behave: today it ignores the prompt's explicit prohibitions and parrots "let's slow down" every turn, and we don't yet know the fix (prompt tuning, config, or a better mini). Until then, mini is shelved. Transcription stays tiered — it's STT for captions, not the persona's voice.
+# Realtime model: everyone gets the full model, no tier split. gpt-realtime-2 audio is $32/$64 per 1M in/out ($0.40 cached), the bulk of conversation cost, with GPT-5-class reasoning and a 128K context. A mini tier for the free plan was tried and dropped: it ignores the prompt's explicit prohibitions and parrots "let's slow down" every turn, and conversation quality IS the product.
 OPENAI_REALTIME_MODEL_PAID = "gpt-realtime-2"
-OPENAI_REALTIME_MODEL_FREE = "gpt-realtime-mini"
-OPENAI_TRANSCRIPTION_MODEL_PAID = "gpt-4o-transcribe"
-OPENAI_TRANSCRIPTION_MODEL_FREE = "gpt-4o-mini-transcribe"
+# Whisper-based realtime STT for the user-side captions/transcript. Chosen over gpt-4o-transcribe because it's whisper (strongly multilingual, so it stops mis-detecting a Japanese speaker's turns as Chinese/Thai/Korean) and it's the only transcription model that exposes the `delay` knob, which buys more audio context before emitting for better accuracy AND better language selection. It costs ~$0.017/min vs gpt-4o-transcribe's ~$0.006/min, but at current volume that's ~$1.50/month total, so the quality wins outright. Not tiered by plan: there's no mini whisper, and the absolute cost is negligible either way. It does NOT support a `prompt`/`language` hint (fine: users code-switch, so we don't want to hard-pin one language anyway).
+OPENAI_TRANSCRIPTION_MODEL = "gpt-realtime-whisper"
+# How long the transcriber waits for more audio before emitting text. Higher = more context = better accuracy + fewer wrong-language guesses, at the cost of the caption appearing a bit later. Transcription is entirely off the voice-loop critical path (the AI's spoken reply never waits on it), so we can afford a high setting; the only visible effect is the live caption lagging slightly.
+OPENAI_TRANSCRIPTION_DELAY = "high"
 OPENAI_REALTIME_WS_URL_TEMPLATE = "wss://api.openai.com/v1/realtime?model={model}"
 OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 # Classic single-shot TTS endpoint. Limited voice set (alloy, ash, coral, echo, sage, shimmer) — for the realtime-only voices use the Realtime API one-shot via /v1/responses (see synthesize_speech_realtime).

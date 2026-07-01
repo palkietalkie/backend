@@ -1,13 +1,6 @@
-"""User-reported proficiency band, CEFR-aligned but exposed in plain language.
+"""User-reported proficiency band, exposed in plain language. 5 levels, stored as the slug; iOS shows the display label.
 
-Maps to CEFR levels:
-- beginner ↔ A1
-- lower_intermediate ↔ A2
-- intermediate ↔ B1
-- upper_intermediate ↔ B2
-- advanced ↔ C1+
-
-Stored as the slug (`beginner`, `lower_intermediate`, …) in the DB. iOS shows the display label."""
+`beginner` is a REAL from-zero beginner, not the old A1 that over-faced true starters. No "A0" level: it isn't a real CEFR band, and a true beginner can't self-classify finer than "beginner" anyway, so the tutor reads their level live. Per-level behavior and CEFR ranges live in build_proficiency_hint."""
 
 from typing import Literal, get_args
 

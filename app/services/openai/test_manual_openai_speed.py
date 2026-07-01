@@ -22,7 +22,8 @@ import pytest
 import websockets
 
 from app.profile.tutor_speaking_speed import TutorSpeakingSpeed
-from app.routers.conversation.assemble_prompt import PersonaPromptFields, assemble_prompt
+from app.routers.conversation.assemble_prompt import assemble_prompt
+from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
 from app.services.neon.rows import UserRow
 from app.services.openai.constants import OpenAIVoiceId
 from app.services.openai.mint_openai_session import mint_openai_session
@@ -68,6 +69,7 @@ def _make_user() -> UserRow:
         target_accents=[],
         proficiency="intermediate",
         tutor_speaking_speed="normal",
+        correction_frequency="sometimes",
         goals=None,
         location_city="San Francisco",
         timezone="America/Los_Angeles",

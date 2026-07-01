@@ -169,6 +169,7 @@ class UserRow(TypedDict):
     native_languages: list[str]
     target_accents: list[str]
     deleted_at: datetime | None
+    correction_frequency: str
 
 
 class WaitlistRow(TypedDict):
