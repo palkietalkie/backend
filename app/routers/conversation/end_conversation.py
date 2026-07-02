@@ -11,6 +11,7 @@ from app.routers.conversation.run_post_session_pipelines import run_post_session
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.rows import UserRow
+from app.services.openai.compute_realtime_cost import compute_realtime_cost
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
@@ -44,17 +45,24 @@ async def end_conversation(
         started = started.replace(tzinfo=UTC)
     duration = max(int((now - started).total_seconds()), 0)
 
+    # Derive $ cost from the reported tokens x the session model's audio rate. None (stored NULL) for PersonaPlex or a session that reported no usage, never a misleading 0.
+    cost = compute_realtime_cost(session_row["model"], body.input_tokens, body.output_tokens)
+    input_cost, output_cost = cost if cost is not None else (None, None)
+
     async with db.transaction():
         await db.execute(
             """UPDATE conversation_sessions
                SET ended_at = $2, duration_seconds = $3,
-                   input_tokens = $4, output_tokens = $5
+                   input_tokens = $4, output_tokens = $5,
+                   input_cost_usd = $6, output_cost_usd = $7
                WHERE id = $1""",
             session_id,
             now,
             duration,
             body.input_tokens,
             body.output_tokens,
+            input_cost,
+            output_cost,
         )
         await db.execute(
             INSERT_EVENT_SQL,
