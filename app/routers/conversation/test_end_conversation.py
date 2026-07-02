@@ -19,14 +19,15 @@ def test_end_conversation_holds_the_real_run_milestone_check() -> None:
 
 
 async def _seed_session(
-    db: DBConn, user_id: uuid.UUID, started_at: datetime | None = None
+    db: DBConn, user_id: uuid.UUID, started_at: datetime | None = None, model: str | None = None
 ) -> uuid.UUID:
     session_id = uuid.uuid4()
     await db.execute(
-        "INSERT INTO conversation_sessions (id, user_id, started_at) VALUES ($1, $2, $3)",
+        "INSERT INTO conversation_sessions (id, user_id, started_at, model) VALUES ($1, $2, $3, $4)",
         session_id,
         user_id,
         started_at or datetime.now(UTC),
+        model,
     )
     return session_id
 
@@ -150,6 +151,60 @@ async def test_end_conversation_without_tokens_leaves_them_null(
     assert row is not None
     assert row["input_tokens"] is None
     assert row["output_tokens"] is None
+
+
+async def test_end_conversation_computes_usd_cost_from_tokens_and_model(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
+    client, user = app_with_overrides
+    session_id = await _seed_session(db, user["id"], model="gpt-realtime-2")
+
+    resp = await client.post(
+        f"/conversation/{session_id}/end", json={"input_tokens": 12000, "output_tokens": 8000}
+    )
+    assert resp.status_code == 200
+    row = await db.fetchrow(
+        "SELECT input_cost_usd, output_cost_usd FROM conversation_sessions WHERE id = $1",
+        session_id,
+    )
+    assert row is not None
+    # gpt-realtime-2 = $32/M input, $64/M output → 12000 * 32/1e6 = 0.384, 8000 * 64/1e6 = 0.512.
+    assert float(row["input_cost_usd"]) == 0.384
+    assert float(row["output_cost_usd"]) == 0.512
+
+
+async def test_end_conversation_leaves_cost_null_without_a_known_model(
+    app_with_overrides: tuple[AsyncClient, UserRow],
+    db: DBConn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # No model on the session (or PersonaPlex, which reports no per-token usage) → no rate → NULL cost, not a wrong 0.
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(end_conversation_mod, "run_post_session_pipelines", _noop)
+    monkeypatch.setattr(end_conversation_mod, "run_milestone_check", _noop)
+    client, user = app_with_overrides
+    session_id = await _seed_session(db, user["id"])
+
+    resp = await client.post(
+        f"/conversation/{session_id}/end", json={"input_tokens": 12000, "output_tokens": 8000}
+    )
+    assert resp.status_code == 200
+    row = await db.fetchrow(
+        "SELECT input_cost_usd, output_cost_usd FROM conversation_sessions WHERE id = $1",
+        session_id,
+    )
+    assert row is not None
+    assert row["input_cost_usd"] is None
+    assert row["output_cost_usd"] is None
 
 
 async def test_end_conversation_clamps_negative_duration_to_zero(

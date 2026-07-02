@@ -10,7 +10,7 @@ PROVIDER_OPENAI_WEBRTC: Provider = "openai_webrtc"
 # How many real current headlines a Talk-view conversation gets: three — enough that one might be relevant as a timely opener, few enough not to bloat the prompt or tempt the tutor into reciting a news list.
 NEWS_HEADLINES_IN_PROMPT = 3
 
-SESSION_BY_USER_SQL = """SELECT id, user_id, persona_id, started_at, ended_at, duration_seconds
+SESSION_BY_USER_SQL = """SELECT id, user_id, persona_id, started_at, ended_at, duration_seconds, model
 FROM conversation_sessions
 WHERE id = $1 AND user_id = $2"""
 
