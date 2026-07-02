@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from app.daily_content.models import TalkItem
 from app.routers.conversation.assemble_prompt import assemble_prompt
 from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
 from app.services.neon.rows import UserRow
@@ -99,6 +100,19 @@ def test_assemble_prompt_has_no_echo_ignore_clause() -> None:
     out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
     lowered = out.lower()
     assert "echoing" not in lowered
+
+
+def test_opener_stays_fresh_and_past_openers_are_not_callbacks() -> None:
+    # Regression: the tutor opened nearly every session on the live location ("Market Street feels flat today…"). Real cause (not the location itself): recall re-fed a past opener line and the persona reused it (no human reuses openers), and the opener rule pushed a fabricated inner state ("an opinion you've been holding"). Fix: openers must be FRESH and a past opener is explicitly NOT a callback; the vague "physically in the same moment" location framing is gone. LLM behavior can't be unit-tested; this locks the prompt intent against silent regression.
+    out = assemble_prompt(PERSONA, _user(), kg_entities=[], today_events_titles=[])
+    lowered = out.lower()
+    assert "physically in the same moment" not in lowered
+    assert "observation about the moment you're in" not in lowered
+    # Positive guidance, not just bans: the opener should lead with following up on real recent threads.
+    assert "follows up on something real" in lowered
+    # Opening owns the recall-specific point; the general no-reuse rule lives once, in "How you talk" (deduped).
+    assert "a past opener is not a callback" in lowered
+    assert "never reuse your own openers" in lowered
     assert "back into the mic" not in lowered
 
 
@@ -369,3 +383,14 @@ def test_never_mandates_addressing_user_by_name() -> None:
         out = assemble_prompt(PERSONA, _user(preferred_name=preferred_name), [], [])
         assert "by name" not in out
         assert "address" not in out.lower()
+
+
+def test_todays_news_section_only_when_news_supplied() -> None:
+    # #50: Talk-view sessions get a few real headlines (start_conversation supplies them); topic sessions supply none. Grounds the opener's timely hook in real current events instead of date-inference.
+    news = [TalkItem(title="Local team wins the cup", summary="in extra time")]
+    with_news = assemble_prompt(PERSONA, _user(), [], [], todays_news=news)
+    assert "## In the news today" in with_news
+    assert "Local team wins the cup" in with_news
+
+    without = assemble_prompt(PERSONA, _user(), [], [])
+    assert "## In the news today" not in without

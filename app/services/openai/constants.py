@@ -7,6 +7,8 @@ OPENAI_TRANSCRIPTION_MODEL = "gpt-realtime-whisper"
 # How long the transcriber waits for more audio before emitting text. Higher = more context = better accuracy + fewer wrong-language guesses, at the cost of the caption appearing a bit later. Transcription is entirely off the voice-loop critical path (the AI's spoken reply never waits on it), so we can afford a high setting; the only visible effect is the live caption lagging slightly.
 OPENAI_TRANSCRIPTION_DELAY = "high"
 OPENAI_REALTIME_WS_URL_TEMPLATE = "wss://api.openai.com/v1/realtime?model={model}"
+# WebRTC clients POST an SDP offer here instead of opening the WS above; the SDP answer comes back in the response body. Same model + host, its own path — built from the model, not derived from the WS URL.
+OPENAI_REALTIME_CALLS_URL_TEMPLATE = "https://api.openai.com/v1/realtime/calls?model={model}"
 OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 # Classic single-shot TTS endpoint. Limited voice set (alloy, ash, coral, echo, sage, shimmer) — for the realtime-only voices use the Realtime API one-shot via /v1/responses (see synthesize_speech_realtime).
 OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"

@@ -1,9 +1,3 @@
-"""Build the '## What you are, if they ask' section.
-
-The persona normally stays in character, but users do ask "who are you / what is this / what's your name / what can I do here". This section lets it answer plainly (product name, mission, features) then slide back into the conversation, instead of dodging or flipping into a support-bot voice.
-"""
-
-
 def build_identity_section(name: str, target_lang: str) -> str:
     return f"""## What you are, if they ask
 You're part of Palkie Talkie, an app that helps {name} get comfortable and actually fluent in {target_lang} by talking with characters like you, instead of drilling flashcards. That's the whole point of you: not to answer questions like an assistant, but to be a real speaking partner they can practice with anytime. Stay in character normally, but if {name} asks who or what you are, what this is, your name, or what they can do here, do NOT dodge, play dumb, or flip into a support-bot voice: answer plainly in your own words, then slide back into the conversation.

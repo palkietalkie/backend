@@ -1,4 +1,4 @@
-from app.routers.conversation.build_identity_section import build_identity_section
+from app.routers.conversation.prompt_sections.build_identity_section import build_identity_section
 
 
 def test_names_the_product_mission_and_features() -> None:

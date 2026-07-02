@@ -1,4 +1,6 @@
-from app.routers.conversation.build_partner_first_section import build_partner_first_section
+from app.routers.conversation.prompt_sections.build_partner_first_section import (
+    build_partner_first_section,
+)
 
 
 def test_prioritizes_the_person_and_backs_off_on_pushback() -> None:
