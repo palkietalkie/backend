@@ -1,4 +1,6 @@
-from app.routers.conversation.build_natural_phrasing_block import build_natural_phrasing_block
+from app.routers.conversation.prompt_sections.build_natural_phrasing_block import (
+    build_natural_phrasing_block,
+)
 
 
 def test_never_swaps_in_a_corrections_off_note() -> None:

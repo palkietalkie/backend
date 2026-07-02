@@ -16,20 +16,28 @@ from app.profile.tutor_speaking_speed import coerce_speaking_speed
 from app.routers.conversation.assemble_prompt import assemble_prompt
 from app.routers.conversation.constants import (
     INSERT_EVENT_SQL,
+    NEWS_HEADLINES_IN_PROMPT,
     PROVIDER_OPENAI,
+    PROVIDER_OPENAI_WEBRTC,
     PROVIDER_PERSONAPLEX,
     Provider,
 )
 from app.routers.conversation.fetch_recent_recall import fetch_recent_recall
 from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
 from app.routers.conversation.resolve_free_cap import resolve_free_cap
+from app.routers.conversation.select_todays_news import select_todays_news
 from app.services.calendar.fetch_todays_events import fetch_todays_events
+from app.services.daily_content.load_today_topics import load_today_topics
 from app.services.neo4j.fetch_entities_summary import fetch_entities_summary
 from app.services.neon.db_conn import DBConn
 from app.services.neon.get_neon_connection import get_neon_connection
 from app.services.neon.make_rows import make_persona_row
 from app.services.neon.rows import UserRow
-from app.services.openai.constants import OPENAI_REALTIME_MODEL_PAID, OpenAIVoiceId
+from app.services.openai.constants import (
+    OPENAI_REALTIME_CALLS_URL_TEMPLATE,
+    OPENAI_REALTIME_MODEL_PAID,
+    OpenAIVoiceId,
+)
 from app.services.openai.mint_openai_session import mint_openai_session
 from app.services.personaplex.build_handshake import build_handshake
 from app.services.personaplex.constants import PERSONAPLEX_MODEL
@@ -141,6 +149,12 @@ async def start_conversation(
         if topic_mode
         else await fetch_recent_recall(user["id"], body.persona_id, user["target_language"], db)
     )
+    # Talk-view (non-topic) sessions get a few real current headlines so the tutor can open on something genuinely happening now; a Today-screen topic session already has its subject, so skip it.
+    todays_news = (
+        []
+        if topic_mode
+        else select_todays_news(await load_today_topics(db), NEWS_HEADLINES_IN_PROMPT)
+    )
 
     text_prompt = assemble_prompt(
         persona_fields,
@@ -150,12 +164,17 @@ async def start_conversation(
         recent_recall=recent_recall,
         topic_override=body.topic_override,
         live_city=body.city,
+        todays_news=todays_news,
     )
 
     now = datetime.now(UTC)
     session_id = uuid.uuid4()
     # Record which model the session runs on: the OpenAI realtime model (same constant mint uses) or the PersonaPlex model on Modal. PersonaPlex bills through Modal and reports no token usage, but the model itself is still worth recording to tell the two paths apart in analysis.
-    session_model = OPENAI_REALTIME_MODEL_PAID if provider == PROVIDER_OPENAI else PERSONAPLEX_MODEL
+    session_model = (
+        OPENAI_REALTIME_MODEL_PAID
+        if provider in (PROVIDER_OPENAI, PROVIDER_OPENAI_WEBRTC)
+        else PERSONAPLEX_MODEL
+    )
     async with db.transaction():
         await db.execute(
             """INSERT INTO conversation_sessions (id, user_id, persona_id, started_at, target_language, model)
@@ -184,7 +203,7 @@ async def start_conversation(
         str(session_id),
     )
 
-    if provider == PROVIDER_OPENAI:
+    if provider in (PROVIDER_OPENAI, PROVIDER_OPENAI_WEBRTC):
         try:
             openai_voice = OpenAIVoiceId(persona_voice_id)
         except ValueError as e:
@@ -197,12 +216,21 @@ async def start_conversation(
             voice_id=openai_voice,
             speaking_speed=coerce_speaking_speed(user["tutor_speaking_speed"]),
         )
+        # WebRTC posts an SDP offer to /v1/realtime/calls instead of opening a WebSocket, so hand iOS that HTTPS URL in ws_url (iOS reuses ws_url as the calls URL for this provider). Built from the model + its own template — the same way ws_url is built — not derived from the WS URL.
+        if provider == PROVIDER_OPENAI_WEBRTC:
+            connect_url = OPENAI_REALTIME_CALLS_URL_TEMPLATE.format(
+                model=OPENAI_REALTIME_MODEL_PAID
+            )
+            resp_provider = PROVIDER_OPENAI_WEBRTC
+        else:
+            connect_url = openai_session.ws_url
+            resp_provider = PROVIDER_OPENAI
         return StartResponse(
             session_id=session_id,
             text_prompt=text_prompt,
             voice_id=persona_voice_id,
-            ws_url=openai_session.ws_url,
-            provider=PROVIDER_OPENAI,
+            ws_url=connect_url,
+            provider=resp_provider,
             ephemeral_token=openai_session.ephemeral_token,
             free_seconds_remaining=free_seconds_remaining,
             free_limit_kind=free_limit_kind,

@@ -1,5 +1,5 @@
-from app.routers.conversation.build_persona_section import build_persona_section
 from app.routers.conversation.persona_prompt_fields import PersonaPromptFields
+from app.routers.conversation.prompt_sections.build_persona_section import build_persona_section
 
 PERSONA = PersonaPromptFields(
     name="Aiden",

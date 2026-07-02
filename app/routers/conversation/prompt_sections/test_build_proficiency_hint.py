@@ -1,4 +1,4 @@
-from app.routers.conversation.build_proficiency_hint import build_proficiency_hint
+from app.routers.conversation.prompt_sections.build_proficiency_hint import build_proficiency_hint
 
 
 def test_each_level_carries_its_own_cefr_range() -> None:
